@@ -3,17 +3,19 @@
 | Campo | Valor |
 | --- | --- |
 | Grupo | 1 |
-| Integrantes | PENDIENTE |
-| URL repositorio | PENDIENTE |
+| Integrantes | Juan Pablo Cáceres; Magdalena Fernández; Mauricio Lenz |
+| URL repositorio | https://github.com/magdalenafr-uandes/P02-MCOC |
 | SHA inicial | 7b49d7ee2a774985c8a75c5cb94ce1b43fabac67 |
 
 ## Notas
 
-- **Integrantes**: pendiente de que el equipo declare sus nombres y usuarios de
-  GitHub. No se inventan datos.
-- **URL repositorio**: pendiente de crear el repositorio en GitHub y definir
-  propietario, nombre y visibilidad. Este entorno no tiene acceso a GitHub
-  (sin `gh` CLI ni remoto configurado).
+- **Integrantes**: Juan Pablo Cáceres, Magdalena Fernández y Mauricio Lenz.
+  Pendiente confirmar los **usuarios de GitHub** de cada integrante para
+  invitarlos como colaboradores con permiso de escritura.
+- **URL repositorio**: https://github.com/magdalenafr-uandes/P02-MCOC.
+  Repositorio vacío creado por la propietaria (magdalenafr-uandes). Los
+  integrantes deben ser agregados como colaboradores: compartir el enlace no
+  concede permiso de escritura.
 - **SHA inicial**: `7b49d7ee2a774985c8a75c5cb94ce1b43fabac67` identifica el commit
   de preparación de E00 ("E00: base del proyecto — paquete mcplan, CLI info,
   sitio oficial y pruebas"). Un commit no puede contener su propio SHA: este
