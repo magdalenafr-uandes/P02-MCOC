@@ -1,0 +1,28 @@
+# Configuración oficial del sitio — Grupo 1 (E00).
+# ÚNICA fuente de configuración del sitio: todos los módulos futuros
+# (meteorología, simulación, etc.) deben leer estas coordenadas,
+# salvo autorización explícita del profesor.
+#
+# Datos asignados por el curso. Las coordenadas son el punto meteorológico
+# oficial del caso docente; NO corresponden a la ubicación exacta de una
+# fundación real de aerogenerador.
+
+proyecto: "Planificación de vertidas de hormigón masivo"
+grupo: "G1"
+etapa_actual: "E00"
+parque_eolico: "Parque Eólico Wayra"
+localidad: "Taltal / Zona de Reserva Eólica"
+region: "Antofagasta"
+pais: "Chile"
+latitud: -24.952830
+longitud: -70.004838
+zona_horaria: "America/Santiago"
+estado_contexto: "proyectado / evaluado (según material docente; sin verificar)"
+fuente_documental: "https://infofirma.sea.gob.cl/DocumentosSEA/MostrarDocumento?docId=b6/3a/d2cc556e10c4845faba1868e1e97666a88fe"
+
+# Hipótesis iniciales del caso norte desértico (por contrastar con datos
+# reales, simulaciones y análisis de sensibilidad; NO son resultados demostrados):
+#   - Fuerte radiación.
+#   - Ambiente seco.
+#   - Amplitud térmica significativa.
+#   - Posible importancia de la hora de vertida y la temperatura de colocación.
