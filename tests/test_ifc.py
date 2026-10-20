@@ -36,6 +36,10 @@ def test_generar_y_leer_tres_vertidas(tmp_path):
     assert any("DEGREE_CELSIUS" in u for u in resumen.unidades)
     assert any("METRE" in u for u in resumen.unidades)
 
+    # El generador conserva el valor original de ejemplo.
+    vertida_01 = next(v for v in resumen.vertidas if v.nombre == "Vertida_01")
+    assert vertida_01.propiedades["TemperaturaColocacion_C"] == 18.0
+
 
 def test_modelo_ifc_versionado_existe_y_se_lee():
     assert IFC_VERSIONADO.is_file(), (
@@ -45,6 +49,17 @@ def test_modelo_ifc_versionado_existe_y_se_lee():
     resumen = leer_modelo(IFC_VERSIONADO)
     assert len(resumen.vertidas) == 3
     assert all(v.tiene_geometria for v in resumen.vertidas)
+
+
+def test_ifc_versionado_fue_editado_en_bonsai():
+    """El IFC versionado difiere del generador: se editó manualmente en Bonsai.
+
+    El generador (`build_model.py`) mantiene 18 °C para Vertida_01; el archivo
+    versionado en `geometry/` fue abierto y editado en Bonsai y guarda 19 °C.
+    """
+    resumen = leer_modelo(IFC_VERSIONADO)
+    vertida_01 = next(v for v in resumen.vertidas if v.nombre == "Vertida_01")
+    assert vertida_01.propiedades["TemperaturaColocacion_C"] == 19.0
 
 
 def test_ifc_contiene_estructura_espacial():

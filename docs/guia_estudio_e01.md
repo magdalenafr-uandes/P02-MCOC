@@ -14,8 +14,10 @@ reproducible con los comandos del `README.md`.
 4. Este repositorio reproducible y la explicación oral.
 
 La geometría del IFC es **didáctica**, no oficial. El ciclo de edición en la
-interfaz de **Bonsai no fue ejecutado** (no está instalado en el entorno de
-desarrollo); se documenta como paso pendiente.
+interfaz de **Bonsai sí se ejecutó**: se abrió el IFC en Blender 5.2.2 con
+Bonsai, se cambió `TemperaturaColocacion_C` de `Vertida_01` de 18 °C a 19 °C,
+se guardó con **Save IFC Project** y se verificó desde Python con
+`scripts/inspect_ifc.py`. Ver la sección 8 para el detalle.
 
 ## 2. Ecuación y discretización
 
@@ -169,8 +171,9 @@ La figura muestra la analítica (líneas) y la numérica (marcadores) en 0, 6, 1
 | `test_fuente_uniforme_adiabatica_aumento_lineal` | La fuente volumétrica tiene las unidades y el incremento correctos. |
 | `test_robin_enfria_superficie_mas_que_centro` | Robin produce el perfil físico esperado. |
 | `test_robin_rechaza_paso_que_viola_su_limite` | Se aplica la restricción más estricta de Robin. |
-| `test_generar_y_leer_tres_vertidas` | El IFC se genera con 3 vertidas, GUIDs, geometría, unidades y psets. |
+| `test_generar_y_leer_tres_vertidas` | El IFC se genera con 3 vertidas, GUIDs, geometría, unidades y psets; el generador conserva `Vertida_01` = 18 °C. |
 | `test_modelo_ifc_versionado_existe_y_se_lee` | El IFC versionado es legible y consistente. |
+| `test_ifc_versionado_fue_editado_en_bonsai` | El IFC versionado tiene `Vertida_01` = 19 °C, evidencia de la edición en Bonsai. |
 | `test_ifc_contiene_estructura_espacial` | Existe la jerarquía Project/Site/Building/Storey y 3 losas. |
 
 ## 7. Modelo BIM/IFC
@@ -215,25 +218,40 @@ La figura muestra la analítica (líneas) y la numérica (marcadores) en 0, 6, 1
 Debe listar tres vertidas, sus GUIDs, fechas, temperaturas de colocación y el
 detalle de las siete propiedades.
 
-## 8. Procedimiento manual pendiente en Bonsai
+## 8. Ciclo de edición en Bonsai (realizado)
 
-> **No ejecutado en este entorno.** No afirmar que se verificó en Bonsai hasta
-> completar estos pasos y guardar evidencia.
+> **Ejecutado por el integrante.** Se completó el ciclo de G02 en la interfaz
+> gráfica y se verificó el resultado desde Python. No hay que declararlo como
+> pendiente.
 
-1. Instalar Blender 4.2+ (preferir LTS) y la extensión **Bonsai** desde el
-   gestor de extensiones de Blender.
-2. Abrir Blender y habilitar Bonsai.
-3. Cargar `geometry/fundacion_e01_ejemplo.ifc`.
-4. Verificar el árbol del modelo: Project → Site → Building → Storey →
+Procedimiento realizado:
+
+1. Se instaló/usó **Blender 5.2.2** con la extensión **Bonsai**.
+2. Se abrió `geometry/fundacion_e01_ejemplo.ifc`.
+3. Se verificó el árbol del modelo: Project → Site → Building → Storey →
    `Vertida_01`, `Vertida_02`, `Vertida_03`.
-5. Seleccionar cada losa y revisar:
-   - `Name`, `GlobalId` y clase IFC;
-   - `Pset_HormigonMasivo` y sus siete propiedades.
-6. Editar una propiedad (por ejemplo `TemperaturaColocacion_C`), exportar a un
-   IFC nuevo (no sobrescribir el versionado) y volver a inspeccionar con
-   `scripts/inspect_ifc.py`.
-7. Guardar evidencia: captura de pantalla y, si aplica, el IFC reexportado.
-8. Actualizar esta sección y el `README.md` indicando que el ciclo se ejecutó.
+4. Se revisaron `Name`, `GlobalId`, clase IFC y `Pset_HormigonMasivo`.
+5. Se editó `TemperaturaColocacion_C` de `Vertida_01`: de **18 °C a 19 °C**.
+6. Se guardó con **Save IFC Project** sobre el mismo archivo.
+7. Se verificó desde Python que el cambio persiste:
+
+   ```powershell
+   .\.venv\Scripts\python.exe scripts\inspect_ifc.py
+   ```
+
+   Salida: `Vertida_01` con `TemperaturaColocacion_C: 19`.
+8. El encabezado del IFC versionado quedó con autoría `Bonsai 0.9.0-post1`.
+
+Diferencia clave que hay que saber explicar:
+
+- **Generador (`build_model.py`)**: valores originales de ejemplo,
+  `Vertida_01` = 18 °C. No se modificó.
+- **IFC versionado (`geometry/…ifc`)**: versión editada en Bonsai,
+  `Vertida_01` = 19 °C.
+- Por eso **no hay que regenerar** con `scripts/make_ifc.py` sobre el archivo
+  versionado: eso borraría la edición de Bonsai.
+- El test `test_ifc_versionado_fue_editado_en_bonsai` deja fijada esa
+  diferencia.
 
 ## 9. Preguntas probables de la revisión oral
 
@@ -272,19 +290,23 @@ No. Es un ejemplo didáctico de tres losas de 4 × 3 × 1 m. La geometría ofici
 debe ser validada por el profesor.
 
 **¿Se editó en Bonsai?**
-No en este entorno. Se generó y verificó con IfcOpenShell; el procedimiento
-manual está documentado y queda pendiente con evidencia.
+Sí. Se abrió el IFC en Blender 5.2.2 con Bonsai, se cambió
+`TemperaturaColocacion_C` de `Vertida_01` de 18 °C a 19 °C, se guardó con
+**Save IFC Project** y se verificó el cambio desde Python con
+`scripts/inspect_ifc.py`. El generador en Python conserva el valor original de
+18 °C; el IFC versionado es la versión editada (19 °C).
 
-**¿Cómo se ejecuta sin Blender?**
+**¿Cómo se ejecuta el solver sin Blender?**
 El paquete `mcplan` y los scripts usan solo Python, NumPy, Matplotlib e
-IfcOpenShell. No importan `bpy`.
+IfcOpenShell. No importan `bpy`. La edición BIM en Bonsai es un paso aparte que
+ya se realizó manualmente.
 
 ## 10. Checklist antes de entregar
 
-- [ ] `python -m pytest -q` → 12 tests aprobados.
-- [ ] `geometry/fundacion_e01_ejemplo.ifc` presente y legible.
+- [ ] `python -m pytest -q` → 13 tests aprobados.
+- [ ] `geometry/fundacion_e01_ejemplo.ifc` presente y legible (versión Bonsai, `Vertida_01` = 19 °C).
 - [ ] `results/figures/verificacion_1d.png` presente.
 - [ ] `inspect_ifc.py` muestra 3 vertidas, GUIDs y las 7 propiedades.
-- [ ] README y esta guía sin afirmaciones no verificadas sobre Bonsai.
+- [ ] README y esta guía reflejan el ciclo en Bonsai como realizado.
 - [ ] URL del repositorio y SHA del commit anotados para Canvas.
 - [ ] Ensayo oral: ecuación, estabilidad, Robin, fuente, verificación e IFC.
