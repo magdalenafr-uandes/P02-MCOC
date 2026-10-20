@@ -1,0 +1,18 @@
+# Entorno virtual y cachés de Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+build/
+dist/
+
+# Herramientas y sistema
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Respaldos de Blender
+*.blend1
+*.blend2
