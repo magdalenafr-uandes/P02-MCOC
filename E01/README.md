@@ -85,10 +85,11 @@ esa misma carpeta (Opción B). Si usas la Opción A, reemplaza
 ## Uso
 
 ```powershell
-# 1) Generar el IFC de ejemplo
+# 1) Generar un IFC de ejemplo nuevo (NO toca el archivo versionado)
 .\.venv\Scripts\python.exe scripts\make_ifc.py
+#    → geometry\fundacion_e01_generada.ifc  (descartable; no está versionado)
 
-# 2) Inspeccionar el IFC (nombres, clases, GUIDs, propiedades, unidades)
+# 2) Inspeccionar el IFC versionado (nombres, clases, GUIDs, propiedades, unidades)
 .\.venv\Scripts\python.exe scripts\inspect_ifc.py
 
 # 3) Generar la figura de verificación 1D
@@ -98,9 +99,16 @@ esa misma carpeta (Opción B). Si usas la Opción A, reemplaza
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
+> **Advertencia:** `make_ifc.py` escribe por defecto en
+> `geometry/fundacion_e01_generada.ifc`. El archivo versionado
+> `geometry/fundacion_e01_ejemplo.ifc` es la edición de Bonsai (19 °C) y el
+> script **se niega a sobrescribirlo** salvo que se pase `--forzar` explícito.
+
 Salidas esperadas:
 
-- `geometry/fundacion_e01_ejemplo.ifc` (IFC4).
+- `geometry/fundacion_e01_generada.ifc` (solo si se ejecuta `make_ifc.py`; es
+  una copia descartable con los valores del generador, p. ej. `Vertida_01` =
+  18 °C).
 - `results/figures/verificacion_1d.png`.
 - 13 tests aprobados.
 
@@ -185,8 +193,10 @@ en Bonsai** (`Vertida_01` = 19 °C), no a la salida directa del generador.
   Blender.
 - El ciclo de **edición** del IFC sí se realizó en Blender con Bonsai; ver
   [Ciclo BIM en Bonsai](#ciclo-bim-en-bonsai).
-- `scripts/make_ifc.py` regenera el IFC de ejemplo con los valores originales
-  del generador, por lo que **sobrescribiría la edición de Bonsai**.
+- `scripts/make_ifc.py` regenera un IFC de ejemplo con los valores originales
+  del generador, pero escribe en `geometry/fundacion_e01_generada.ifc` y **no
+  puede sobrescribir el IFC versionado** sin `--forzar`, de modo que la edición
+  de Bonsai no se pierde por accidente.
 - Los tests verifican tanto la generación desde cero como el IFC versionado
   editado en Bonsai.
 
@@ -217,9 +227,11 @@ etapas, y conviene no confundirlas:
    con autoría `Bonsai 0.9.0-post1` en su encabezado.
 
 El IFC versionado en `geometry/` es la versión **editada en Bonsai** (19 °C).
-El generador conserva el valor original (18 °C), de modo que regenerar con
-`scripts/make_ifc.py` produce 18 °C y **sobrescribiría** la edición. Por eso el
-test `test_ifc_versionado_fue_editado_en_bonsai` fija esa diferencia.
+El generador conserva el valor original (18 °C); `scripts/make_ifc.py` por eso
+tiene como salida por defecto un archivo distinto
+(`geometry/fundacion_e01_generada.ifc`) y se **niega a sobrescribir** el
+versionado sin `--forzar`. El test `test_ifc_versionado_fue_editado_en_bonsai`
+fija esa diferencia.
 
 Verificación del cambio desde Python:
 

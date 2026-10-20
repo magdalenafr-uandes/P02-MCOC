@@ -44,7 +44,8 @@ def test_generar_y_leer_tres_vertidas(tmp_path):
 def test_modelo_ifc_versionado_existe_y_se_lee():
     assert IFC_VERSIONADO.is_file(), (
         f"Falta el IFC versionado: {IFC_VERSIONADO}. "
-        "Ejecute: python scripts/make_ifc.py"
+        "Debe versionarse con el repositorio; make_ifc.py genera un archivo "
+        "distinto (fundacion_e01_generada.ifc) para no pisar la edición de Bonsai."
     )
     resumen = leer_modelo(IFC_VERSIONADO)
     assert len(resumen.vertidas) == 3

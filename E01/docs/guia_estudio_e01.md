@@ -278,7 +278,9 @@ Diferencia clave que hay que saber explicar:
 - **IFC versionado (`geometry/…ifc`)**: versión editada en Bonsai,
   `Vertida_01` = 19 °C.
 - Por eso **no hay que regenerar** con `scripts/make_ifc.py` sobre el archivo
-  versionado: eso borraría la edición de Bonsai.
+  versionado: eso borraría la edición de Bonsai. El script ahora protege ese
+  archivo: escribe por defecto en `geometry/fundacion_e01_generada.ifc` y se
+  niega a sobrescribir el versionado salvo `--forzar`.
 - El test `test_ifc_versionado_fue_editado_en_bonsai` deja fijada esa
   diferencia.
 

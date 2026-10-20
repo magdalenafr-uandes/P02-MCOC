@@ -16,3 +16,7 @@ Thumbs.db
 # Respaldos de Blender
 *.blend1
 *.blend2
+
+# Salida por defecto de scripts/make_ifc.py (no versionar: el IFC canónico
+# es geometry/fundacion_e01_ejemplo.ifc, editado en Bonsai)
+geometry/fundacion_e01_generada.ifc
