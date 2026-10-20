@@ -23,7 +23,7 @@ hormigón masivo, solver térmico 1D explícito y su verificación analítica.
 ## Contenido
 
 ```
-p2/
+E01/
 ├─ src/mcplan/
 │  ├─ thermal/
 │  │  ├─ boundaries.py    # PropiedadesTermicas y CondicionBorde
@@ -161,8 +161,17 @@ es la referencia canónica de esta entrega.
 - Todo el flujo numérico y BIM corre en Python, sin abrir Blender.
 - El IFC se puede regenerar con `scripts/make_ifc.py`.
 - Los tests verifican el IFC versionado y la generación desde cero.
-- **Pendiente declarado**: abrir/editar el IFC en Bonsai y adjuntar evidencia
-  (captura o IFC reexportado). Ver la guía de estudio.
+
+### Estado del avance
+
+- **Hecho**: solver térmico 1D, modelo IFC de ejemplo generado y leído con
+  IfcOpenShell, figura de verificación y tests reproducibles.
+- **Pendiente declarado**: **abrir y editar el IFC en Bonsai** (interfaz
+  gráfica de Blender) y **verificar el cambio desde Python** con
+  `scripts/inspect_ifc.py` (o `mcplan.bim.leer_modelo`). El ciclo en Bonsai
+  **no se ejecutó** en este entorno porque Blender/Bonsai no está instalado.
+- El procedimiento manual y el checklist están en la guía de estudio
+  [`docs/guia_estudio_e01.md`](docs/guia_estudio_e01.md).
 
 ## Atribución
 
