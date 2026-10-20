@@ -180,8 +180,17 @@ La figura muestra la analítica (líneas) y la numérica (marcadores) en 0, 6, 1
 
 ### Conceptos
 
-- **IFC** es un esquema abierto para intercambiar información de construcción.
-  Un archivo `.ifc` es texto (STEP/SPF) con entidades instanciadas.
+- **BIM** (*Building Information Modeling*): metodología de trabajo que
+  concentra en un modelo digital la geometría **y** la información no geométrica
+  (materiales, fechas, propiedades térmicas, etc.) de las piezas de una obra.
+  BIM es el **proceso**; el modelo digital es su producto. En este proyecto el
+  flujo es `BIM → IFC → geometría y propiedades → solver`, de modo que el IFC
+  es el vehículo de intercambio que nuestro código consume.
+- **IFC** (*Industry Foundation Classes*): **formato/esquema abierto** con el
+  que BIM se intercambia entre herramientas. Un archivo `.ifc` es texto plano
+  (sintaxis STEP/SPF) con entidades instanciadas (`#12=IFCSLAB(...)`) y un
+  esquema declarado (`IFC4`). BIM sin IFC sería un modelo encerrado en una
+  sola aplicación.
 - **GUID** (`GlobalId`): identificador estable del objeto dentro del modelo.
 - **IfcSlab**: losa; se usa como clase para cada vertida.
 - **Property set**: agrupación de propiedades. Aquí `Pset_HormigonMasivo`.
@@ -189,6 +198,26 @@ La figura muestra la analítica (líneas) y la numérica (marcadores) en 0, 6, 1
   `DEGREE_CELSIUS` para temperatura.
 - **Estructura espacial**: `IfcProject` → `IfcSite` → `IfcBuilding` →
   `IfcBuildingStorey`; las losas se contienen en el nivel.
+
+### Blender y Bonsai: qué rol cumple cada uno
+
+- **Blender** es el **modelador geométrico 3D genérico** (escenas, mallas,
+  render). Por sí solo no "habla IFC": es un entorno de modelado, no un
+  entorno BIM.
+- **Bonsai** es la **extensión de Blender que lo convierte en una herramienta
+  BIM nativa IFC**: permite crear, abrir, editar y guardar archivos `.ifc`
+  con su estructura espacial, property sets y GUIDs intactos. Bonsai no
+  importa/exporta IFC (no hay pérdida por traducción): trabaja directamente
+  sobre el modelo IFC. "Save IFC Project" reescribe el archivo IFC desde el
+  estado del modelo.
+- Papel de cada uno **en este proyecto**: Blender + Bonsai se usaron para
+  **abrir y editar manualmente** el IFC de ejemplo (completar el ciclo BIM,
+  ver §8). El **solver no pasa por Blender**: lee el `.ifc` directamente con
+  IfcOpenShell en Python. Ese es exactamente el punto: el IFC es el contrato
+  entre la herramienta de modelado (Blender/Bonsai) y el código de cálculo.
+- **IfcOpenShell**, por el contrario, es una **biblioteca** (no interfaz) para
+  leer/escribir IFC desde Python; `build_model.py` la usa para generar el
+  modelo y `ifc_io.py` para leerlo.
 
 ### Qué hace `build_model.py`
 
@@ -255,6 +284,47 @@ Diferencia clave que hay que saber explicar:
 
 ## 9. Preguntas probables de la revisión oral
 
+**¿Qué es BIM y qué es IFC?**
+BIM es la **metodología** de concentrar geometría e información en un modelo
+digital vivo de la obra; IFC es el **formato abierto** (esquema + archivo de
+texto) con que ese modelo se intercambia entre herramientas. Ver §7.
+
+**¿Qué rol cumple Blender y qué agrega Bonsai?**
+Blender es el modelador 3D genérico; Bonsai es la extensión que lo vuelve
+herramienta BIM con IFC nativo (abrir/editar/guardar `.ifc` sin pérdida,
+con psets, GUIDs y estructura espacial). Ver §7.
+
+**¿Por qué el solver no depende de Blender?**
+Porque el contrato de datos es el archivo `.ifc`, no el estado interno de la
+aplicación que lo produjo. El solver lee el IFC (o sus propiedades) con
+IfcOpenShell en Python puro; `import bpy` no aparece en ninguna parte del
+paquete. Así, el mismo solver sirve con cualquier origen del IFC.
+
+**¿Qué significan k, rho, cp y alfa?**
+- `k` [W/(m·K)]: conductividad térmica; cuánta energía por unidad de tiempo
+  y área pasa por gradiente de temperatura unitario. El hormigón de la
+  verificación usa `k = 2.22`.
+- `rho` [kg/m³]: densidad; cuánta masa hay por volumen (`2400` para hormigón).
+- `cp` [J/(kg·K)]: calor específico; cuánta energía por unidad de masa eleva
+  la temperatura en 1 K (`970`).
+- `alfa = k/(rho·cp)` [m²/s]: difusividad térmica; **rapidez con la que la
+  temperatura se nivela**. Combina conducción (`k`) contra capacidad de
+  almacenamiento (`rho·cp`). En la verificación, `alfa ≈ 9.54e-7 m²/s`.
+
+**¿Cuál es el balance de energía de la ecuación?**
+En un volumen de control 1D: entrada neta por conducción (`k·∂²T/∂x²`) más
+generación interna (`Qdot`) iguala el almacenamiento (`rho·cp·∂T/∂t`). La
+ecuación resuelta es exactamente ese balance punto a punto. Integrada sobre
+toda la barra con ambos bordes adiabáticos, la energía total solo cambia por
+la fuente; ese es el invariant del test de conservación.
+
+**¿Qué es la condición inicial?**
+La distribución de temperatura `T(x, 0)` que se necesita para arrancar un
+problema **evolutivo** (parabólico): sin ella la solución no está definida.
+Las condiciones de borde (Dirichlet/Neumann/Robin) acotan el espacio; la
+condición inicial da el estado de partida en el tiempo. En la verificación
+usamos `T(x,0) = T0 + A·sin(pi·x/L)`; en el solver, el arreglo `T_inicial`.
+
 **¿Por qué explícito y no implícito?**
 Porque es simple, transparente y suficiente para 1D; permite verificar la
 física paso a paso. El costo es la restricción de estabilidad, que validamos
@@ -303,10 +373,11 @@ ya se realizó manualmente.
 
 ## 10. Checklist antes de entregar
 
-- [ ] `python -m pytest -q` → 13 tests aprobados.
+- [ ] Entorno de E01 instalado con `pip install -e "E01[dev]"` (o `".[dev]"` desde `E01/`).
+- [ ] `python -m pytest -q` (en `E01/`) → 13 tests aprobados.
 - [ ] `geometry/fundacion_e01_ejemplo.ifc` presente y legible (versión Bonsai, `Vertida_01` = 19 °C).
 - [ ] `results/figures/verificacion_1d.png` presente.
 - [ ] `inspect_ifc.py` muestra 3 vertidas, GUIDs y las 7 propiedades.
-- [ ] README y esta guía reflejan el ciclo en Bonsai como realizado.
+- [ ] README (raíz y E01) y esta guía reflejan el ciclo en Bonsai como realizado.
 - [ ] URL del repositorio y SHA del commit anotados para Canvas.
 - [ ] Ensayo oral: ecuación, estabilidad, Robin, fuente, verificación e IFC.

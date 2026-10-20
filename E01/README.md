@@ -56,12 +56,31 @@ E01/
 
 ## Instalación
 
-En PowerShell, desde la raíz del repositorio:
+En PowerShell. `E01/` tiene su **propio** `pyproject.toml` (es el paquete
+`mcplan` de esta entrega, con NumPy, Matplotlib e IfcOpenShell); no es el mismo
+paquete que el de la raíz del repositorio, así que **no instales los dos en el
+mismo entorno virtual**.
+
+Opción A — desde la **raíz del repositorio clonado**:
+
+```powershell
+py -3.12 -m venv .venv-e01
+.\.venv-e01\Scripts\python.exe -m pip install --upgrade pip
+.\.venv-e01\Scripts\python.exe -m pip install -e "E01[dev]"
+```
+
+Opción B — desde **dentro de esta subcarpeta** (`P02-MCOC\E01`):
 
 ```powershell
 py -3.12 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install --upgrade pip
 .\.venv\Scripts\python.exe -m pip install -e ".[dev]"
 ```
+
+Los comandos de la sección **Uso** asumen que el directorio de trabajo actual
+es `P02-MCOC\E01` y que el entorno virtual creado está en `.venv` dentro de
+esa misma carpeta (Opción B). Si usas la Opción A, reemplaza
+`.\.venv\Scripts\python.exe` por `..\.venv-e01\Scripts\python.exe`.
 
 ## Uso
 

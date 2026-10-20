@@ -1,5 +1,6 @@
 # Entornos virtuales de Python
 .venv/
+.venv-*/
 venv/
 __pycache__/
 *.py[cod]
@@ -23,6 +24,15 @@ results/
 *.pvtu
 *.vti
 *.h5
+
+# Excepción: la figura de verificación 1D de E01 sí se versiona
+# (git no permite re-incluir un archivo si su directorio está excluido,
+#  por eso se re-incluyen también las carpetas padre)
+!E01/results/
+E01/results/*
+!E01/results/figures/
+E01/results/figures/*
+!E01/results/figures/*.png
 
 # Editores y sistema
 .vscode/
