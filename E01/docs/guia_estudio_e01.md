@@ -45,8 +45,9 @@ r = alpha·dt/dx²
 - El avance temporal es de Euler explícito: error temporal `O(dt)`.
 - Si se refina con `dt ∝ dx²`, el error temporal también escala como `dx²`; por
   eso la convergencia total observada es de segundo orden. Medimos **1.985**.
-- La fuente se suma **una vez por paso** como `dt·Qdot/(rho·cp)` en todos los
-  nodos, incluidos los de borde.
+- La fuente se suma **una vez por paso** como `dt·Qdot/(rho·cp)` en los nodos
+  interiores y en los bordes Neumann/Robin. En Dirichlet se mantiene la
+  temperatura impuesta, sin sumar la fuente al nodo de borde.
 
 ### Corrección respecto del script docente `05_calor_interno.py`
 
@@ -171,6 +172,9 @@ La figura muestra la analítica (líneas) y la numérica (marcadores) en 0, 6, 1
 | `test_fuente_uniforme_adiabatica_aumento_lineal` | La fuente volumétrica tiene las unidades y el incremento correctos. |
 | `test_robin_enfria_superficie_mas_que_centro` | Robin produce el perfil físico esperado. |
 | `test_robin_rechaza_paso_que_viola_su_limite` | Se aplica la restricción más estricta de Robin. |
+| `test_rechaza_propiedades_y_bordes_no_finitos` | Se rechazan NaN e infinitos en propiedades, bordes y espaciamiento. |
+| `test_rechaza_inicial_incompatible_con_dirichlet_antes_de_avanzar` | Ambos extremos se validan antes de avanzar, incluso si se piden cero pasos. |
+| `test_dirichlet_con_fuente_mantiene_extremos_e_incrementa_interior` | La fuente calienta el interior sin modificar la temperatura impuesta en los extremos. |
 | `test_generar_y_leer_tres_vertidas` | El IFC se genera con 3 vertidas, GUIDs, geometría, unidades y psets; el generador conserva `Vertida_01` = 18 °C. |
 | `test_modelo_ifc_versionado_existe_y_se_lee` | El IFC versionado es legible y consistente. |
 | `test_ifc_versionado_fue_editado_en_bonsai` | El IFC versionado tiene `Vertida_01` = 19 °C, evidencia de la edición en Bonsai. |
@@ -189,8 +193,8 @@ La figura muestra la analítica (líneas) y la numérica (marcadores) en 0, 6, 1
 - **IFC** (*Industry Foundation Classes*): **formato/esquema abierto** con el
   que BIM se intercambia entre herramientas. Un archivo `.ifc` es texto plano
   (sintaxis STEP/SPF) con entidades instanciadas (`#12=IFCSLAB(...)`) y un
-  esquema declarado (`IFC4`). BIM sin IFC sería un modelo encerrado en una
-  sola aplicación.
+  esquema declarado (`IFC4`). IFC facilita el intercambio abierto entre
+  herramientas; BIM también puede desarrollarse con otros formatos.
 - **GUID** (`GlobalId`): identificador estable del objeto dentro del modelo.
 - **IfcSlab**: losa; se usa como clase para cada vertida.
 - **Property set**: agrupación de propiedades. Aquí `Pset_HormigonMasivo`.
@@ -206,15 +210,15 @@ La figura muestra la analítica (líneas) y la numérica (marcadores) en 0, 6, 1
   entorno BIM.
 - **Bonsai** es la **extensión de Blender que lo convierte en una herramienta
   BIM nativa IFC**: permite crear, abrir, editar y guardar archivos `.ifc`
-  con su estructura espacial, property sets y GUIDs intactos. Bonsai no
-  importa/exporta IFC (no hay pérdida por traducción): trabaja directamente
-  sobre el modelo IFC. "Save IFC Project" reescribe el archivo IFC desde el
-  estado del modelo.
+  con su estructura espacial, property sets y GUIDs. Bonsai trabaja directamente
+  sobre el modelo IFC, lo que evita una traducción intermedia a un formato
+  propietario; aun así, hay que verificar el resultado de cada edición.
+  "Save IFC Project" reescribe el archivo IFC desde el estado del modelo.
 - Papel de cada uno **en este proyecto**: Blender + Bonsai se usaron para
   **abrir y editar manualmente** el IFC de ejemplo (completar el ciclo BIM,
-  ver §8). El **solver no pasa por Blender**: lee el `.ifc` directamente con
-  IfcOpenShell en Python. Ese es exactamente el punto: el IFC es el contrato
-  entre la herramienta de modelado (Blender/Bonsai) y el código de cálculo.
+  ver §8). El **solver no depende de Blender**: recibe arreglos de temperatura y
+  parámetros térmicos en Python. En E01, `ifc_io.py` lee el IFC por separado
+  mediante IfcOpenShell; la conexión automática IFC–solver es trabajo futuro.
 - **IfcOpenShell**, por el contrario, es una **biblioteca** (no interfaz) para
   leer/escribir IFC desde Python; `build_model.py` la usa para generar el
   modelo y `ifc_io.py` para leerlo.
@@ -293,14 +297,14 @@ texto) con que ese modelo se intercambia entre herramientas. Ver §7.
 
 **¿Qué rol cumple Blender y qué agrega Bonsai?**
 Blender es el modelador 3D genérico; Bonsai es la extensión que lo vuelve
-herramienta BIM con IFC nativo (abrir/editar/guardar `.ifc` sin pérdida,
-con psets, GUIDs y estructura espacial). Ver §7.
+herramienta BIM con IFC nativo (abrir, editar y guardar `.ifc`,
+con psets, GUIDs y estructura espacial, verificando el resultado). Ver §7.
 
 **¿Por qué el solver no depende de Blender?**
-Porque el contrato de datos es el archivo `.ifc`, no el estado interno de la
-aplicación que lo produjo. El solver lee el IFC (o sus propiedades) con
-IfcOpenShell en Python puro; `import bpy` no aparece en ninguna parte del
-paquete. Así, el mismo solver sirve con cualquier origen del IFC.
+Porque el solver recibe temperaturas y parámetros numéricos y se ejecuta
+con Python y NumPy; no utiliza el estado de Blender ni importa `bpy`.
+En E01, la lectura del IFC con IfcOpenShell es un módulo separado: todavía
+no alimenta automáticamente al solver. El flujo IFC–solver es la meta futura.
 
 **¿Qué significan k, rho, cp y alfa?**
 - `k` [W/(m·K)]: conductividad térmica; cuánta energía por unidad de tiempo
@@ -325,7 +329,8 @@ La distribución de temperatura `T(x, 0)` que se necesita para arrancar un
 problema **evolutivo** (parabólico): sin ella la solución no está definida.
 Las condiciones de borde (Dirichlet/Neumann/Robin) acotan el espacio; la
 condición inicial da el estado de partida en el tiempo. En la verificación
-usamos `T(x,0) = T0 + A·sin(pi·x/L)`; en el solver, el arreglo `T_inicial`.
+usamos `T(x,0) = T0 + A·sin(pi·x/L)`; en el solver, el arreglo `T_inicial`. Si un extremo contradice su
+temperatura Dirichlet, el solver rechaza la entrada antes de calcular.
 
 **¿Por qué explícito y no implícito?**
 Porque es simple, transparente y suficiente para 1D; permite verificar la
@@ -376,7 +381,7 @@ ya se realizó manualmente.
 ## 10. Checklist antes de entregar
 
 - [ ] Entorno de E01 instalado con `pip install -e "E01[dev]"` (o `".[dev]"` desde `E01/`).
-- [ ] `python -m pytest -q` (en `E01/`) → 13 tests aprobados.
+- [ ] `python -m pytest -q` (en `E01/`) → 16 tests aprobados.
 - [ ] `geometry/fundacion_e01_ejemplo.ifc` presente y legible (versión Bonsai, `Vertida_01` = 19 °C).
 - [ ] `results/figures/verificacion_1d.png` presente.
 - [ ] `inspect_ifc.py` muestra 3 vertidas, GUIDs y las 7 propiedades.

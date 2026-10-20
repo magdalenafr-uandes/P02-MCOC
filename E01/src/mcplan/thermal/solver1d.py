@@ -44,7 +44,7 @@ def limite_estabilidad(
     borde_der: CondicionBorde,
 ) -> float:
     """Paso temporal máximo admisible para el esquema explícito [s]."""
-    if dx <= 0.0:
+    if not np.isfinite(dx) or dx <= 0.0:
         raise ValueError("dx debe ser positivo.")
     limite = dx**2 / (2.0 * propiedades.alpha)
     for borde in (borde_izq, borde_der):
@@ -123,6 +123,8 @@ def resolver_1d(
     ----------
     T_inicial : ndarray, forma (n,)
         Temperatura inicial [°C] en los nodos equiespaciados.
+        Los extremos Dirichlet deben coincidir con la temperatura impuesta
+        (tolerancia absoluta de 1e-10 °C); si no, se rechaza la entrada.
     propiedades : PropiedadesTermicas
         k [W/(m·K)], rho [kg/m³], cp [J/(kg·K)].
     dx : float
@@ -156,6 +158,12 @@ def resolver_1d(
         raise ValueError("n_pasos no puede ser negativo.")
     if not np.isfinite(fuente):
         raise ValueError("La fuente Qdot debe ser finita.")
+
+    for indice, borde in ((0, borde_izq), (-1, borde_der)):
+        if borde.tipo == "dirichlet":
+            if not np.isclose(T[indice], borde.valor, rtol=0.0, atol=1e-10):
+                raise ValueError("T_inicial es incompatible con el borde Dirichlet.")
+            T[indice] = borde.valor
 
     dt_max = limite_estabilidad(propiedades, dx, borde_izq, borde_der)
     if dt > dt_max * (1.0 + 1e-12):

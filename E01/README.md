@@ -110,7 +110,7 @@ Salidas esperadas:
   una copia descartable con los valores del generador, p. ej. `Vertida_01` =
   18 °C).
 - `results/figures/verificacion_1d.png`.
-- 13 tests aprobados.
+- 16 tests aprobados.
 
 ## Solver térmico 1D
 
@@ -142,7 +142,8 @@ dt <= dx²/(2·alpha)                      (difusión)
 dt <= rho·cp·dx²/(2k + 2h·dx)            (Robin, por borde)
 ```
 
-El solver valida entradas y **rechaza** un `dt` inestable con `ValueError`; no
+El solver rechaza propiedades y bordes no finitos y condiciones iniciales
+incompatibles con Dirichlet. Además, **rechaza** un `dt` inestable con `ValueError`; no
 depende de Blender ni de `bpy`.
 
 ## Verificación

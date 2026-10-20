@@ -10,6 +10,7 @@ Convenciones:
 from __future__ import annotations
 
 from dataclasses import dataclass
+from math import isfinite
 from typing import Literal
 
 TipoBorde = Literal["dirichlet", "neumann", "robin"]
@@ -24,11 +25,11 @@ class PropiedadesTermicas:
     cp: float
 
     def __post_init__(self) -> None:
-        if self.k <= 0.0:
+        if not isfinite(self.k) or self.k <= 0.0:
             raise ValueError("La conductividad k debe ser positiva [W/(m·K)].")
-        if self.rho <= 0.0:
+        if not isfinite(self.rho) or self.rho <= 0.0:
             raise ValueError("La densidad rho debe ser positiva [kg/m³].")
-        if self.cp <= 0.0:
+        if not isfinite(self.cp) or self.cp <= 0.0:
             raise ValueError("El calor específico cp debe ser positivo [J/(kg·K)].")
 
     @property
@@ -54,6 +55,8 @@ class CondicionBorde:
     def __post_init__(self) -> None:
         if self.tipo not in ("dirichlet", "neumann", "robin"):
             raise ValueError(f"Tipo de borde no soportado: {self.tipo!r}.")
+        if not isfinite(self.valor) or not isfinite(self.h):
+            raise ValueError("El valor de borde y h deben ser finitos.")
         if self.tipo == "neumann" and abs(self.valor) > 1e-15:
             raise ValueError(
                 "Solo se implementa Neumann adiabática (q'' = 0); "

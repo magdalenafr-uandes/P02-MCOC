@@ -34,7 +34,7 @@ el equipo; no se usará Kratos, ANSYS, OpenSees u otro solver como sustituto.
   Robin, fuente volumétrica y validación de estabilidad; independiente de
   Blender.
 - **Verificación analítica** (solución sinusoidal exacta), figura reproducible
-  y **13 tests** en `E01/tests/`.
+  y **16 tests** en `E01/tests/`.
 
 Todo el detalle, la instalación y los comandos de E01 están en
 [`E01/README.md`](E01/README.md), y la preparación oral en

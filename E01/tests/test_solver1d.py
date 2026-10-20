@@ -172,3 +172,42 @@ def test_robin_rechaza_paso_que_viola_su_limite():
         resolver_1d(
             np.full(nx, 70.0), PROPS, dx, dt_max * 1.05, 10, borde, borde
         )
+
+
+def test_rechaza_propiedades_y_bordes_no_finitos():
+    for valor in (np.nan, np.inf, -np.inf):
+        for campo in ("k", "rho", "cp"):
+            parametros = dict(k=2.22, rho=2400.0, cp=970.0)
+            parametros[campo] = valor
+            with pytest.raises(ValueError):
+                PropiedadesTermicas(**parametros)
+        for tipo in ("dirichlet", "neumann", "robin"):
+            with pytest.raises(ValueError, match="finitos"):
+                CondicionBorde(tipo, valor=valor)
+        with pytest.raises(ValueError, match="finitos"):
+            CondicionBorde("robin", valor=20.0, h=valor)
+        borde = CondicionBorde("neumann")
+        with pytest.raises(ValueError):
+            limite_estabilidad(PROPS, valor, borde, borde)
+
+
+def test_rechaza_inicial_incompatible_con_dirichlet_antes_de_avanzar():
+    borde = CondicionBorde("dirichlet", valor=20.0)
+    for inicial in ([100.0, 20.0, 20.0], [20.0, 20.0, 100.0]):
+        for pasos in (0, 1):
+            with pytest.raises(ValueError, match="incompatible"):
+                resolver_1d(np.array(inicial), PROPS, 0.1, 1.0, pasos, borde, borde)
+
+
+def test_dirichlet_con_fuente_mantiene_extremos_e_incrementa_interior():
+    borde = CondicionBorde("dirichlet", valor=20.0)
+    inicial = np.full(5, 20.0)
+    fuente = 1000.0
+    resultado = resolver_1d(
+        inicial, PROPS, 0.1, 1.0, 1, borde, borde,
+        fuente=fuente, pasos_guardado={0, 1},
+    )
+    esperado = inicial.copy()
+    esperado[1:-1] += fuente / (PROPS.rho * PROPS.cp)
+    np.testing.assert_allclose(resultado.T, esperado, rtol=0.0, atol=1e-12)
+    np.testing.assert_array_equal(resultado.instantaneas[0], inicial)

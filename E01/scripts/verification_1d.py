@@ -88,7 +88,7 @@ def main() -> None:
     for paso, color in zip(pasos, colores):
         t = paso * dt
         exacta = solucion_sinusoidal(x, t, alpha, T0, A, L)
-        ax.plot(x, exacta, color=color, lw=2.0)
+        ax.plot(x, exacta, color=color, lw=2.0, label=f"{t / 3600:.0f} h")
         ax.plot(
             x[::5],
             resultado.instantaneas[paso][::5],
@@ -98,20 +98,12 @@ def main() -> None:
             mfc="white",
             mew=1.0,
         )
-        ax.annotate(
-            f"{t / 3600:.0f} h",
-            xy=(0.985, exacta[int(0.985 * (nx - 1))]),
-            xytext=(5, 0),
-            textcoords="offset points",
-            fontsize=8,
-            color=color,
-            va="center",
-        )
 
     ax.set_xlabel("x [m]")
     ax.set_ylabel("T [°C]")
     ax.set_title("Difusión 1D: numérica (marcadores) vs. analítica (líneas)")
     ax.grid(True, alpha=0.35)
+    ax.legend(title="Tiempo", loc="upper right")
     ax.text(
         0.02,
         0.03,
