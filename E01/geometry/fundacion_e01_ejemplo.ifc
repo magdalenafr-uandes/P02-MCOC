@@ -1,7 +1,7 @@
 ISO-10303-21;
 HEADER;
 FILE_DESCRIPTION(('ViewDefinition[DesignTransferView]'),'2;1');
-FILE_NAME('/dev/null','2026-10-19T21:41:25-03:00',(''),(''),'IfcOpenShell 0.9.0.post1','IfcOpenShell 0.9.0.post1','Nobody');
+FILE_NAME('fundacion_e01_ejemplo.ifc','2026-10-19T22:21:37-03:00',(''),(''),'IfcOpenShell 0.9.0.post1','Bonsai 0.9.0-post1','Nobody');
 FILE_SCHEMA(('IFC4'));
 ENDSEC;
 DATA;
@@ -42,7 +42,7 @@ DATA;
 #35=IFCPROPERTYSINGLEVALUE('VertidaID',$,IFCLABEL('V01'),$);
 #36=IFCPROPERTYSINGLEVALUE('TipoHormigon',$,IFCLABEL('H30'),$);
 #37=IFCPROPERTYSINGLEVALUE('InicioPlanificado',$,IFCLABEL('2026-11-02T08:00:00'),$);
-#38=IFCPROPERTYSINGLEVALUE('TemperaturaColocacion_C',$,IFCREAL(18.),$);
+#38=IFCPROPERTYSINGLEVALUE('TemperaturaColocacion_C',$,IFCREAL(19.),$);
 #39=IFCPROPERTYSINGLEVALUE('Moldaje',$,IFCLABEL('Metalico'),$);
 #40=IFCPROPERTYSINGLEVALUE('Aislacion',$,IFCLABEL('Poliestireno 50 mm'),$);
 #41=IFCPROPERTYSINGLEVALUE('RetiroMoldaje_h',$,IFCREAL(48.),$);
