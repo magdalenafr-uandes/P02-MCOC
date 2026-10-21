@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "mcplan"
 version = "0.2.0"
-description = "Avance E01: solver térmico 1D verificado y lectura BIM/IFC (Grupo 1)"
+description = "Capstone P02-MCOC: fundación de hormigón masivo, solver térmico 1D e IFC (Grupo 1)"
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [{ name = "Grupo 1 — P2 MCOC" }]

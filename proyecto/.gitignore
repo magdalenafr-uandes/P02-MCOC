@@ -17,6 +17,5 @@ Thumbs.db
 *.blend1
 *.blend2
 
-# Salida por defecto de scripts/make_ifc.py (no versionar: el IFC canónico
-# es geometry/fundacion_e01_ejemplo.ifc, editado en Bonsai)
-geometry/fundacion_e01_generada.ifc
+# Nota: results/ se ignora en el .gitignore de la raíz, con excepción para
+# results/figures/*.png (la figura de verificación se versiona).

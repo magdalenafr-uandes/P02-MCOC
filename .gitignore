@@ -25,14 +25,14 @@ results/
 *.vti
 *.h5
 
-# Excepción: la figura de verificación 1D de E01 sí se versiona
+# Excepción: la figura de verificación 1D del proyecto sí se versiona
 # (git no permite re-incluir un archivo si su directorio está excluido,
 #  por eso se re-incluyen también las carpetas padre)
-!E01/results/
-E01/results/*
-!E01/results/figures/
-E01/results/figures/*
-!E01/results/figures/*.png
+!proyecto/results/
+proyecto/results/*
+!proyecto/results/figures/
+proyecto/results/figures/*
+!proyecto/results/figures/*.png
 
 # Editores y sistema
 .vscode/

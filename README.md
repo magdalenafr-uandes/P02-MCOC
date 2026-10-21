@@ -25,24 +25,23 @@ el equipo; no se usará Kratos, ANSYS, OpenSees u otro solver como sustituto.
 - Pruebas automatizadas con `pytest` y CI en GitHub Actions.
 - Documentación de colaboración.
 
-### E01 — BIM/IFC, difusión y solver 1D (subcarpeta `E01/`)
+### Proyecto activo (subcarpeta `proyecto/`) — hitos E01 y E02
 
-- Modelo **IFC4** con tres vertidas de ejemplo, unidades SI, estructura
-  espacial y `Pset_HormigonMasivo`; generado con IfcOpenShell y **editado en
-  Blender + Bonsai** (verificación del round-trip incluida).
-- **Solver térmico 1D explícito (FTCS)** con Dirichlet, Neumann adiabática y
-  Robin, fuente volumétrica y validación de estabilidad; independiente de
-  Blender.
-- **Verificación analítica** (solución sinusoidal exacta), figura reproducible
-  y **16 tests** en `E01/tests/`.
+El trabajo del capstone vive en [`proyecto/`](proyecto/): modelo **IFC4** de
+la fundación de 5 vertidas (`foundation.ifc`, geometría docente de la guía
+Bonsai), lectores con IfcOpenShell (selección semántica por pset), **solver
+térmico 1D explícito (FTCS)** con Dirichlet, Neumann adiabática y Robin, y
+**verificación analítica** (solución sinusoidal exacta) con demos de Δx y
+Δt (`--nx`, `--dt-scale`). E01 y E02 son hitos documentados del mismo
+proyecto; no hay código duplicado por entrega.
 
-Todo el detalle, la instalación y los comandos de E01 están en
-[`E01/README.md`](E01/README.md), y la preparación oral en
-[`E01/docs/guia_estudio_e01.md`](E01/docs/guia_estudio_e01.md).
+Detalle, instalación y comandos en [`proyecto/README.md`](proyecto/README.md);
+preparación oral en [`proyecto/docs/guia_estudio.md`](proyecto/docs/guia_estudio.md).
 
-> **Nota:** la raíz y `E01/` contienen dos distribuciones distintas ambas
-> llamadas `mcplan` (E00 solo depende de PyYAML; E01 usa NumPy, Matplotlib e
-> IfcOpenShell). No se deben instalar en el mismo entorno virtual a la vez.
+> **Nota:** la raíz (E00) y `proyecto/` contienen dos distribuciones
+> distintas ambas llamadas `mcplan` (raíz: solo PyYAML, con la CLI;
+> proyecto: NumPy, Matplotlib e IfcOpenShell). Cada una tiene su entorno
+> virtual; no se instalan en la misma venv.
 
 **Aún no implementado:** voxelización, meteorología, Monte Carlo, HPC y el
 solver térmico 2D/3D del horizonte de 14 días.
@@ -131,14 +130,14 @@ E00 (CLI y configuración del sitio), con el paquete de la raíz instalado:
 python -m pytest -q
 ```
 
-E01 (solver 1D y modelo IFC), con el paquete de `E01/` instalado en un entorno
-virtual separado:
+Proyecto (solver 1D y modelo IFC de la fundación), con el paquete de
+`proyecto/` instalado en un entorno virtual separado:
 
 ```powershell
-py -3.12 -m venv .venv-e01
-.\.venv-e01\Scripts\python.exe -m pip install --upgrade pip
-.\.venv-e01\Scripts\python.exe -m pip install -e "E01[dev]"
-.\.venv-e01\Scripts\python.exe -m pytest E01 -q
+py -3.12 -m venv proyecto\.venv
+.\proyecto\.venv\Scripts\python.exe -m pip install --upgrade pip
+.\proyecto\.venv\Scripts\python.exe -m pip install -e "proyecto[dev]"
+.\proyecto\.venv\Scripts\python.exe -m pytest proyecto -q
 ```
 
 Ambos conjuntos de pruebas se ejecutan también en GitHub Actions
@@ -180,14 +179,17 @@ mcplan compare   plan_A.yaml plan_B.yaml
 ## Registro de evidencia
 
 - E00: [docs/registro_e00.md](docs/registro_e00.md) (integrantes, URL y SHA inicial).
-- E01: [E01/docs/guia_estudio_e01.md](E01/docs/guia_estudio_e01.md) (guía de
-  estudio, procedimiento en Bonsai y checklist de la revisión).
+- Proyecto (hitos E01/E02): [proyecto/docs/guia_estudio.md](proyecto/docs/guia_estudio.md)
+  (guía de estudio y checklist); evidencia del round-trip E02 en
+  [proyecto/docs/evidencia_e02/](proyecto/docs/evidencia_e02/) una vez
+  realizada la edición manual en Bonsai.
 
 ## Datos todavía pendientes
 
 - **Usuarios de GitHub** de los integrantes (los nombres ya están en
   `docs/registro_e00.md`; faltan los usuarios para las invitaciones de
   colaboración).
-- **Geometría oficial** de la fundación (debe entregarla o validarla el profesor;
-  la del IFC de E01 es didáctica).
+- **Geometría oficial** de la fundación (debe entregarla o validarla el
+  profesor; la del IFC en `proyecto/geometry/` es la geometría docente de la
+  guía Bonsai del capstone).
 - **Datos meteorológicos** y sus snapshots (etapas posteriores).

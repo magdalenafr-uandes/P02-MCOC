@@ -33,12 +33,12 @@ jobs:
       - name: Verificar la CLI con la configuración oficial
         run: mcplan info --site configs/site.yaml
 
-  test-e01:
-    name: Pruebas E01 (Python ${{ matrix.python-version }})
+  test-proyecto:
+    name: Pruebas proyecto (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: E01
+        working-directory: proyecto
     strategy:
       fail-fast: false
       matrix:
@@ -51,13 +51,13 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Instalar el paquete E01 (editable) con dependencias de desarrollo
+      - name: Instalar el paquete del proyecto (editable) con dependencias de desarrollo
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e ".[dev]"
 
-      - name: Ejecutar las pruebas de E01
+      - name: Ejecutar las pruebas del proyecto
         run: python -m pytest -q
 
-      - name: Inspeccionar el IFC versionado (edición en Bonsai)
+      - name: Inspeccionar el IFC de la fundación
         run: python scripts/inspect_ifc.py
