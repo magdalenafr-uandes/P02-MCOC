@@ -1,0 +1,147 @@
+{
+  "archivo": "geometry\\foundation.ifc",
+  "proyecto": "P02-MCOC Grupo 1 — Fundación del capstone (guía Bonsai)",
+  "schema": "IFC4",
+  "totales": {
+    "n_vertidas": 5,
+    "volumen_total_m3": 636.7751514210236
+  },
+  "unidades": [
+    "AREAUNIT: SQUARE_METRE",
+    "THERMODYNAMICTEMPERATUREUNIT: DEGREE_CELSIUS",
+    "VOLUMEUNIT: CUBIC_METRE",
+    "LENGTHUNIT: METRE"
+  ],
+  "vertidas": {
+    "0cVuyzbmLE2fBVL5MzWH5l": {
+      "bbox_max": [
+        9.000000182344674,
+        9.000000182344674,
+        2.2
+      ],
+      "bbox_min": [
+        -9.000000182344676,
+        -9.000000182344673,
+        1.1
+      ],
+      "clase": "IfcFooting",
+      "nombre": "Vertida_03",
+      "propiedades": {
+        "UANDES_HormigonMasivo": {
+          "Aislacion": "TBD",
+          "Inicio_h": 12.0,
+          "Moldaje": "TBD",
+          "RetiroMoldaje_h": 72.0,
+          "TemperaturaColocacion_C": 18.0,
+          "TipoHormigon": "M1",
+          "VertidaID": 3
+        }
+      },
+      "volumen_m3": 214.22432606035258
+    },
+    "0icx97zXj6EBAo3Oh3cuXX": {
+      "bbox_max": [
+        3.5,
+        3.5,
+        4.3
+      ],
+      "bbox_min": [
+        -3.5,
+        -3.5,
+        3.3
+      ],
+      "clase": "IfcFooting",
+      "nombre": "Vertida_05",
+      "propiedades": {
+        "UANDES_HormigonMasivo": {
+          "Aislacion": "TBD",
+          "Inicio_h": 24.0,
+          "Moldaje": "TBD",
+          "RetiroMoldaje_h": 72.0,
+          "TemperaturaColocacion_C": 18.0,
+          "TipoHormigon": "M1",
+          "VertidaID": 5
+        }
+      },
+      "volumen_m3": 38.37470051269516
+    },
+    "1W_Owqm5TDjP3wCrdAQYHg": {
+      "bbox_max": [
+        6.249998843462229,
+        6.249998843462229,
+        3.3000000000000003
+      ],
+      "bbox_min": [
+        -6.24999884346223,
+        -6.249998843462229,
+        2.2
+      ],
+      "clase": "IfcFooting",
+      "nombre": "Vertida_04",
+      "propiedades": {
+        "UANDES_HormigonMasivo": {
+          "Aislacion": "TBD",
+          "Inicio_h": 18.0,
+          "Moldaje": "TBD",
+          "RetiroMoldaje_h": 72.0,
+          "TemperaturaColocacion_C": 18.0,
+          "TipoHormigon": "M1",
+          "VertidaID": 4
+        }
+      },
+      "volumen_m3": 88.92468562453888
+    },
+    "3DuFyf8kbE2eb5u11sZfBo": {
+      "bbox_max": [
+        9.000000182344674,
+        9.000000182344674,
+        1.1
+      ],
+      "bbox_min": [
+        -9.000000182344676,
+        -9.000000182344673,
+        0.55
+      ],
+      "clase": "IfcFooting",
+      "nombre": "Vertida_02",
+      "propiedades": {
+        "UANDES_HormigonMasivo": {
+          "Aislacion": "TBD",
+          "Inicio_h": 6.0,
+          "Moldaje": "TBD",
+          "RetiroMoldaje_h": 72.0,
+          "TemperaturaColocacion_C": 18.0,
+          "TipoHormigon": "M1",
+          "VertidaID": 2
+        }
+      },
+      "volumen_m3": 147.62571961171844
+    },
+    "3ksU2stB516hyA0nwBMzEx": {
+      "bbox_max": [
+        9.000000182344674,
+        9.000000182344674,
+        0.55
+      ],
+      "bbox_min": [
+        -9.000000182344676,
+        -9.000000182344673,
+        0.0
+      ],
+      "clase": "IfcFooting",
+      "nombre": "Vertida_01",
+      "propiedades": {
+        "UANDES_HormigonMasivo": {
+          "Aislacion": "TBD",
+          "Inicio_h": 0.0,
+          "Moldaje": "TBD",
+          "RetiroMoldaje_h": 72.0,
+          "TemperaturaColocacion_C": 19.0,
+          "TipoHormigon": "M1",
+          "VertidaID": 1
+        }
+      },
+      "volumen_m3": 147.62571961171844
+    }
+  }
+}

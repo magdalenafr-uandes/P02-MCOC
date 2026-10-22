@@ -1,0 +1,11 @@
+Estado A: JSON proyecto\docs\evidencia_e02\roundtrip_antes.json — {'n_vertidas': 5, 'volumen_total_m3': 636.7751514210236}
+Estado B: JSON proyecto\docs\evidencia_e02\roundtrip_despues.json — {'n_vertidas': 5, 'volumen_total_m3': 636.7751514210236}
+
+0cVuyzbmLE2fBVL5MzWH5l (Vertida_03)  geometría: sin cambios (tol abs=0.0001, rel=1e-06)
+0icx97zXj6EBAo3Oh3cuXX (Vertida_05)  geometría: sin cambios (tol abs=0.0001, rel=1e-06)
+1W_Owqm5TDjP3wCrdAQYHg (Vertida_04)  geometría: sin cambios (tol abs=0.0001, rel=1e-06)
+3DuFyf8kbE2eb5u11sZfBo (Vertida_02)  geometría: sin cambios (tol abs=0.0001, rel=1e-06)
+3ksU2stB516hyA0nwBMzEx (Vertida_01)  UANDES_HormigonMasivo.TemperaturaColocacion_C: 18 -> 19
+3ksU2stB516hyA0nwBMzEx (Vertida_01)  geometría: sin cambios (tol abs=0.0001, rel=1e-06)
+
+Total de líneas con diferencias: 1
