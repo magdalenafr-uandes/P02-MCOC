@@ -42,3 +42,6 @@ proyecto/results/figures/*
 # Secretos y configuración local (NO subir credenciales)
 .env
 *.local.yaml
+
+# Configuración local de Claude Code (permisos personales)
+.claude/settings.local.json
