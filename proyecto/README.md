@@ -15,6 +15,10 @@ código por entrega:
 - **E02**: round-trip del IFC con edición manual en Bonsai, verificado con
   `ifc_state`/`ifc_diff`, más la demostración del solver con `--nx` y
   `--dt-scale`.
+- **E04**: solver 2D/3D por balance de voxel (Dirichlet, Neumann con flujo,
+  Robin con aislación, fuente volumétrica, dos materiales, dt_max = min C/ΣG),
+  verificación (convergencia de orden 2, energía, serie de Robin, pared
+  compuesta) y voxelización de la fundación. Ver `docs/guia_e04.md`.
 
 > El estado de entrega/evaluación de E01 no se afirma aquí; los hitos son
 > referencia organizativa, no constancia de evaluación.
@@ -33,20 +37,26 @@ proyecto/
 │  ├─ thermal/
 │  │  ├─ boundaries.py     # PropiedadesTermicas y CondicionBorde
 │  │  ├─ solver1d.py       # FTCS 1D, estabilidad, energía
-│  │  └─ analytics.py      # solución exacta sinusoidal
+│  │  ├─ voxel.py          # E04: solver 2D/3D por balance de voxel
+│  │  └─ analytics.py      # soluciones exactas (sinusoidal 1D/2D/3D, pared Robin)
 │  └─ bim/
 │     ├─ foundation.py     # generador de la fundación octagonal (5 vertidas)
-│     └─ ifc_io.py         # lectura de vertidas (selección semántica)
+│     ├─ ifc_io.py         # lectura de vertidas (selección semántica)
+│     └─ voxelizacion.py   # E04: fundación -> grilla con vertida_id
 ├─ scripts/
 │  ├─ make_foundation.py   # genera foundation.ifc (protegido con --forzar)
 │  ├─ inspect_ifc.py       # inspección unificada: psets + bbox + volúmenes
 │  ├─ ifc_state.py         # snapshot JSON por GlobalId
 │  ├─ ifc_diff.py          # comparación antes/después por GlobalId
-│  └─ verification_1d.py   # figura numérica vs. analítica (--nx, --dt-scale)
+│  ├─ verification_1d.py   # figura numérica vs. analítica (--nx, --dt-scale)
+│  ├─ verification_2d_3d.py # E04: convergencia 2D/3D, bordes, estabilidad
+│  └─ voxelize_foundation.py # E04: voxelización y error de volumen
 ├─ tests/
 │  ├─ test_solver1d.py     # física del solver
 │  ├─ test_foundation.py   # modelo IFC y selección semántica
-│  └─ test_ifc_diff.py     # herramienta snapshot/diff
+│  ├─ test_ifc_diff.py     # herramienta snapshot/diff
+│  ├─ test_voxel.py        # E04: 2D/3D, Dirichlet/Neumann/Robin, fuente, 2 materiales, estabilidad
+│  └─ test_voxelizacion.py # E04: voxelización de la fundación
 ├─ geometry/foundation.ifc # modelo activo (editado en Bonsai en el hito E02)
 ├─ results/figures/        # figura de verificación (versionada)
 └─ docs/

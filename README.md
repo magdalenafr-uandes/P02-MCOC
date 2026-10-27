@@ -43,8 +43,15 @@ preparación oral en [`proyecto/docs/guia_estudio.md`](proyecto/docs/guia_estudi
 > proyecto: NumPy, Matplotlib e IfcOpenShell). Cada una tiene su entorno
 > virtual; no se instalan en la misma venv.
 
-**Aún no implementado:** voxelización, meteorología, Monte Carlo, HPC y el
-solver térmico 2D/3D del horizonte de 14 días.
+**E04:** solver térmico **2D/3D por balance de voxel** con Dirichlet,
+Neumann (flujo impuesto y adiabático), Robin (convección + aislación),
+fuente volumétrica, dos materiales y criterio de estabilidad general
+dt ≤ min C/ΣG; verificación 2D/3D y voxelización preliminar de la
+fundación. Guía oral en [`proyecto/docs/guia_e04.md`](proyecto/docs/guia_e04.md).
+
+**Aún no implementado:** lectura de mallas IFC para voxelizar, hidratación,
+activación de vertidas, meteorología, Monte Carlo, HPC y la simulación
+de 14 días.
 
 ## Sitio oficial del Grupo 1
 
