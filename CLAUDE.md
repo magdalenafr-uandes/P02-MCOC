@@ -21,6 +21,9 @@ Ver también `README.md` y `CONTRIBUTING.md`.
 - Agrega solo los archivos del cambio (`git add <archivos>`), nunca `git add -A` a ciegas.
   No subas `.venv/`, cachés, resultados pesados ni credenciales (ver `.gitignore`).
 - Usa la herramienta Bash para los comandos git.
+- **Sin coautoría de Claude:** no agregues `Co-Authored-By: Claude ...` ni ninguna otra línea
+  de atribución a Claude en los commits ni en los Pull Requests. El autor es solo el usuario
+  configurado en git.
 
 ## Push
 
