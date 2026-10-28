@@ -45,3 +45,7 @@ proyecto/results/figures/*
 
 # Configuración local de Claude Code (permisos personales)
 .claude/settings.local.json
+# Carpetas personales (NUNCA subir al repositorio)
+E01_respaldo_*/
+codigo_difusion/
+guias/

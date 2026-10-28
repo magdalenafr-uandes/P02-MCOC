@@ -43,7 +43,7 @@ class CondicionBorde:
     """Condición de borde en un extremo de la barra 1D.
 
     - ``dirichlet``: ``valor`` es la temperatura impuesta [°C].
-    - ``neumann``: se implementa solo el caso adiabático, ``valor = 0``.
+    - ``neumann``: ``valor`` es flujo normal saliente [W/m²]; cero adiabático.
     - ``robin``: ``valor`` es la temperatura del ambiente [°C] y ``h`` el
       coeficiente convectivo [W/(m²·K)].
     """
@@ -57,10 +57,5 @@ class CondicionBorde:
             raise ValueError(f"Tipo de borde no soportado: {self.tipo!r}.")
         if not isfinite(self.valor) or not isfinite(self.h):
             raise ValueError("El valor de borde y h deben ser finitos.")
-        if self.tipo == "neumann" and abs(self.valor) > 1e-15:
-            raise ValueError(
-                "Solo se implementa Neumann adiabática (q'' = 0); "
-                f"se recibió valor={self.valor}."
-            )
         if self.tipo == "robin" and self.h < 0.0:
             raise ValueError("El coeficiente convectivo h no puede ser negativo.")

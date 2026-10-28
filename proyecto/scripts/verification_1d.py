@@ -61,7 +61,7 @@ def main() -> int:
     parser.add_argument(
         "--dt-scale",
         type=float,
-        default=0.40,
+        default=0.4,
         help=(
             "Factor de seguridad sobre dt_max (defecto 0.40). "
             "Valores > 1 superan dt_max y el solver rechaza el paso."

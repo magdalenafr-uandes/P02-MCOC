@@ -223,8 +223,9 @@ def test_inestabilidad_empirica_y_principio_del_maximo():
     T_ini = 20.0 + 30.0 * rng.random(malla.forma)
     estable = solver.resolver(T_ini, solver.dt_max(), 300)
     assert estable.T.min() >= 20.0 - 1e-9 and estable.T.max() <= T_ini.max() + 1e-9
-    # el criterio global de Fourier en 2D (Fo = 1/4) NO basta con Dirichlet de
-    # media celda: el voxel de esquina es más restrictivo y el esquema explota.
+    # Fo=1/4 es el límite espectral de esta caja homogénea, aunque supera
+    # el criterio suficiente de monotonía de la esquina. Aquí se supera
+    # también el límite espectral (factor 1.2), provocando crecimiento.
     dt_fourier = 0.25 * 0.1**2 / HORMIGON.alpha
     inestable = solver.resolver(T_ini, dt_fourier * 1.2, 300, verificar_estabilidad=False)
     assert np.max(np.abs(inestable.T)) > 1e3

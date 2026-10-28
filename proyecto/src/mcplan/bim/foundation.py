@@ -78,7 +78,7 @@ VERTIDAS_FOUNDATION: tuple[VertidaFoundation, ...] = (
     VertidaFoundation("Vertida_04", 4, 18.0, 18.0, "M1", 2.20, 1.10, 8, RADIO_MEDIO, RADIO_INTERIOR, ROTACION_OCTAGONO_GRADOS),
     VertidaFoundation("Vertida_05", 5, 24.0, 18.0, "M1", 3.30, 1.00, 48, 3.50, 3.50, 0.0),
 )
-
+#VertidaFoundation(nombre, id, inicio_h, temperatura, hormigon,z_base, altura, n_lados,radio_inferior, radio_superior, rotacion)
 
 def _area_poligono(n_lados: int, radio: float) -> float:
     return 0.5 * n_lados * radio**2 * math.sin(2.0 * math.pi / n_lados)

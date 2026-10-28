@@ -1,0 +1,100 @@
+.....                                                                    [100%]
+5 passed in 0.16s
+============================= test session starts =============================
+platform win32 -- Python 3.12.10, pytest-8.4.2, pluggy-1.7.0 -- C:\Users\maida\OneDrive\Escritorio\P2 MCOC\proyecto\.venv\Scripts\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\maida\OneDrive\Escritorio\P2 MCOC\proyecto
+configfile: pyproject.toml
+collecting ... collected 83 items
+
+proyecto\tests\test_foundation.py::test_construir_foundation_cinco_ifc_footing PASSED
+proyecto\tests\test_foundation.py::test_estructura_espacial_completa PASSED
+proyecto\tests\test_foundation.py::test_pset_uandes_hormigon_masivo PASSED
+proyecto\tests\test_foundation.py::test_deteccion_semantica_no_depende_del_nombre PASSED
+proyecto\tests\test_foundation.py::test_leer_modelo_detecta_cinco_en_archivo_generado PASSED
+proyecto\tests\test_foundation.py::test_bbox_y_alturas_según_guia PASSED
+proyecto\tests\test_foundation.py::test_volumenes_malla_vs_analítico_y_guia PASSED
+proyecto\tests\test_foundation.py::test_volumen_analítico_tabla_guia PASSED
+proyecto\tests\test_foundation.py::test_archivo_versionado_existe_y_es_consistente PASSED
+proyecto\tests\test_foundation.py::test_regeneration_produce_modelo_equivalente PASSED
+proyecto\tests\test_ifc_diff.py::test_mismo_archivo_no_reporta_diferencias PASSED
+proyecto\tests\test_ifc_diff.py::test_detecta_cambio_de_propiedad PASSED
+proyecto\tests\test_ifc_diff.py::test_detecta_cambio_geometrico_por_volumen_y_bbox PASSED
+proyecto\tests\test_ifc_diff.py::test_cli_codigos_de_salida PASSED
+proyecto\tests\test_ifc_diff.py::test_snapshot_json_redondo PASSED
+proyecto\tests\test_regresiones_e04.py::test_superficie_dirichlet_es_valor_impuesto_no_centro[1] PASSED
+proyecto\tests\test_regresiones_e04.py::test_superficie_dirichlet_es_valor_impuesto_no_centro[2] PASSED
+proyecto\tests\test_regresiones_e04.py::test_superficie_dirichlet_es_valor_impuesto_no_centro[3] PASSED
+proyecto\tests\test_regresiones_e04.py::test_superficie_robin_cierra_resistencias_y_ley_convectiva[0.0] PASSED
+proyecto\tests\test_regresiones_e04.py::test_superficie_robin_cierra_resistencias_y_ley_convectiva[0.3] PASSED
+proyecto\tests\test_regresiones_e04.py::test_superficie_neumann_usa_normal_entrante_en_ambos_lados PASSED
+proyecto\tests\test_regresiones_e04.py::test_limite_monotono_no_es_limite_espectral_dirichlet PASSED
+proyecto\tests\test_regresiones_e04.py::test_fuente_temporal_se_evalua_una_vez_por_paso PASSED
+proyecto\tests\test_regresiones_e04.py::test_rechaza_dimensiones_y_pasos_no_enteros PASSED
+proyecto\tests\test_solver1d.py::test_decaimiento_sinusoidal_frente_a_solucion_exacta PASSED
+proyecto\tests\test_solver1d.py::test_convergencia_espacial_segundo_orden PASSED
+proyecto\tests\test_solver1d.py::test_temperatura_uniforme_compatible_con_dirichlet PASSED
+proyecto\tests\test_solver1d.py::test_rechaza_paso_temporal_inestable PASSED
+proyecto\tests\test_solver1d.py::test_rechaza_parametros_invalidos PASSED
+proyecto\tests\test_solver1d.py::test_conservacion_energia_ambos_bordes_adiabaticos PASSED
+proyecto\tests\test_solver1d.py::test_fuente_uniforme_adiabatica_aumento_lineal PASSED
+proyecto\tests\test_solver1d.py::test_robin_enfria_superficie_mas_que_centro PASSED
+proyecto\tests\test_solver1d.py::test_robin_rechaza_paso_que_viola_su_limite PASSED
+proyecto\tests\test_solver1d.py::test_rechaza_propiedades_y_bordes_no_finitos PASSED
+proyecto\tests\test_solver1d.py::test_rechaza_inicial_incompatible_con_dirichlet_antes_de_avanzar PASSED
+proyecto\tests\test_solver1d.py::test_dirichlet_con_fuente_mantiene_extremos_e_incrementa_interior PASSED
+proyecto\tests\test_solver_nd.py::test_sinusoidal_y_convergencia[1]
+sinusoidal 1D: errores=[0.013366764408260678, 0.004546174599575181, 0.001289792802374734], orden=1.818
+PASSED
+proyecto\tests\test_solver_nd.py::test_sinusoidal_y_convergencia[2]
+sinusoidal 2D: errores=[0.02063842540424332, 0.007403208435981412, 0.0018662563309703728], orden=1.988
+PASSED
+proyecto\tests\test_solver_nd.py::test_sinusoidal_y_convergencia[3]
+sinusoidal 3D: errores=[0.03820809413644355, 0.010035230720035315, 0.002684431052813352], orden=1.902
+PASSED
+proyecto\tests\test_solver_nd.py::test_adiabatico_conserva_energia_no_uniforme[1] PASSED
+proyecto\tests\test_solver_nd.py::test_adiabatico_conserva_energia_no_uniforme[2] PASSED
+proyecto\tests\test_solver_nd.py::test_adiabatico_conserva_energia_no_uniforme[3] PASSED
+proyecto\tests\test_solver_nd.py::test_fuente_uniforme_y_energia[1] PASSED
+proyecto\tests\test_solver_nd.py::test_fuente_uniforme_y_energia[2] PASSED
+proyecto\tests\test_solver_nd.py::test_fuente_uniforme_y_energia[3] PASSED
+proyecto\tests\test_solver_nd.py::test_neumann_no_nulo_balance_y_signo[-12.0-1] PASSED
+proyecto\tests\test_solver_nd.py::test_neumann_no_nulo_balance_y_signo[-12.0-2] PASSED
+proyecto\tests\test_solver_nd.py::test_neumann_no_nulo_balance_y_signo[-12.0-3] PASSED
+proyecto\tests\test_solver_nd.py::test_neumann_no_nulo_balance_y_signo[12.0-1] PASSED
+proyecto\tests\test_solver_nd.py::test_neumann_no_nulo_balance_y_signo[12.0-2] PASSED
+proyecto\tests\test_solver_nd.py::test_neumann_no_nulo_balance_y_signo[12.0-3] PASSED
+proyecto\tests\test_solver_nd.py::test_neumann_legacy_1d_no_nulo PASSED
+proyecto\tests\test_solver_nd.py::test_robin_estacionario_analitico[1] PASSED
+proyecto\tests\test_solver_nd.py::test_robin_estacionario_analitico[2] PASSED
+proyecto\tests\test_solver_nd.py::test_robin_estacionario_analitico[3] PASSED
+proyecto\tests\test_solver_nd.py::test_robin_transitorio_balance_y_equilibrio PASSED
+proyecto\tests\test_solver_nd.py::test_dos_materiales_resistencias_en_serie PASSED
+proyecto\tests\test_solver_nd.py::test_balance_combinado_bordes_fuente_esquinas PASSED
+proyecto\tests\test_solver_nd.py::test_estabilidad_y_validaciones PASSED
+proyecto\tests\test_verification_nd_cli.py::test_demostracion_parametrizada[args0] PASSED
+proyecto\tests\test_verification_nd_cli.py::test_demostracion_parametrizada[args1] PASSED
+proyecto\tests\test_verification_nd_cli.py::test_demostracion_parametrizada[args2] PASSED
+proyecto\tests\test_verification_nd_cli.py::test_demostracion_rechaza_dt_inestable PASSED
+proyecto\tests\test_voxel.py::test_sinusoidal_exacta_converge_segundo_orden[2-259200.0] PASSED
+proyecto\tests\test_voxel.py::test_sinusoidal_exacta_converge_segundo_orden[3-86400.0] PASSED
+proyecto\tests\test_voxel.py::test_energia_se_conserva_con_bordes_adiabaticos[2] PASSED
+proyecto\tests\test_voxel.py::test_energia_se_conserva_con_bordes_adiabaticos[3] PASSED
+proyecto\tests\test_voxel.py::test_fuente_uniforme_adiabatica_eleva_temperatura_linealmente PASSED
+proyecto\tests\test_voxel.py::test_fuente_variable_en_el_tiempo_y_por_celda PASSED
+proyecto\tests\test_voxel.py::test_neumann_flujo_impuesto_entrega_q_por_area PASSED
+proyecto\tests\test_voxel.py::test_superficie_adiabatica_es_plano_de_simetria PASSED
+proyecto\tests\test_voxel.py::test_robin_coincide_con_serie_analitica_de_pared PASSED
+proyecto\tests\test_voxel.py::test_robin_signo_del_flujo_y_balance[20.0--1.0] PASSED
+proyecto\tests\test_voxel.py::test_robin_signo_del_flujo_y_balance[80.0-1.0] PASSED
+proyecto\tests\test_voxel.py::test_aislacion_reduce_perdidas PASSED
+proyecto\tests\test_voxel.py::test_dos_materiales_estado_estacionario_resistencias_en_serie PASSED
+proyecto\tests\test_voxel.py::test_dt_max_coincide_con_fourier_en_malla_adiabatica PASSED
+proyecto\tests\test_voxel.py::test_dt_max_dirichlet_y_robin_son_mas_estrictos PASSED
+proyecto\tests\test_voxel.py::test_paso_inestable_es_rechazado PASSED
+proyecto\tests\test_voxel.py::test_inestabilidad_empirica_y_principio_del_maximo PASSED
+proyecto\tests\test_voxel.py::test_validaciones_de_entrada PASSED
+proyecto\tests\test_voxelizacion.py::test_error_de_volumen_disminuye_al_refinar PASSED
+proyecto\tests\test_voxelizacion.py::test_cada_vertida_tiene_su_id_y_estan_apiladas PASSED
+
+============================= 83 passed in 15.30s =============================

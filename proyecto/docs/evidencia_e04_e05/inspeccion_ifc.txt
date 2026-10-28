@@ -1,0 +1,74 @@
+Archivo:  C:\Users\maida\OneDrive\Escritorio\P2 MCOC\proyecto\geometry\foundation.ifc
+Esquema:  IFC4
+Proyecto: P02-MCOC Grupo 1 — Fundación del capstone (guía Bonsai)
+Unidades:
+  - AREAUNIT: SQUARE_METRE
+  - THERMODYNAMICTEMPERATUREUNIT: DEGREE_CELSIUS
+  - VOLUMEUNIT: CUBIC_METRE
+  - LENGTHUNIT: METRE
+
+Selección: pset UANDES_HormigonMasivo con VertidaID (clase esperada IfcFooting)
+Vertida        Clase        GUID                     VertidaID  Inicio_h  Tcoloc_C
+----------------------------------------------------------------------------------
+Vertida_01     IfcFooting   3ksU2stB516hyA0nwBMzEx           1         0        18
+Vertida_02     IfcFooting   3DuFyf8kbE2eb5u11sZfBo           2         6        18
+Vertida_03     IfcFooting   0cVuyzbmLE2fBVL5MzWH5l           3        12        18
+Vertida_04     IfcFooting   1W_Owqm5TDjP3wCrdAQYHg           4        18        18
+Vertida_05     IfcFooting   0icx97zXj6EBAo3Oh3cuXX           5        24        18
+
+Propiedades requeridas por vertida:
+[Vertida_01] geometría: sí
+  VertidaID: 1
+  TipoHormigon: M1
+  Inicio_h: 0
+  TemperaturaColocacion_C: 18
+  Moldaje: TBD
+  Aislacion: TBD
+  RetiroMoldaje_h: 72
+
+[Vertida_02] geometría: sí
+  VertidaID: 2
+  TipoHormigon: M1
+  Inicio_h: 6
+  TemperaturaColocacion_C: 18
+  Moldaje: TBD
+  Aislacion: TBD
+  RetiroMoldaje_h: 72
+
+[Vertida_03] geometría: sí
+  VertidaID: 3
+  TipoHormigon: M1
+  Inicio_h: 12
+  TemperaturaColocacion_C: 18
+  Moldaje: TBD
+  Aislacion: TBD
+  RetiroMoldaje_h: 72
+
+[Vertida_04] geometría: sí
+  VertidaID: 4
+  TipoHormigon: M1
+  Inicio_h: 18
+  TemperaturaColocacion_C: 18
+  Moldaje: TBD
+  Aislacion: TBD
+  RetiroMoldaje_h: 72
+
+[Vertida_05] geometría: sí
+  VertidaID: 5
+  TipoHormigon: M1
+  Inicio_h: 24
+  TemperaturaColocacion_C: 18
+  Moldaje: TBD
+  Aislacion: TBD
+  RetiroMoldaje_h: 72
+
+Vertida         V malla  V analítico      d rel  BBox size [m]
+------------------------------------------------------------------------------
+Vertida_01       147.63       147.63   0.00e+00  (18.0, 18.0, 0.55)  (guía: 147.63)
+Vertida_02       147.63       147.63   0.00e+00  (18.0, 18.0, 0.55)  (guía: 147.63)
+Vertida_03       214.22       214.22   0.00e+00  (18.0, 18.0, 1.1)  (guía: 214.22)
+Vertida_04        88.92        88.92   0.00e+00  (12.5, 12.5, 1.1)  (guía: 88.92)
+Vertida_05        38.37        38.37   0.00e+00  (7.0, 7.0, 1.0)  (guía: 38.48)
+
+Volumen total de malla: 636.78 m³
+Número de vertidas: 5

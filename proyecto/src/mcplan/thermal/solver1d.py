@@ -16,8 +16,8 @@ del balance de medio volumen de control en el borde:
 
     dt <= rho·cp·dx² / (2k + 2h·dx).
 
-Los extremos con Neumann se tratan como adiabáticos (q'' = 0) usando un nodo
-fantasma; los extremos Robin usan el balance sobre medio volumen de control.
+Neumann usa flujo normal saliente, incluido cero adiabático; Robin usa el
+balance sobre medio volumen de control.
 """
 
 from __future__ import annotations
@@ -89,6 +89,7 @@ def _actualizar_borde(
         return (
             T_old[indice]
             + conductancia_interna * (T_old[vecino] - T_old[indice])
+            - 2.0 * dt * borde.valor / (propiedades.rho * propiedades.cp * dx)
             + incremento_fuente
         )
 

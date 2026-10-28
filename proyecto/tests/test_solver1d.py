@@ -100,7 +100,7 @@ def test_rechaza_parametros_invalidos():
     with pytest.raises(ValueError):
         PropiedadesTermicas(k=0.0, rho=2400.0, cp=970.0)
     with pytest.raises(ValueError):
-        CondicionBorde("neumann", valor=10.0)
+        CondicionBorde("robin", h=-10.0)
 
 
 def test_conservacion_energia_ambos_bordes_adiabaticos():

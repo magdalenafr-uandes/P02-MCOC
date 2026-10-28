@@ -1,6 +1,7 @@
 # Guía E04 — Solver 2D/3D, condiciones de borde, fuentes y BIM
 
-Preparación para la revisión oral del miércoles 28-oct (E04). Complementa
+Preparación para la revisión oral del miércoles 28-oct (E04).
+Para comandos parametrizables y batería del jueves, ver [e04_e05.md](e04_e05.md). Complementa
 `guia_estudio.md` (1D, IFC, round-trip). Todo lo que aparece aquí se
 reproduce con:
 
@@ -79,9 +80,11 @@ En la actualización explícita el coeficiente de `T_i^n` es
 1 − Δt ΣG_i / C_i
 ```
 
-Si es negativo, una celda más caliente que sus vecinos termina más fría que
-ellos en el paso siguiente. Eso es una oscilación sin sentido físico que crece
-con cada paso y viola el principio del máximo. Exigir que sea ≥ 0 da:
+Exigir coeficientes no negativos garantiza monotonía y proporciona un límite
+suficiente conservador de estabilidad. Superarlo puede permitir oscilaciones o
+violar el principio del máximo, pero NO implica necesariamente crecimiento
+inestable. El límite espectral exacto puede ser mayor. La API conserva el
+nombre `dt_max` para este límite conservador:
 
 ```text
 Δt ≤ C_i / (Σ_j G_ij + G_borde,i)       → dt_max = min_i de lo anterior
@@ -103,9 +106,11 @@ Casos particulares (malla uniforme, un material, celda interior):
   el doble de una cara interior. Una esquina 3D con tres caras Dirichlet
   tiene ΣG = 3·kA/Δx + 3·2kA/Δx y queda Δt ≤ Δx²/(9α), más estricto que
   Δx²/(6α). En 2D la esquina da Δx²/(6α) < Δx²/(4α). La figura
-  `e04_estabilidad.png` muestra que usar Fo = 1/4 en 2D con este borde
-  hace explotar la solución en las esquinas. El test correspondiente es
-  `test_inestabilidad_empirica_y_principio_del_maximo`.
+  `e04_estabilidad.png` distingue tres situaciones: paso monótono, paso
+  estable sin garantía de monotonía y paso inestable. En la caja homogénea
+  2D con estos bordes, Fo=1/4 es el límite espectral y NO hace explotar
+  necesariamente la solución. La demostración de crecimiento usa Fo>1/4.
+  Ver `test_limite_monotono_no_es_limite_espectral_dirichlet`.
 - **Robin.** Agrega G_b = 1/(Δx/(2kA) + 1/(hA)). Con h chico manda la celda
   interior; con h grande manda la esquina convectiva
   (`test_dt_max_dirichlet_y_robin_son_mas_estrictos`).
@@ -182,8 +187,9 @@ solución exacta decae como exp(−α Σ(π/L)² t). Resultado de
 | 32 | 1,19e-3 °C | 6,81e-3 °C |
 | 64 | 2,98e-4 °C | — |
 
-El error se divide por cerca de 4 al dividir Δx por 2. Eso es orden 2, como
-corresponde a diferencias centradas.
+El error se divide por cerca de 4 al dividir Δx por 2. Es orden combinado
+cercano a 2: espacio centrado de segundo orden y Euler de primer orden
+temporal, con Δt proporcional a Δx² en este refinamiento.
 
 ## 7. Fuente volumétrica vs. flujo superficial (unidades)
 
@@ -227,12 +233,28 @@ Figura `e04_bordes_dominan.png`: sección de 3,3 m de hormigón sobre 2 m de
 suelo, fuente constante de 150 W/m³ (ilustrativa, todavía no es hidratación),
 7 días. Solo cambia la cara superior:
 
-| Cara superior | T núcleo | T superficial | ΔT núcleo−sup |
-|---|---|---|---|
-| Adiabática | 56,3 °C | 57,0 °C | ≈ 0 |
-| Robin h=10, T∞=20 | 55,4 °C | 31,9 °C | ≈ 23,5 °C |
-| Robin + aislación 50 mm | 56,1 °C | 51,6 °C | ≈ 4,5 °C |
-| Dirichlet 20 °C (error) | 54,8 °C | 22,8 °C | ≈ 32 °C |
+La temperatura de la última celda está a media celda de la superficie y no
+debe confundirse con Ts. El script reconstruye la cara del sólido con
+`SolverVoxel.temperatura_superficie`:
+
+```text
+Ts = Ti + (Q_entrante/A) * Δn/(2k)
+```
+
+Para Dirichlet devuelve exactamente Tb. Para Robin, Ts es la temperatura del
+sólido antes de la resistencia adicional de aislación. En esta demostración
+se grafica la diferencia firmada núcleo menos superficie; no se presenta como
+un veredicto de cumplimiento normativo o del caso real.
+
+Los valores actuales están en `evidencia_e04_e05/demostraciones.txt`, generados
+al ejecutar el script corregido. Como referencia redondeada:
+
+| Cara superior | T núcleo | T superficial real | ΔT núcleo−sup |
+|---|---:|---:|---:|
+| Adiabática | 56,3 °C | 57,0 °C | -0,7 °C |
+| Robin h=10, T∞=20 | 55,4 °C | 29,7 °C | 25,7 °C |
+| Robin + aislación 50 mm | 56,1 °C | 51,1 °C | 5,0 °C |
+| Dirichlet 20 °C | 54,8 °C | 20,0 °C | 34,8 °C |
 
 Lectura:
 
@@ -241,7 +263,8 @@ Lectura:
   se comporta casi adiabático.
 - La **superficie** y por lo tanto el **diferencial** (criterio de 20 °C)
   dependen casi exclusivamente del borde. Según la hipótesis, la misma estructura
-  "cumple" o "no cumple".
+  presenta diferencias muy distintas respecto del umbral ilustrativo de 20 °C;
+  esto todavía no evalúa el caso real de 14 días.
 - Por eso aislación, moldaje, hora de vertida y clima son variables de
   diseño. Una mala hipótesis de borde (Dirichlet = T_aire) sobrestima el
   diferencial.
@@ -295,9 +318,10 @@ bordes y materiales heterogéneos.
 
 - **¿Por qué la estabilidad no depende de la fuente?** La fuente no multiplica a
   T_i, así que no cambia el coeficiente (1 − ΔtΣG/C). Sí afecta la precisión.
-- **¿Qué pasa si Δt > dt_max?** El coeficiente de T_i se vuelve negativo, aparecen
-  oscilaciones damero que crecen geométricamente y se viola el principio del máximo.
-  El solver lo rechaza con ValueError, salvo `verificar_estabilidad=False`.
+- **¿Qué pasa si Δt > dt_max?** Se pierde la garantía de monotonía. Puede
+  haber oscilaciones; el crecimiento depende del límite espectral del sistema.
+  El solver usa el criterio suficiente conservador y lo rechaza con ValueError,
+  salvo `verificar_estabilidad=False` para la demostración didáctica.
 - **¿Por qué centros de celda y no nodos?** Así sale de la voxelización. Cada
   voxel es un volumen de control con material propio, y los bordes quedan en
   las caras.
@@ -308,7 +332,9 @@ bordes y materiales heterogéneos.
   falta para mantener T. El código lo contabiliza en `calor_borde_acumulado`.
 - **¿Cómo se agrega radiación solar?** Como Neumann `q'' = a·G_solar`
   (absortividad × irradiancia), sumado a la convección en la misma cara.
-  Se suman los dos flujos.
+  Físicamente se suman los dos flujos. La API actual admite una condición por
+  cara; combinar Robin y radiación en la misma cara requiere ampliar la API.
+  No se presenta como una función ya implementada.
 
 ## 13. Checklist antes de la revisión
 

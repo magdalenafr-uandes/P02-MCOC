@@ -35,8 +35,8 @@ Integración explícita (Euler hacia adelante)::
 
       T_i^{n+1} = T_i^n + dt/C_i [ sum_j G_ij (T_j^n - T_i^n) + qdot_i V_i + Q_b ]
 
-Estabilidad: el coeficiente de ``T_i^n`` es ``1 - dt sum G / C_i`` y debe ser
->= 0 (si no, la solución oscila y crece). Por eso
+Monotonía: imponer coeficientes no negativos proporciona un criterio suficiente
+conservador de estabilidad. No es necesariamente el máximo límite espectral:
 
       dt <= dt_max = min_i C_i / (sum_j G_ij + G_b,i).
 
@@ -58,7 +58,8 @@ import numpy as np
 from .boundaries import PropiedadesTermicas
 
 TipoBordeCara = Literal["dirichlet", "neumann", "robin"]
-CARAS_2D = ("x-", "x+", "y-", "y+")
+CARAS_1D = ("x-", "x+")
+CARAS_2D = CARAS_1D + ("y-", "y+")
 CARAS_3D = CARAS_2D + ("z-", "z+")
 _EJE = {"x": 0, "y": 1, "z": 2}
 
@@ -118,7 +119,7 @@ def robin(T_inf: float, h: float, R_extra: float = 0.0) -> BordeCara:
 
 @dataclass
 class MallaVoxel:
-    """Malla cartesiana regular 2D o 3D con propiedades por celda.
+    """Malla cartesiana regular 1D, 2D o 3D con propiedades por celda.
 
     ``k``, ``rho`` y ``cp`` son arreglos de forma ``forma`` (se permiten
     escalares, que se expanden). Esto permite dos o más materiales.
@@ -131,10 +132,13 @@ class MallaVoxel:
     cp: np.ndarray
 
     def __post_init__(self) -> None:
+        if any(isinstance(n, (bool, np.bool_)) or not isinstance(n, (int, np.integer))
+               for n in self.forma):
+            raise ValueError("El número de celdas debe ser entero.")
         self.forma = tuple(int(n) for n in self.forma)
         self.paso = tuple(float(d) for d in self.paso)
-        if len(self.forma) not in (2, 3) or len(self.paso) != len(self.forma):
-            raise ValueError("forma y paso deben tener 2 o 3 componentes iguales.")
+        if len(self.forma) not in (1, 2, 3) or len(self.paso) != len(self.forma):
+            raise ValueError("forma y paso deben tener 1, 2 o 3 componentes compatibles.")
         if any(n < 1 for n in self.forma):
             raise ValueError("Cada dimensión debe tener al menos 1 celda.")
         if any(not isfinite(d) or d <= 0.0 for d in self.paso):
@@ -185,7 +189,7 @@ class MallaVoxel:
 
     @property
     def caras(self) -> tuple[str, ...]:
-        return CARAS_2D if self.dim == 2 else CARAS_3D
+        return (CARAS_1D, CARAS_2D, CARAS_3D)[self.dim - 1]
 
     @property
     def volumen_celda(self) -> float:
@@ -232,7 +236,7 @@ class ResultadoVoxel:
 
 
 class SolverVoxel:
-    """Integrador explícito del balance de voxel en 2D o 3D."""
+    """Integrador explícito del balance de voxel en 1D, 2D o 3D."""
 
     def __init__(
         self,
@@ -249,6 +253,8 @@ class SolverVoxel:
             )
         self.malla = malla
         self.bordes = dict(bordes)
+        if not all(isinstance(b, BordeCara) for b in self.bordes.values()):
+            raise ValueError("Cada borde debe ser BordeCara.")
         self.fuente = fuente
         self._preparar_conductancias()
 
@@ -290,7 +296,10 @@ class SolverVoxel:
         self.suma_G = suma_G
 
     def dt_max(self) -> float:
-        """Paso temporal máximo estable: min_i C_i / sum G_i [s]."""
+        """Límite suficiente de monotonía: min_i C_i / sum G_i [s].
+
+        Se conserva el nombre por compatibilidad; no es el límite espectral exacto.
+        """
         with np.errstate(divide="ignore"):
             cociente = np.where(
                 self.suma_G > 0.0, self.malla.capacidad / self.suma_G, np.inf
@@ -309,6 +318,28 @@ class SolverVoxel:
         """Calor neto que entra por cada cara [W] (positivo = entra)."""
         return {c: float(np.sum(q)) for c, q in self._flujos_borde(T).items()}
 
+    def temperatura_superficie(self, T: np.ndarray) -> dict[str, np.ndarray]:
+        """Temperatura de la cara del sólido, distinta del centro vecino.
+
+        Q es positivo entrando: Ts = Ti + (Q/A)*d/(2k).
+        En Robin con aislación, Ts es la superficie del sólido antes de R_extra.
+        """
+        m = self.malla
+        T = np.broadcast_to(np.asarray(T, dtype=float), m.forma)
+        if not np.all(np.isfinite(T)):
+            raise ValueError("T contiene valores no finitos.")
+        flujos = self._flujos_borde(T)
+        resultado = {}
+        for cara in m.caras:
+            eje = _EJE[cara[0]]
+            sl = _rebanada(m.dim, eje, 0 if cara[1] == "-" else -1)
+            bc = self.bordes[cara]
+            if bc.tipo == "dirichlet":
+                resultado[cara] = np.full_like(T[sl], bc.T)
+            else:
+                resultado[cara] = T[sl] + flujos[cara] * m.paso[eje] / (2*m.k[sl]*m.area_cara(eje))
+        return resultado
+
     def _flujos_borde(self, T: np.ndarray) -> dict[str, np.ndarray]:
         m = self.malla
         salida = {}
@@ -325,6 +356,13 @@ class SolverVoxel:
 
     def tasa_calor(self, T: np.ndarray, t: float = 0.0) -> np.ndarray:
         """Lado derecho del balance de cada voxel: C_i dT_i/dt [W]."""
+        T = np.broadcast_to(np.asarray(T, dtype=float), self.malla.forma)
+        if not np.all(np.isfinite(T)):
+            raise ValueError("T contiene valores no finitos.")
+        return self._balance(T, self._fuente_en(t), self._flujos_borde(T))
+
+    def _balance(self, T, fuente, flujos_borde):
+        """Balance con fuente y bordes ya evaluados en el mismo instante."""
         m = self.malla
         Q = np.zeros(m.forma)
         for eje, G in enumerate(self.G_int):
@@ -335,11 +373,11 @@ class SolverVoxel:
             flujo = G * (T[b] - T[a])  # calor que va de la celda b a la a
             Q[a] += flujo
             Q[b] -= flujo
-        for cara, q in self._flujos_borde(T).items():
+        for cara, q in flujos_borde.items():
             eje = _EJE[cara[0]]
             idx = 0 if cara[1] == "-" else -1
             Q[_rebanada(m.dim, eje, idx)] += q
-        Q += self._fuente_en(t) * m.volumen_celda
+        Q += fuente * m.volumen_celda
         return Q
 
     def energia(self, T: np.ndarray) -> float:
@@ -367,12 +405,17 @@ class SolverVoxel:
             raise ValueError("T_inicial contiene valores no finitos.")
         if not isfinite(dt) or dt <= 0.0:
             raise ValueError("dt debe ser positivo.")
-        if n_pasos < 0:
-            raise ValueError("n_pasos no puede ser negativo.")
+        if isinstance(n_pasos, (bool, np.bool_)) or not isinstance(n_pasos, (int, np.integer)) or n_pasos < 0:
+            raise ValueError("n_pasos debe ser un entero no negativo.")
+        if not isfinite(t0):
+            raise ValueError("t0 debe ser finito.")
+        if guardar_cada is not None and (isinstance(guardar_cada, bool) or
+                not isinstance(guardar_cada, (int, np.integer)) or guardar_cada <= 0):
+            raise ValueError("guardar_cada debe ser un entero positivo.")
         dt_lim = self.dt_max()
         if verificar_estabilidad and dt > dt_lim * (1.0 + 1e-12):
             raise ValueError(
-                f"Paso temporal inestable: dt={dt:.6e} s > dt_max={dt_lim:.6e} s."
+                f"Paso temporal inestable según criterio conservador: dt={dt:.6e} s > dt_max={dt_lim:.6e} s."
             )
 
         C = m.capacidad
@@ -385,10 +428,11 @@ class SolverVoxel:
 
         for paso in range(1, n_pasos + 1):
             flujos_b = self._flujos_borde(T)
-            Q = self.tasa_calor(T, t)
+            fuente = self._fuente_en(t)
+            Q = self._balance(T, fuente, flujos_b)
             for c, q in flujos_b.items():
                 acumulado[c] += dt * float(np.sum(q))
-            fuente_acum += dt * float(np.sum(self._fuente_en(t))) * m.volumen_celda
+            fuente_acum += dt * float(np.sum(fuente)) * m.volumen_celda
             T = T + dt * Q / C
             t = t0 + paso * dt
             tiempos.append(t)

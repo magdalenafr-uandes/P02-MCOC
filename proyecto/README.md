@@ -1,5 +1,24 @@
 # P02-MCOC — Grupo 1 — Capstone de hormigón masivo
 
+## E04/E05: solver general y batería térmica
+
+La preparación actual está en [docs/e04_e05.md](docs/e04_e05.md): comandos,
+guía oral, fórmulas, mapa del código y límites del avance BIM.
+El motor `thermal/voxel.py` resuelve 1D/2D/3D por volúmenes finitos
+centrados en celdas, con Dirichlet, Neumann de flujo no nulo, Robin, fuentes
+y propiedades por celda. Conserva el solver nodal 1D anterior; `solver_nd.py`
+es un adaptador de compatibilidad que usa el mismo motor.
+
+Desde la raíz del repositorio:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File proyecto/scripts/verificar_entregas.ps1
+.\proyecto\.venv\Scripts\python.exe proyecto/scripts/verification_nd.py --dim 3 --figura proyecto/results/figures/verificacion_3d.png
+```
+
+La geometría IFC existente se conserva y hay voxelización paramétrica preliminar.
+No hay todavía acoplamiento automático IFC-solver, hidratación realista ni clima real.
+
 Proyecto continuo para diseñar, justificar y defender un **plan de vertidas de
 hormigón masivo**, sustentado en simulación térmica y análisis de
 confiabilidad. Este directorio (`proyecto/`) contiene el trabajo activo del
@@ -159,8 +178,8 @@ rho·cp·∂T/∂t = k·∂²T/∂x² + Qdot
 ```
 
 Discretización FTCS con `r = alpha·dt/dx²`, `alpha = k/(rho·cp)`.
-Condiciones de borde: Dirichlet (valor impuesto), Neumann adiabática
-(`q'' = 0`, nodo fantasma) y Robin (balance sobre medio volumen de control).
+Condiciones de borde: Dirichlet (valor impuesto), Neumann (flujo normal saliente,
+incluido cero adiabático) y Robin (balance sobre medio volumen de control).
 
 Estabilidad — dos restricciones distintas:
 

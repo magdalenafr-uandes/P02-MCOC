@@ -8,8 +8,7 @@ Genera en ``results/figures/``:
 3. ``e04_bordes_dominan.png``      — misma sección de hormigón (3.3 m sobre
    2 m de suelo, dos materiales) con fuente volumétrica constante y cuatro
    hipótesis distintas en la cara superior.
-4. ``e04_estabilidad.png``         — dt = dt_max (estable) vs. dt por encima
-   del límite local de la esquina (inestable).
+4. ``e04_estabilidad.png`` — monotonía, estabilidad sin monotonía y crecimiento.
 
 Uso:
     python scripts/verification_2d_3d.py
@@ -137,13 +136,13 @@ def figura_bordes_dominan() -> None:
         res = solver.resolver(T_ini, dt, n, guardar_cada=max(1, n // 140))
         t = np.array(list(res.instantaneas)) / DIA
         nucleo = [c[0, i_nucleo] for c in res.instantaneas.values()]
-        sup = [c[0, -1] for c in res.instantaneas.values()]
+        sup = [solver.temperatura_superficie(c)["y+"][0] for c in res.instantaneas.values()]
         linea, = ejes[0].plot(t, nucleo, label=nombre)
         ejes[0].plot(t, sup, "--", color=linea.get_color())
         ejes[1].plot(t, np.array(nucleo) - np.array(sup), color=linea.get_color(), label=nombre)
         campos[nombre] = res.T
         print(f"{nombre:36s} T_núcleo={nucleo[-1]:6.2f} °C  T_sup={sup[-1]:6.2f} °C  dt={dt:.0f} s")
-    ejes[0].set_title("Núcleo (—) y celda superficial (--)")
+    ejes[0].set_title("Núcleo (—) y superficie del sólido (--)")
     ejes[0].set_xlabel("t [días]")
     ejes[0].set_ylabel("T [°C]")
     ejes[0].legend(fontsize=8)
@@ -172,16 +171,17 @@ def figura_estabilidad() -> None:
     T_ini = 20.0 + 30.0 * rng.random(malla.forma)
     dt_lim = solver.dt_max()
     dt_fourier = 0.25 * 0.1**2 / HORMIGON.alpha
-    fig, ejes = plt.subplots(1, 2, figsize=(11, 4.2))
+    fig, ejes = plt.subplots(1, 3, figsize=(16, 4.2))
     for ax, dt, titulo in (
-        (ejes[0], dt_lim, f"dt = dt_max = {dt_lim:.0f} s"),
-        (ejes[1], 1.1 * dt_fourier, f"dt = 1.1·dx²/(4α) = {1.1 * dt_fourier:.0f} s"),
+        (ejes[0], dt_lim, f"Monótono: dt = C/ΣG = {dt_lim:.0f} s"),
+        (ejes[1], dt_fourier, f"Estable, sin garantía de monotonía\ndt = dx²/(4α) = {dt_fourier:.0f} s"),
+        (ejes[2], 1.1 * dt_fourier, f"Inestable: dt = 1.1·dx²/(4α)\n= {1.1 * dt_fourier:.0f} s"),
     ):
         res = solver.resolver(T_ini, dt, 60, verificar_estabilidad=False)
         im = ax.imshow(res.T.T, origin="lower", cmap="coolwarm")
         ax.set_title(f"{titulo}\nT ∈ [{res.T.min():.3g}, {res.T.max():.3g}] °C")
         fig.colorbar(im, ax=ax)
-    fig.suptitle("Con Dirichlet de media celda, la esquina exige dt ≤ C/ΣG = dx²/(6α) < dx²/(4α)")
+    fig.suptitle("Caja homogénea 2D: límite suficiente monótono dx²/(6α); límite espectral dx²/(4α)")
     fig.tight_layout()
     fig.savefig(FIG / "e04_estabilidad.png", dpi=150)
     plt.close(fig)

@@ -1,5 +1,9 @@
 # Guía de estudio — Capstone (fundación, solver 1D, IFC)
 
+> Para E04/E05, consultar [e04_e05.md](e04_e05.md): solver general 2D/3D,
+> Neumann no nulo, balances, estabilidad, dos materiales y comandos de tests.
+> Las secciones siguientes conservan el contexto de las entregas E01/E02.
+
 Guía activa para la defensa oral del trabajo del equipo. Explica el modelo
 `foundation`, el solver y las herramientas actuales de `proyecto/`. Todo es
 reproducible con los comandos del `README.md`. El histórico de entregas

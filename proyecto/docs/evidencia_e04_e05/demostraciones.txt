@@ -1,0 +1,12 @@
+2D  n=  8  dx=0.1250 m  error_inf=1.801e-02 °C
+2D  n= 16  dx=0.0625 m  error_inf=4.710e-03 °C
+2D  n= 32  dx=0.0312 m  error_inf=1.188e-03 °C
+2D  n= 64  dx=0.0156 m  error_inf=2.977e-04 °C
+3D  n=  8  dx=0.1250 m  error_inf=1.025e-01 °C
+3D  n= 16  dx=0.0625 m  error_inf=2.696e-02 °C
+3D  n= 32  dx=0.0312 m  error_inf=6.807e-03 °C
+Superior adiabática                  T_núcleo= 56.26 °C  T_sup= 56.96 °C  dt=2353 s
+Robin h=10, T∞=20 °C                 T_núcleo= 55.40 °C  T_sup= 29.72 °C  dt=2353 s
+Robin + aislación 50 mm (k=0.04)     T_núcleo= 56.12 °C  T_sup= 51.07 °C  dt=2353 s
+Dirichlet 20 °C (¡error típico!)     T_núcleo= 54.80 °C  T_sup= 20.00 °C  dt=1884 s
+Figuras en C:\Users\maida\OneDrive\Escritorio\P2 MCOC\proyecto\results\figures
