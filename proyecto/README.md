@@ -1,5 +1,10 @@
 # P02-MCOC — Grupo 1 — Capstone de hormigón masivo
 
+## E06: dossier de verificación y BIM
+
+Entrega del 30 de octubre: [dossier con matriz, convergencias y figuras](docs/e06.md).
+Incluye el SHA evaluado, evidencia ejecutada, IFC versionado y simplificaciones.
+
 ## E04/E05: solver general y batería térmica
 
 La preparación actual está en [docs/e04_e05.md](docs/e04_e05.md): comandos,
