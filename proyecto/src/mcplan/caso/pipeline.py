@@ -19,6 +19,7 @@ from ..bim.voxelizador import (
     area_expuesta,
     caras_expuestas,
     definir_grilla,
+    pesos_area,
     resumen_volumetrico,
     voxelizar_solidos,
 )
@@ -33,7 +34,8 @@ class ResultadoPipeline:
     plan: list[PlanVertida]
     grilla: GrillaBIM
     volumetria: list[dict[str, float]]
-    area_exterior_m2: dict[str, float]
+    area_exterior_m2: dict[str, float]  # staircase
+    area_exterior_corregida_m2: dict[str, float]  # con w = 1/||n||₁
     simulacion: ResultadoEtapas | None = None
 
 
@@ -55,13 +57,19 @@ def ejecutar_pipeline(config: ConfigCaso, simular: bool = True) -> ResultadoPipe
         raise ValueError(f"{grilla.voxeles_solapados} voxeles caen en dos vertidas: revisar el IFC.")
 
     hormigon = grilla.vertida_id > 0
-    area = area_expuesta(caras_expuestas(hormigon | grilla.es_suelo), grilla.paso, mascara=hormigon)
+    expuestas = caras_expuestas(hormigon | grilla.es_suelo)
+    pesos = pesos_area(solidos, grilla)
     resultado = ResultadoPipeline(
-        config, solidos, plan, grilla, resumen_volumetrico(solidos, grilla), area
+        config, solidos, plan, grilla, resumen_volumetrico(solidos, grilla),
+        area_expuesta(expuestas, grilla.paso, mascara=hormigon),
+        area_expuesta(expuestas, grilla.paso, mascara=hormigon, pesos=pesos),
     )
     if simular:
         resultado.simulacion = SimuladorEtapas(
-            DominioVoxel(grilla.vertida_id, grilla.es_suelo, grilla.paso),
+            DominioVoxel(
+                grilla.vertida_id, grilla.es_suelo, grilla.paso,
+                pesos if config.malla.corregir_area else None,
+            ),
             [p for p in plan if p.visible],
             config.hormigones,
             config.ambiente,

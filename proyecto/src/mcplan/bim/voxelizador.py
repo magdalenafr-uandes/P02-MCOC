@@ -210,13 +210,68 @@ def caras_expuestas(solido: np.ndarray) -> dict[str, np.ndarray]:
     return expuestas
 
 
-def area_expuesta(expuestas: dict[str, np.ndarray], paso: float, mascara: np.ndarray | None = None) -> dict[str, float]:
-    """Área staircase expuesta [m²]: laterales (x, y), superior (z+), inferior (z-)."""
+def pesos_area(solidos: Sequence[SolidoVertida], grilla: GrillaBIM) -> dict[str, np.ndarray]:
+    """Peso w = A_real/A_staircase de cada cara de voxel, desde las normales de la malla.
+
+    Una cara real de área A y normal unitaria n aparece en la escalera como
+    caras de voxel en las tres direcciones, de área total
+    (|n_x| + |n_y| + |n_z|)·A = ||n||₁·A >= A (√2 a 45°). Ponderar cada cara de
+    voxel por w = 1/||n||₁ hace que la suma vuelva a ser A, así que el área
+    expuesta converge al refinar.
+
+    Para cada cara de borde de la región de una vertida, n es la del triángulo
+    de su malla que **mira en esa dirección** (n·e > 0), cuya caja (ampliada en
+    Δx) contiene el centro de la cara y cuyo plano está más cerca. Sin
+    candidato (p. ej. suelo), w = 1.
+    """
+    d = grilla.paso
+    origen = np.asarray(grilla.definicion.origen)
+    pesos = {c: np.ones(grilla.forma) for c in DIRECCIONES}
+    for s in solidos:
+        propio = grilla.vertida_id == s.vertida_id
+        if not propio.any():
+            continue
+        t = s.triangulos
+        normal = np.cross(t[:, 1] - t[:, 0], t[:, 2] - t[:, 0])
+        largo = np.linalg.norm(normal, axis=1)
+        validos = largo > 0.0
+        t, normal = t[validos], normal[validos] / largo[validos, None]
+        lo, hi = t.min(axis=1) - d, t.max(axis=1) + d
+        w_triangulo = 1.0 / np.abs(normal).sum(axis=1)
+        for cara, mascara in caras_expuestas(propio).items():
+            celdas = np.argwhere(mascara)
+            if not len(celdas):
+                continue
+            eje, signo = "xyz".index(cara[0]), (1.0 if cara[1] == "+" else -1.0)
+            P = origen + (celdas + 0.5) * d
+            P[:, eje] += signo * d / 2.0  # centro de la cara
+            mejor = np.full(len(P), np.inf)
+            w = np.ones(len(P))
+            for j in np.nonzero(signo * normal[:, eje] > 1e-9)[0]:
+                cerca = np.all((P >= lo[j]) & (P <= hi[j]), axis=1)
+                distancia = np.abs((P - t[j, 0]) @ normal[j])
+                gana = cerca & (distancia < mejor)
+                mejor[gana] = distancia[gana]
+                w[gana] = w_triangulo[j]
+            pesos[cara][tuple(celdas.T)] = w
+    return pesos
+
+
+def area_expuesta(
+    expuestas: dict[str, np.ndarray],
+    paso: float,
+    mascara: np.ndarray | None = None,
+    pesos: dict[str, np.ndarray] | None = None,
+) -> dict[str, float]:
+    """Área expuesta [m²]: laterales (x, y), superior (z+), inferior (z-).
+
+    Sin ``pesos`` es el área staircase; con ``pesos_area`` es la corregida.
+    """
     def suma(claves: Iterable[str]) -> float:
-        total = 0
+        total = 0.0
         for c in claves:
             e = expuestas[c] if mascara is None else expuestas[c] & mascara
-            total += int(np.count_nonzero(e))
+            total += float(np.sum(pesos[c][e])) if pesos is not None else float(np.count_nonzero(e))
         return total * paso**2
 
     lateral = suma(("x-", "x+", "y-", "y+"))

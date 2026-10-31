@@ -15,6 +15,8 @@ Modelo (balance de voxel, ``voxel.py``)::
   ``G = 1/((Δx/2)/(kA) + R/A + 1/(hA))`` hacia el ambiente, más la base de la
   caja (Dirichlet a ``T_base`` o adiabática). Las caras de la caja son
   adiabáticas en el motor; todo intercambio externo pasa por este término.
+  Con ``DominioVoxel.peso_area``, A pasa a ser el área real ``w·A`` (la
+  escalera sobrestima ~30 % el área de caras inclinadas).
 
 Etapas: los instantes de inicio de cada vertida y de retiro de moldaje cortan
 el tiempo en etapas. Al comenzar una etapa se activan las vertidas que
@@ -144,6 +146,8 @@ class DominioVoxel:
     vertida_id: np.ndarray  # (nx, ny, nz) int, 0 = sin hormigón
     es_suelo: np.ndarray  # (nx, ny, nz) bool
     paso: float
+    # w = A_real/A_staircase por cara ("x-"... "z+"); None = área staircase (w = 1)
+    peso_area: Mapping[str, np.ndarray] | None = None
 
 
 @dataclass
@@ -266,6 +270,8 @@ class SimuladorEtapas:
             for cara, mascara in expuestas.items():
                 R = R_sup if cara == "z+" else R_lat
                 G = 1.0 / ((d / 2.0) / (k * A) + R / A + 1.0 / (self.ambiente.h * A))
+                if self.dominio.peso_area is not None:
+                    G = G * self.dominio.peso_area[cara]  # A_real = w·A en las tres resistencias
                 G_amb += np.where(mascara, G, 0.0)
         G_base = np.zeros(activo.shape)
         if self.base.tipo == "dirichlet":

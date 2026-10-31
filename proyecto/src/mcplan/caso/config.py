@@ -37,7 +37,7 @@ from ..thermal.hidratacion import HORA, ModeloHidratacion
 
 _ESQUEMA: dict[str, Any] = {
     "ifc": str,
-    "malla": {"paso_m": float, "margen_lateral_m": float, "margen_superior_m": float},
+    "malla": {"paso_m": float, "margen_lateral_m": float, "margen_superior_m": float, "corregir_area": bool},
     "simulacion": {
         "duracion_h": float, "fraccion_dt": float, "dt_max_h": float,
         "guardar_cada_h": float, "guardar_campos": bool,
@@ -75,6 +75,7 @@ class ConfigMalla:
     margen_lateral_m: float
     margen_superior_m: float
     espesor_suelo_m: float
+    corregir_area: bool = False  # convección con área real (w = 1/||n||₁) en vez de staircase
 
 
 @dataclass(frozen=True)
@@ -149,6 +150,12 @@ def _numero(valor: Any, donde: str, positivo: bool = False, no_negativo: bool = 
     return valor
 
 
+def _booleano(valor: Any, donde: str) -> bool:
+    if not isinstance(valor, bool):
+        raise ErrorConfiguracion(f"{donde}: se esperaba true o false, se leyó {valor!r}.")
+    return valor
+
+
 def _claves(seccion: Any, permitidas: Mapping[str, Any], donde: str) -> dict[str, Any]:
     if not isinstance(seccion, Mapping):
         raise ErrorConfiguracion(f"{donde}: se esperaba un diccionario.")
@@ -210,6 +217,7 @@ def validar_config(datos: Mapping[str, Any], carpeta: Path) -> ConfigCaso:
         _numero(_requerir(m, "margen_lateral_m", "malla"), "malla.margen_lateral_m", no_negativo=True),
         _numero(_requerir(m, "margen_superior_m", "malla"), "malla.margen_superior_m", no_negativo=True),
         espesor,
+        _booleano(m.get("corregir_area", False), "malla.corregir_area"),
     )
     dt_max_s = math.inf
     if "dt_max_h" in s:

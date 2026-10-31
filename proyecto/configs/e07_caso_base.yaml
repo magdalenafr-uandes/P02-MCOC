@@ -16,6 +16,7 @@ malla:
   paso_m: 0.25            # Δx = Δy = Δz. Para error por vertida < 1 %: 0.05 (divide 0.55, 1.10 y 1.00 m)
   margen_lateral_m: 0.5   # aire alrededor (>= paso)
   margen_superior_m: 0.5  # aire sobre el pedestal (>= paso)
+  corregir_area: true     # convección con el área real: la escalera la sobrestima ~30 % y no converge
 
 simulacion:
   duracion_h: 168         # 7 días

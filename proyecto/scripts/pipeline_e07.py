@@ -44,9 +44,12 @@ def _imprimir(r) -> None:
     V = sum(f["V_malla_m3"] for f in r.volumetria)
     Vh = sum(f["V_h_m3"] for f in r.volumetria)
     print(f"                total   {V:12.3f}   {Vh:8.3f}   {abs(Vh - V) / V:.2%}")
-    a = r.area_exterior_m2
-    print(f"\nSuperficie exterior staircase del hormigón: lateral {a['lateral']:.1f} m², "
-          f"superior {a['superior']:.1f} m², inferior expuesta {a['inferior']:.1f} m²")
+    a, ac = r.area_exterior_m2, r.area_exterior_corregida_m2
+    usada = "corregida" if c.malla.corregir_area else "staircase"
+    print(f"\nSuperficie exterior del hormigón [m²]   lateral  superior  total")
+    print(f"  staircase (|nx|+|ny|+|nz|)·A      {a['lateral']:8.1f}  {a['superior']:8.1f}  {a['total']:6.1f}")
+    print(f"  corregida (w = 1/||n||₁)          {ac['lateral']:8.1f}  {ac['superior']:8.1f}  {ac['total']:6.1f}")
+    print(f"  convección calculada con el área {usada} (malla.corregir_area = {c.malla.corregir_area})")
 
     s = r.simulacion
     if s is None:

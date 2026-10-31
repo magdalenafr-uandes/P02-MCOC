@@ -18,6 +18,7 @@ from mcplan.bim.voxelizador import (
     caras_expuestas,
     definir_grilla,
     ocupacion,
+    pesos_area,
     resumen_volumetrico,
     voxelizar_solidos,
 )
@@ -102,6 +103,56 @@ def test_area_staircase_no_converge_en_caras_oblicuas():
         g = voxelizar_solidos([s], definir_grilla([s], d, 2 * d, 2 * d))
         lateral = area_expuesta(caras_expuestas(g.vertida_id > 0), d)["lateral"]
         assert lateral / real == pytest.approx(math.sqrt(2), rel=0.03)
+
+
+def test_area_corregida_converge_en_caras_oblicuas():
+    a = 4.0
+    s = prisma(1, poligono_regular(4, a / math.sqrt(2), rot=np.pi / 2), 0, 1.0)  # caras a 45°
+    errores = []
+    for d in (0.2, 0.1, 0.05):
+        g = voxelizar_solidos([s], definir_grilla([s], d, 2 * d, 2 * d))
+        lateral = area_expuesta(caras_expuestas(g.vertida_id > 0), d, pesos=pesos_area([s], g))["lateral"]
+        errores.append(abs(lateral / (4 * a) - 1.0))
+    assert errores[-1] < 0.02
+    assert errores[-1] < errores[0]
+
+
+def test_area_corregida_no_cambia_caras_alineadas():
+    s = prisma(1, rectangulo(-1, 1, -0.5, 0.5), 0, 0.5)
+    g = voxelizar_solidos([s], definir_grilla([s], 0.25, 0.5, 0.5))
+    e = caras_expuestas(g.vertida_id > 0)
+    assert area_expuesta(e, 0.25, pesos=pesos_area([s], g)) == pytest.approx(area_expuesta(e, 0.25))
+
+
+def area_exterior_real(solidos) -> float:
+    """Caras no horizontales + huella - proyección vertical de las caras oblicuas que miran arriba."""
+    no_horizontal = proyeccion = 0.0
+    for s in solidos:
+        t = s.triangulos
+        n = np.cross(t[:, 1] - t[:, 0], t[:, 2] - t[:, 0])
+        A = 0.5 * np.linalg.norm(n, axis=1)
+        nz = n[:, 2] / (2 * A)
+        oblicua = np.abs(nz) < 0.999
+        no_horizontal += A[oblicua].sum()
+        proyeccion += (A * nz)[oblicua & (nz > 0)].sum()
+    huella = solidos[0].volumen / (solidos[0].limites[1][2] - solidos[0].limites[0][2])
+    return no_horizontal + huella - proyeccion
+
+
+def test_area_exterior_fundacion_corregida_converge():
+    solidos = extraer_vertidas(IFC)
+    real = area_exterior_real(solidos)
+    assert real == pytest.approx(373.5, abs=0.1)
+    errores = []
+    for d in (0.2, 0.1):
+        g = voxelizar_solidos(solidos, definir_grilla(solidos, d, 2 * d, 2 * d))
+        e = caras_expuestas(g.vertida_id > 0)
+        staircase = area_expuesta(e, d)
+        corregida = area_expuesta(e, d, pesos=pesos_area(solidos, g))
+        assert (staircase["lateral"] + staircase["superior"]) / real == pytest.approx(1.30, abs=0.02)
+        errores.append(abs((corregida["lateral"] + corregida["superior"]) / real - 1.0))
+    assert errores[1] < errores[0]
+    assert errores[1] < 0.025
 
 
 def test_desempate_interfaz_horizontal_va_a_vertida_inferior():
@@ -222,6 +273,20 @@ def test_activacion_por_etapas_y_caras_expuestas():
     assert abs(r.balance["residuo_J"]) < 1e-9 * abs(r.balance["E_final_J"])
 
 
+def test_peso_de_area_escala_la_conductancia_convectiva():
+    base = dominio_caja()
+    activo = base.vertida_id > 0
+    k = np.where(activo, HORMIGON.k, 1e-9)
+    G = {}
+    for nombre, pesos in (("sin", None), ("medio", {c: np.full(activo.shape, 0.5) for c in
+                                                     ("x-", "x+", "y-", "y+", "z-", "z+")})):
+        dom = DominioVoxel(base.vertida_id, base.es_suelo, base.paso, pesos)
+        sim = SimuladorEtapas(dom, [PlanVertida(1, 0.0, 20.0, "M1")], {"M1": Hormigon(HORMIGON)},
+                              Ambiente(15.0, 10.0), CondicionBase("adiabatico"), ParametrosTiempo(HORA))
+        G[nombre], _ = sim._conductancias_externas(0.0, activo, activo, k)
+    np.testing.assert_allclose(G["medio"], 0.5 * G["sin"])
+
+
 def test_retiro_de_moldaje_aumenta_perdidas_laterales():
     plan = [PlanVertida(1, 0.0, 20.0, "M1", R_lateral=1.0, retiro_moldaje_s=5 * HORA)]
     sim = SimuladorEtapas(
@@ -264,6 +329,7 @@ def test_config_base_y_prioridad_config_sobre_ifc():
     (["vertidas.9.inicio_h=1"], "no existen en el IFC"),
     (["vertidas.1.hormigon=M9"], "no está en 'hormigones'"),
     (["base.tipo=dirichlet", "base.T_C=null"], "número"),
+    (["malla.corregir_area=3"], "true o false"),
 ])
 def test_config_invalida_se_rechaza(cambio, mensaje):
     datos = aplicar_sobrescrituras(yaml.safe_load(CONFIG.read_text(encoding="utf-8")), cambio)
@@ -290,6 +356,18 @@ def test_pipeline_completo_responde_a_la_configuracion():
         assert abs(b["residuo_J"]) < 1e-10 * abs(b["E_final_J"])
         picos.append(max(r.simulacion.T_max_C))
     assert picos[1] < picos[0]  # menor T de colocación => menor pico, sin tocar código
+
+
+def test_correccion_de_area_reduce_perdidas_por_conveccion():
+    base = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))
+    perdidas = {}
+    for corregir in (False, True):
+        datos = aplicar_sobrescrituras(base, ["malla.paso_m=0.5", "simulacion.duracion_h=30",
+                                              f"malla.corregir_area={str(corregir).lower()}"])
+        r = ejecutar_pipeline(leer_config(datos, base_rutas=CONFIG.parent))
+        perdidas[corregir] = -r.simulacion.balance["ambiente_J"]
+        assert r.area_exterior_corregida_m2["total"] < r.area_exterior_m2["total"]
+    assert 0.6 < perdidas[True] / perdidas[False] < 0.95  # menos área real => menos pérdida
 
 
 def test_cli_pipeline():
