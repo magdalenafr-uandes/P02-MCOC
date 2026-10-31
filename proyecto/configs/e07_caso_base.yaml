@@ -1,0 +1,62 @@
+# Caso base E07/E08: fundación de 5 vertidas (geometry/foundation.ifc).
+#
+# Todo parámetro del caso vive aquí, nunca en el solver. Se puede cambiar sin
+# editar este archivo con --set, por ejemplo:
+#   python scripts/pipeline_e07.py --set malla.paso_m=0.2 --set vertidas.2.inicio_h=12
+#
+# Prioridad por vertida: vertidas.<id>  >  vertidas.defecto  >  pset del IFC
+# (Inicio_h, TemperaturaColocacion_C, TipoHormigon, RetiroMoldaje_h).
+#
+# ADVERTENCIA: los parámetros de hidratación son ilustrativos (guía §24), no
+# están calibrados con el hormigón real del proyecto.
+
+ifc: ../geometry/foundation.ifc   # relativo a este archivo
+
+malla:
+  paso_m: 0.25            # Δx = Δy = Δz. Para error por vertida < 1 %: 0.05 (divide 0.55, 1.10 y 1.00 m)
+  margen_lateral_m: 0.5   # aire alrededor (>= paso)
+  margen_superior_m: 0.5  # aire sobre el pedestal (>= paso)
+
+simulacion:
+  duracion_h: 168         # 7 días
+  fraccion_dt: 0.8        # dt = 0.8 · límite monótono C/ΣG
+  dt_max_h: 0.5           # tope por precisión de la cinética de hidratación
+  guardar_cada_h: 1
+
+ambiente:
+  T_C: 15.0
+  h_W_m2K: 10.0           # convección en caras expuestas (0 = adiabáticas)
+  # serie: [[0, 12.0], [12, 22.0], [24, 12.0]]   # opcional: T del aire [h, °C], interpolada
+
+base:                     # cara inferior de la caja (bajo el suelo)
+  tipo: dirichlet         # dirichlet | adiabatico
+  T_C: 15.0
+
+suelo:                    # espesor_m: 0 => sin suelo (la base actúa bajo el hormigón)
+  espesor_m: 1.0
+  k_W_mK: 1.39            # Ju y Lei
+  rho_kg_m3: 1800
+  cp_J_kgK: 1273
+  T_inicial_C: 15.0
+
+hormigones:
+  M1:
+    k_W_mK: 2.22
+    rho_kg_m3: 2400
+    cp_J_kgK: 970
+    hidratacion:
+      modelo: exponencial  # exponencial: θ∞(1-e^(-te/τ)) | schindler: θ∞·exp(-(τ/te)^β)
+      theta_inf_C: 45.0    # elevación adiabática final [K]
+      tau_h: 30.0
+      beta: 1.0            # solo schindler
+      Ea_J_mol: 40000      # energía de activación (Arrhenius); 0 = sin efecto de T
+      T_ref_C: 20.0
+
+vertidas:
+  defecto:
+    visible: true              # false = la vertida no se incluye en la grilla
+    R_lateral_m2K_W: 0.12      # moldaje (≈ 18 mm de madera, k ≈ 0.15)
+    R_superior_m2K_W: 0.0      # cara superior descubierta
+  # 2:
+  #   inicio_h: 12             # sobrescribe Inicio_h del IFC
+  #   T_colocacion_C: 14

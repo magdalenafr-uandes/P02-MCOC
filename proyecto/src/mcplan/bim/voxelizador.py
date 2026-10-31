@@ -1,0 +1,235 @@
+"""Voxelización de mallas IFC en una grilla cartesiana (guía G04).
+
+Criterio de pertenencia: un voxel pertenece al sólido si su **centro** está
+dentro de la malla cerrada. Se decide por paridad de cruces de un rayo
+vertical por cada columna (x, y): la malla se cruza un número par de veces y
+los tramos (z_entrada, z_salida] quedan dentro.
+
+Desempates (las mallas traen ruido de redondeo, p. ej. 0.5499999 vs 0.5500001):
+
+- En z, un centro que cae en la cara común de dos vertidas apiladas pertenece
+  a la de **abajo**: los cruces se comparan desplazados ``_TOL_Z·Δx`` hacia
+  arriba, mucho más que el ruido y mucho menos que Δx. Así ninguna columna
+  queda en dos vertidas.
+- En (x, y), los rayos se desplazan una fracción ínfima de Δx
+  (``_DESPLAZAMIENTO``) para no pasar exactamente por aristas o vértices,
+  donde un cruce se contaría dos veces.
+
+Resultado (``GrillaBIM``): por voxel, ``vertida_id`` (0 = sin hormigón) y
+``es_suelo``; el volumen estimado ``V_h = N·Δx³`` frente al de la malla; y las
+caras expuestas (sólido contra vacío) que recibirán convección.
+"""
+
+from __future__ import annotations
+
+import math
+from collections.abc import Iterable, Sequence
+from dataclasses import dataclass
+
+import numpy as np
+
+from .mallas_ifc import SolidoVertida
+
+DIRECCIONES = ("x-", "x+", "y-", "y+", "z-", "z+")
+_DESPLAZAMIENTO = (1.0e-7 * math.pi, 1.0e-7 * math.e)  # fracción de Δx en (x, y)
+_TOL_Z = 1.0e-6  # fracción de Δx: desempate de centros en una interfaz horizontal
+
+
+@dataclass(frozen=True)
+class DefinicionGrilla:
+    """Caja de cálculo: origen (esquina mínima), paso y número de celdas."""
+
+    origen: tuple[float, float, float]
+    paso: float
+    forma: tuple[int, int, int]
+    n_suelo: int = 0  # capas de suelo bajo la base del hormigón
+
+    def centros(self, eje: int) -> np.ndarray:
+        return self.origen[eje] + (np.arange(self.forma[eje]) + 0.5) * self.paso
+
+
+@dataclass
+class GrillaBIM:
+    """Grilla voxelizada lista para el solver."""
+
+    definicion: DefinicionGrilla
+    vertida_id: np.ndarray  # (nx, ny, nz) int16, 0 = sin hormigón
+    es_suelo: np.ndarray  # (nx, ny, nz) bool
+    voxeles_solapados: int = 0
+
+    @property
+    def paso(self) -> float:
+        return self.definicion.paso
+
+    @property
+    def forma(self) -> tuple[int, int, int]:
+        return self.definicion.forma
+
+    @property
+    def volumen_voxel(self) -> float:
+        return self.paso**3
+
+    def ids(self) -> list[int]:
+        return sorted(int(v) for v in np.unique(self.vertida_id) if v != 0)
+
+    def volumen(self, vid: int) -> float:
+        """V_h = N_activo · Δx³ de una vertida [m³]."""
+        return float(np.count_nonzero(self.vertida_id == vid)) * self.volumen_voxel
+
+
+def definir_grilla(
+    solidos: Sequence[SolidoVertida],
+    paso: float,
+    margen_lateral: float,
+    margen_superior: float,
+    espesor_suelo: float = 0.0,
+) -> DefinicionGrilla:
+    """Caja que contiene los sólidos con márgenes; la base cae en una cara de voxel."""
+    if not math.isfinite(paso) or paso <= 0.0:
+        raise ValueError("El paso de malla debe ser positivo y finito.")
+    if min(margen_lateral, margen_superior, espesor_suelo) < 0.0:
+        raise ValueError("Márgenes y espesor de suelo no pueden ser negativos.")
+    if margen_lateral < paso or margen_superior < paso:
+        raise ValueError("Los márgenes deben ser >= paso: el hormigón no puede tocar la caja.")
+    lo = np.min([s.limites[0] for s in solidos], axis=0)
+    hi = np.max([s.limites[1] for s in solidos], axis=0)
+    forma: list[int] = []
+    origen: list[float] = []
+    for eje in (0, 1):
+        n = int(math.ceil((hi[eje] - lo[eje] + 2.0 * margen_lateral) / paso))
+        forma.append(n)
+        origen.append(0.5 * (lo[eje] + hi[eje]) - 0.5 * n * paso)
+    n_suelo = int(round(espesor_suelo / paso))
+    if espesor_suelo > 0.0 and n_suelo == 0:
+        raise ValueError("espesor de suelo menor que media celda: aumentarlo o refinar.")
+    n_sobre = int(math.ceil((hi[2] - lo[2] + margen_superior) / paso))
+    forma.append(n_suelo + n_sobre)
+    origen.append(float(lo[2]) - n_suelo * paso)
+    return DefinicionGrilla((origen[0], origen[1], origen[2]), float(paso), tuple(forma), n_suelo)
+
+
+def _cruces_rayo_z(
+    triangulos: np.ndarray, xs: np.ndarray, ys: np.ndarray
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Cruces de los rayos verticales (xs[i], ys[j]) con los triángulos."""
+    ix_l: list[np.ndarray] = []
+    iy_l: list[np.ndarray] = []
+    z_l: list[np.ndarray] = []
+    escala = float(np.ptp(triangulos.reshape(-1, 3)[:, :2])) or 1.0
+    for (x0, y0, z0), (x1, y1, z1), (x2, y2, z2) in triangulos:
+        det = (y1 - y2) * (x0 - x2) + (x2 - x1) * (y0 - y2)
+        if abs(det) <= 1e-14 * escala**2:
+            continue  # triángulo vertical: un rayo vertical no lo cruza
+        i0, i1 = np.searchsorted(xs, [min(x0, x1, x2), max(x0, x1, x2)], side="left")
+        j0, j1 = np.searchsorted(ys, [min(y0, y1, y2), max(y0, y1, y2)], side="left")
+        if i0 >= i1 or j0 >= j1:
+            continue
+        X, Y = np.meshgrid(xs[i0:i1], ys[j0:j1], indexing="ij")
+        w0 = ((y1 - y2) * (X - x2) + (x2 - x1) * (Y - y2)) / det
+        w1 = ((y2 - y0) * (X - x2) + (x0 - x2) * (Y - y2)) / det
+        w2 = 1.0 - w0 - w1
+        dentro = (w0 >= 0.0) & (w1 >= 0.0) & (w2 >= 0.0)
+        if not dentro.any():
+            continue
+        ii, jj = np.nonzero(dentro)
+        ix_l.append(ii + i0)
+        iy_l.append(jj + j0)
+        z_l.append((w0 * z0 + w1 * z1 + w2 * z2)[dentro])
+    if not ix_l:
+        vacio = np.zeros(0, dtype=int)
+        return vacio, vacio, np.zeros(0)
+    return np.concatenate(ix_l), np.concatenate(iy_l), np.concatenate(z_l)
+
+
+def ocupacion(solido: SolidoVertida, grilla: DefinicionGrilla) -> np.ndarray:
+    """Máscara booleana de voxeles cuyo centro está dentro de la malla."""
+    d = grilla.paso
+    xs = grilla.centros(0) + _DESPLAZAMIENTO[0] * d
+    ys = grilla.centros(1) + _DESPLAZAMIENTO[1] * d
+    zc = grilla.centros(2)
+    nx, ny, nz = grilla.forma
+    ix, iy, z = _cruces_rayo_z(solido.triangulos, xs, ys)
+    if z.size == 0:
+        return np.zeros(grilla.forma, dtype=bool)
+
+    orden = np.lexsort((z, iy, ix))
+    ix, iy, z = ix[orden], iy[orden], z[orden]
+    columna = ix * ny + iy
+    _, inicio, cuenta = np.unique(columna, return_index=True, return_counts=True)
+    if np.any(cuenta % 2):
+        raise ValueError(
+            f"Vertida {solido.vertida_id}: la malla no es cerrada "
+            "(un rayo la cruza un número impar de veces)."
+        )
+    posicion = np.arange(z.size) - np.repeat(inicio, cuenta)
+    entra = posicion % 2 == 0
+    z = z + _TOL_Z * d
+    k0 = np.searchsorted(zc, z[entra], side="left")
+    k1 = np.searchsorted(zc, z[~entra], side="left")
+    marcas = np.zeros((nx, ny, nz + 1), dtype=np.int32)
+    np.add.at(marcas, (ix[entra], iy[entra], k0), 1)
+    np.add.at(marcas, (ix[entra], iy[entra], k1), -1)
+    return np.cumsum(marcas, axis=2)[:, :, :nz] > 0
+
+
+def voxelizar_solidos(
+    solidos: Sequence[SolidoVertida], grilla: DefinicionGrilla
+) -> GrillaBIM:
+    """Asigna ``vertida_id`` a cada voxel; marca el suelo bajo la base."""
+    ids = np.zeros(grilla.forma, dtype=np.int16)
+    es_suelo = np.zeros(grilla.forma, dtype=bool)
+    es_suelo[:, :, : grilla.n_suelo] = True
+    solapados = 0
+    for s in sorted(solidos, key=lambda s: s.vertida_id):
+        dentro = ocupacion(s, grilla)
+        solapados += int(np.count_nonzero(dentro & ((ids != 0) | es_suelo)))
+        ids[dentro & (ids == 0) & ~es_suelo] = s.vertida_id
+    return GrillaBIM(grilla, ids, es_suelo, solapados)
+
+
+def caras_expuestas(solido: np.ndarray) -> dict[str, np.ndarray]:
+    """Caras de voxeles sólidos que dan a un voxel vacío, por dirección.
+
+    Solo caras interiores a la caja: las de la caja se tratan aparte.
+    ``resultado["z+"][i, j, k]`` es True si la cara superior de (i, j, k) está
+    expuesta.
+    """
+    solido = np.asarray(solido, dtype=bool)
+    expuestas = {}
+    for eje in range(3):
+        n = solido.shape[eje]
+        menos = [slice(None)] * 3
+        mas = [slice(None)] * 3
+        menos[eje], mas[eje] = slice(0, n - 1), slice(1, n)
+        cara_mas = np.zeros_like(solido)
+        cara_menos = np.zeros_like(solido)
+        cara_mas[tuple(menos)] = solido[tuple(menos)] & ~solido[tuple(mas)]
+        cara_menos[tuple(mas)] = solido[tuple(mas)] & ~solido[tuple(menos)]
+        expuestas["xyz"[eje] + "-"] = cara_menos
+        expuestas["xyz"[eje] + "+"] = cara_mas
+    return expuestas
+
+
+def area_expuesta(expuestas: dict[str, np.ndarray], paso: float, mascara: np.ndarray | None = None) -> dict[str, float]:
+    """Área staircase expuesta [m²]: laterales (x, y), superior (z+), inferior (z-)."""
+    def suma(claves: Iterable[str]) -> float:
+        total = 0
+        for c in claves:
+            e = expuestas[c] if mascara is None else expuestas[c] & mascara
+            total += int(np.count_nonzero(e))
+        return total * paso**2
+
+    lateral = suma(("x-", "x+", "y-", "y+"))
+    superior = suma(("z+",))
+    inferior = suma(("z-",))
+    return {"lateral": lateral, "superior": superior, "inferior": inferior, "total": lateral + superior + inferior}
+
+
+def resumen_volumetrico(solidos: Sequence[SolidoVertida], grilla: GrillaBIM) -> list[dict[str, float]]:
+    """Por vertida: V de la malla, V_h de voxeles y e_V = |V_h - V| / V."""
+    filas = []
+    for s in sorted(solidos, key=lambda s: s.vertida_id):
+        V = s.volumen
+        Vh = grilla.volumen(s.vertida_id)
+        filas.append({"vertida_id": s.vertida_id, "V_malla_m3": V, "V_h_m3": Vh, "e_V": abs(Vh - V) / V})
+    return filas
