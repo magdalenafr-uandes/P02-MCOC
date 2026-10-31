@@ -1,10 +1,13 @@
 """Pipeline E07/E08: extracción IFC, voxelización, hidratación, etapas y config."""
 
 import ast
+import importlib.util
 import inspect
+import json
 import math
 import subprocess
 import sys
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 import numpy as np
@@ -23,6 +26,7 @@ from mcplan.bim.voxelizador import (
     voxelizar_solidos,
 )
 from mcplan.caso import ErrorConfiguracion, aplicar_sobrescrituras, ejecutar_pipeline, leer_config, resolver_plan
+from mcplan.caso.clima import leer_snapshot, series_para_simulacion
 from mcplan.thermal import etapas as modulo_etapas
 from mcplan.thermal.etapas import (
     Ambiente,
@@ -31,10 +35,11 @@ from mcplan.thermal.etapas import (
     Hormigon,
     Material,
     ParametrosTiempo,
+    SIGMA,
     PlanVertida,
     SimuladorEtapas,
 )
-from mcplan.thermal.hidratacion import HORA, ModeloHidratacion
+from mcplan.thermal.hidratacion import HORA, ModeloHidratacion, theta_inf_desde_dosificacion
 
 RAIZ = Path(__file__).resolve().parents[1]
 IFC = RAIZ / "geometry" / "foundation.ifc"
@@ -433,3 +438,163 @@ def test_cli_pipeline():
     mal = subprocess.run([sys.executable, str(script), "--solo-grilla", "--set", "malla.pazo_m=0.5"],
                          capture_output=True, text=True, encoding="utf-8")
     assert mal.returncode == 2 and "pazo_m" in mal.stderr
+
+
+# --- hidratación desde datos medidos ------------------------------------------------------
+
+def test_hidratacion_tabla_medida():
+    tabla = ((0.0, 12.0, 24.0, 72.0), (0.0, 10.0, 25.0, 40.0))
+    h = ModeloHidratacion("tabla", 40.0, 1.0, 2400.0, 970.0, tabla_t_h=tabla[0], tabla_theta_C=tabla[1])
+    assert h.elevacion(18 * HORA) == pytest.approx(17.5)
+    assert h.tasa_elevacion(18 * HORA) == pytest.approx(15.0 / (12 * HORA))
+    assert h.tasa_elevacion(100 * HORA) == 0.0  # después de la tabla no hay más calor
+    with pytest.raises(ValueError, match="no puede disminuir"):
+        ModeloHidratacion("tabla", 5.0, 1.0, 2400.0, 970.0, tabla_t_h=(0.0, 1.0, 2.0), tabla_theta_C=(0.0, 6.0, 5.0))
+
+
+def test_theta_inf_desde_dosificacion_y_config():
+    # 350 kg/m³ · 450 kJ/kg · 0,8 / (2400·970) = 54,1 K
+    assert theta_inf_desde_dosificacion(350, 450e3, 0.8, 2400, 970) == pytest.approx(54.12, abs=0.01)
+    base = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))
+    dosis = aplicar_sobrescrituras(base, [
+        "hormigones.M1.hidratacion.cemento_kg_m3=350", "hormigones.M1.hidratacion.calor_cemento_J_kg=450000",
+        "hormigones.M1.hidratacion.grado_hidratacion_ultimo=0.8",
+    ])
+    with pytest.raises(ErrorConfiguracion, match="no ambas"):
+        leer_config(dosis, base_rutas=CONFIG.parent)
+    del dosis["hormigones"]["M1"]["hidratacion"]["theta_inf_C"]
+    c = leer_config(dosis, base_rutas=CONFIG.parent)
+    assert c.hormigones["M1"].hidratacion.theta_inf_C == pytest.approx(54.12, abs=0.01)
+    tabla = aplicar_sobrescrituras(base, ["hormigones.M1.hidratacion.modelo=tabla",
+                                          "hormigones.M1.hidratacion.tabla=[[0,0],[24,30],[168,45]]"])
+    for clave in ("theta_inf_C", "tau_h", "beta"):
+        del tabla["hormigones"]["M1"]["hidratacion"][clave]
+    assert leer_config(tabla, base_rutas=CONFIG.parent).hormigones["M1"].hidratacion.theta_inf_C == 45.0
+
+
+# --- clima, radiación y fechas --------------------------------------------------------------
+
+def test_temperatura_sol_aire():
+    a = Ambiente(15.0, 10.0, serie_t_s=(0.0, 1.0), serie_T_C=(15.0, 15.0), serie_G_W_m2=(600.0, 600.0),
+                 absortividad=0.5)
+    h, T_eq = a.condiciones(0.0)
+    assert h == 10.0
+    assert T_eq["superior"] == pytest.approx(15.0 + 0.5 * 600.0 / 10.0)  # +30 K por el sol
+    assert T_eq["lateral"] == T_eq["inferior"] == 15.0
+    noche = Ambiente(15.0, 10.0, emisividad=0.9)
+    h, T_eq = noche.condiciones(0.0)
+    T_cielo = 0.0552 * 288.15**1.5 - 273.15
+    h_r = 4 * 0.9 * SIGMA * (0.5 * (288.15 + T_cielo + 273.15)) ** 3
+    assert h == pytest.approx(10.0 + h_r)
+    assert T_eq["superior"] == pytest.approx((10 * 15 + h_r * T_cielo) / (10 + h_r))
+    assert T_eq["superior"] < T_eq["lateral"] < 15.0  # la cara superior ve el cielo frío
+    viento = Ambiente(15.0, 0.0, serie_t_s=(0.0, 1.0), serie_T_C=(15.0, 15.0), serie_viento_m_s=(2.0, 2.0),
+                      h_viento=(5.7, 3.8))
+    assert viento.condiciones(0.0)[0] == pytest.approx(5.7 + 3.8 * 2.0)
+
+
+def test_sol_calienta_y_el_balance_cierra():
+    serie_t = tuple(np.arange(0, 25) * HORA)
+    G = tuple(max(0.0, 800.0 * math.sin(math.pi * (t / HORA - 6) / 12)) for t in serie_t)  # día de 6 a 18 h
+    resultados = {}
+    for alfa in (0.0, 0.7):
+        sim = SimuladorEtapas(
+            dominio_caja(), [PlanVertida(1, 0.0, 15.0, "M1")], {"M1": Hormigon(HORMIGON)},
+            Ambiente(15.0, 10.0, serie_t_s=serie_t, serie_T_C=(15.0,) * 25, serie_G_W_m2=G,
+                     absortividad=alfa, emisividad=0.9),
+            CondicionBase("adiabatico"), ParametrosTiempo(24 * HORA),
+        )
+        r = sim.ejecutar()
+        assert abs(r.balance["residuo_J"]) < 1e-10 * abs(r.balance["E_final_J"])
+        resultados[alfa] = float(r.T_final[r.activo_final].mean())
+    assert resultados[0.0] < 15.0  # sin sol, la radiación al cielo enfría
+    assert resultados[0.7] > resultados[0.0] + 0.2  # solo la cara superior (1/6 del área) recibe sol
+
+
+def snapshot_sintetico(carpeta: Path, inicio="2026-11-27T00:00", horas=48, viento_kmh=7.2):
+    t0 = datetime.fromisoformat(inicio)
+    tiempos = [(t0 + timedelta(hours=i)).strftime("%Y-%m-%dT%H:%M") for i in range(horas)]
+    carpeta.mkdir(parents=True)
+    (carpeta / "forecast.json").write_text(json.dumps({
+        "hourly_units": {"time": "iso8601", "temperature_2m": "°C", "wind_speed_10m": "km/h",
+                         "shortwave_radiation": "W/m²"},
+        "hourly": {
+            "time": tiempos,
+            "temperature_2m": [15 + 5 * math.sin(2 * math.pi * (i - 9) / 24) for i in range(horas)],
+            "wind_speed_10m": [viento_kmh] * horas,
+            "shortwave_radiation": [max(0.0, 700 * math.sin(math.pi * ((i % 24) - 6) / 12)) for i in range(horas)],
+        },
+    }), encoding="utf-8")
+    (carpeta / "metadata.json").write_text(json.dumps({
+        "source": "sintético", "model": "prueba", "retrieved_at": "2026-11-20T12:00:00+00:00",
+        "latitude": -33.4, "longitude": -70.6, "timezone": "America/Santiago",
+        "variables": ["temperature_2m", "wind_speed_10m", "shortwave_radiation"], "units": {},
+    }), encoding="utf-8")
+    return carpeta
+
+
+def test_snapshot_clima_unidades_y_horizonte(tmp_path):
+    snap = leer_snapshot(snapshot_sintetico(tmp_path / "s"))
+    assert snap.viento_m_s[0] == pytest.approx(2.0)  # 7,2 km/h
+    inicio = datetime(2026, 11, 27, 4)
+    s = series_para_simulacion(snap, inicio, 24 * HORA)
+    assert s.t_s[0] <= 0.0 <= s.t_s[1] and s.t_s[-1] >= 24 * HORA and s.horas_completadas == 0.0
+    with pytest.raises(ValueError, match="completar"):
+        series_para_simulacion(snap, inicio, 72 * HORA)
+    larga = series_para_simulacion(snap, inicio, 72 * HORA, "repetir_ultimo_dia")
+    assert larga.t_s[-1] >= 72 * HORA and larga.horas_completadas > 0 and "completadas" in larga.nota
+    with pytest.raises(ValueError, match="después del inicio"):
+        series_para_simulacion(snap, datetime(2026, 11, 26), 3600.0)
+
+
+def test_config_con_clima_y_fechas(tmp_path):
+    carpeta = snapshot_sintetico(tmp_path / "weather" / "s")
+    datos = aplicar_sobrescrituras(yaml.safe_load(CONFIG.read_text(encoding="utf-8")), [
+        "simulacion.inicio=2026-11-27T04:00", "simulacion.duracion_h=24",
+        f"clima.snapshot={carpeta.as_posix()}",
+        "ambiente.conveccion_viento={a_W_m2K: 5.7, b_J_m3K: 3.8}",
+        "ambiente.absortividad_solar=0.6", "ambiente.emisividad=0.9",
+        "vertidas.2.inicio=2026-11-27T10:30",
+    ])
+    for clave in ("T_C", "h_W_m2K"):
+        del datos["ambiente"][clave]
+    c = leer_config(datos, base_rutas=CONFIG.parent)
+    assert c.ambiente.h_viento == (5.7, 3.8) and c.ambiente.serie_G_W_m2
+    assert "sintético" in c.nota_clima
+    solidos = extraer_vertidas(c.ruta_ifc)
+    plan = {p.vertida_id: p for p in resolver_plan(c, [(s.vertida_id, s.nombre, s.propiedades) for s in solidos])}
+    assert plan[2].inicio_s == pytest.approx(6.5 * HORA)
+    assert plan[1].inicio_s == 0.0  # del IFC
+    sin_inicio = dict(datos, simulacion={k: v for k, v in datos["simulacion"].items() if k != "inicio"})
+    with pytest.raises(ErrorConfiguracion, match="simulacion.inicio"):
+        leer_config(sin_inicio, base_rutas=CONFIG.parent)
+    largo = aplicar_sobrescrituras(datos, ["simulacion.duracion_h=100"])
+    with pytest.raises(ErrorConfiguracion, match="completar"):
+        leer_config(largo, base_rutas=CONFIG.parent)
+
+
+def _cargar_script(nombre: str):
+    spec = importlib.util.spec_from_file_location(nombre, RAIZ / "scripts" / f"{nombre}.py")
+    modulo = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(modulo)
+    return modulo
+
+
+def test_snapshot_de_descarga_no_se_sobrescribe(tmp_path):
+    modulo = _cargar_script("descargar_clima")
+    url = modulo.construir_url("pronostico", -33.45, -70.66, date(2026, 11, 27), date(2026, 12, 11), None)
+    assert "hourly=temperature_2m%2Cwind_speed_10m%2Cshortwave_radiation" in url and "wind_speed_unit=ms" in url
+    respuesta = json.loads((snapshot_sintetico(tmp_path / "s") / "forecast.json").read_text(encoding="utf-8"))
+    momento = datetime(2026, 11, 20, 12, tzinfo=timezone.utc)
+    carpeta = modulo.guardar_snapshot(respuesta, url, "pronostico", None, -33.45, -70.66, tmp_path / "w", momento)
+    assert leer_snapshot(carpeta).metadata["model"] == "best_match"
+    with pytest.raises(FileExistsError):
+        modulo.guardar_snapshot(respuesta, url, "pronostico", None, -33.45, -70.66, tmp_path / "w", momento)
+
+
+def test_richardson():
+    modulo = _cargar_script("convergencia_e07")
+    f = [1.0 + 0.4**2, 1.0 + 0.2**2, 1.0 + 0.1**2]  # f = 1 + Δ²: orden 2, límite 1
+    p, extrapolado = modulo.richardson(f)
+    assert p == pytest.approx(2.0) and extrapolado == pytest.approx(1.0)
+    assert math.isnan(modulo.richardson([1.0, 2.0, 1.5])[0])

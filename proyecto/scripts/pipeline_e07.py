@@ -27,6 +27,13 @@ HORA = 3600.0
 def _imprimir(r) -> None:
     c, g = r.config, r.grilla
     print(f"IFC: {c.ruta_ifc}")
+    inicio = f"{c.inicio:%Y-%m-%d %H:%M}" if c.inicio else "sin fecha (t relativo)"
+    print(f"Inicio (t = 0): {inicio};  clima: {c.nota_clima}")
+    hid = {n: h.hidratacion for n, h in c.hormigones.items()}
+    for n, m in hid.items():
+        if m is not None:
+            print(f"Hidratación {n}: modelo {m.modelo}, θ∞ = {m.theta_inf_C:.1f} K "
+                  f"(Q∞ = {m.calor_total_J_m3 / 1e6:.0f} MJ/m³), Ea = {m.Ea_J_mol:g} J/mol")
     dx, _, dz = g.paso
     print(f"Grilla: {g.forma} = {np.prod(g.forma):,} voxeles, Δx = Δy = {dx:g} m, Δz = {dz:g} m, "
           f"{g.definicion.n_suelo} capas de suelo, solapados = {g.voxeles_solapados}")

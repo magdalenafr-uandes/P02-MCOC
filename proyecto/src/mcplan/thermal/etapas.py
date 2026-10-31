@@ -35,7 +35,7 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from ..bim.voxelizador import area_cara, caras_expuestas, pasos
-from .hidratacion import ModeloHidratacion
+from .hidratacion import CERO_ABSOLUTO_C, ModeloHidratacion
 from .voxel import MallaVoxel, SolverVoxel, adiabatico
 
 _K_VACIO_RELATIVO = 1e-9  # k del vacío / k mínima del sólido (aislamiento numérico)
@@ -86,27 +86,113 @@ class PlanVertida:
             raise ValueError(f"Vertida {self.vertida_id}: retiro de moldaje positivo.")
 
 
+SIGMA = 5.670374419e-8  # Stefan-Boltzmann [W/(m²·K⁴)]
+
+
 @dataclass(frozen=True)
 class Ambiente:
-    """Aire exterior: T constante o serie (t [s], T [°C]) interpolada linealmente."""
+    """Intercambio de las caras expuestas con el exterior.
+
+    Temperatura **sol-aire**: cada cara ve un ambiente equivalente
+
+        h_tot = h_c + h_r
+        T_eq  = (h_c·T_aire + h_r·T_rad + α·G·f) / h_tot
+
+    - h_c: convección, constante (``h``) o ``a + b·v`` con el viento v [m/s].
+    - h_r = 4·ε·σ·T_m³: onda larga linealizada hacia T_rad. La cara superior ve
+      el cielo, T_cielo = 0,0552·T_aire^1,5 [K] (Swinbank); las laterales ven
+      mitad cielo y mitad entorno: T_rad = (T_cielo + T_aire)/2.
+    - α·G·f: radiación solar absorbida; f = 1 en la cara superior,
+      ``factor_solar_lateral`` en las laterales y 0 en las inferiores.
+
+    La radiación se absorbe y emite en la cara exterior (moldaje o aislación);
+    después atraviesa R y la media celda como el resto del flujo. Series en
+    segundos desde el inicio de la simulación, interpoladas linealmente.
+    """
 
     T_C: float
-    h: float  # W/(m²·K); 0 = caras expuestas adiabáticas
+    h: float  # W/(m²·K) si no hay modelo de viento; 0 y sin radiación = adiabático
     serie_t_s: tuple[float, ...] = ()
     serie_T_C: tuple[float, ...] = ()
+    serie_viento_m_s: tuple[float, ...] = ()
+    serie_G_W_m2: tuple[float, ...] = ()
+    h_viento: tuple[float, float] | None = None  # (a, b): h_c = a + b·v
+    absortividad: float = 0.0
+    emisividad: float = 0.0
+    factor_solar_lateral: float = 0.0
 
     def __post_init__(self) -> None:
         if not math.isfinite(self.T_C) or not math.isfinite(self.h) or self.h < 0.0:
             raise ValueError("Ambiente: T finita y h >= 0.")
-        if len(self.serie_t_s) != len(self.serie_T_C):
+        n = len(self.serie_t_s)
+        if len(self.serie_T_C) != n:
             raise ValueError("Ambiente: la serie necesita igual número de tiempos y temperaturas.")
+        for nombre in ("serie_viento_m_s", "serie_G_W_m2"):
+            serie = getattr(self, nombre)
+            if serie and len(serie) != n:
+                raise ValueError(f"Ambiente: {nombre} debe tener un valor por tiempo de la serie.")
+            if serie and (not np.all(np.isfinite(serie)) or min(serie) < 0.0):
+                raise ValueError(f"Ambiente: {nombre} finita y no negativa.")
         if self.serie_t_s and np.any(np.diff(self.serie_t_s) <= 0.0):
             raise ValueError("Ambiente: tiempos de la serie estrictamente crecientes.")
+        if self.h_viento is not None:
+            if not self.serie_viento_m_s:
+                raise ValueError("Ambiente: h dependiente del viento requiere la serie de viento.")
+            if min(self.h_viento) < 0.0 or not all(map(math.isfinite, self.h_viento)):
+                raise ValueError("Ambiente: coeficientes de viento finitos y no negativos.")
+        if self.absortividad > 0.0 and not self.serie_G_W_m2:
+            raise ValueError("Ambiente: absortividad > 0 requiere la serie de radiación solar.")
+        for nombre in ("absortividad", "emisividad", "factor_solar_lateral"):
+            if not 0.0 <= getattr(self, nombre) <= 1.0:
+                raise ValueError(f"Ambiente: {nombre} en [0, 1].")
+
+    def _serie(self, t: float, serie: tuple[float, ...]) -> float:
+        return float(np.interp(t, self.serie_t_s, serie))
 
     def temperatura(self, t: float) -> float:
         if not self.serie_t_s:
             return self.T_C
-        return float(np.interp(t, self.serie_t_s, self.serie_T_C))
+        return self._serie(t, self.serie_T_C)
+
+    def h_conveccion(self, t: float) -> float:
+        if self.h_viento is None:
+            return self.h
+        a, b = self.h_viento
+        return a + b * self._serie(t, self.serie_viento_m_s)
+
+    def condiciones(self, t: float) -> tuple[float, dict[str, float]]:
+        """(h_tot, T_eq por orientación 'superior' | 'lateral' | 'inferior')."""
+        T_a = self.temperatura(t)
+        h_c = self.h_conveccion(t)
+        G = self._serie(t, self.serie_G_W_m2) if self.serie_G_W_m2 else 0.0
+        h_r = 0.0
+        T_cielo = T_a
+        if self.emisividad > 0.0:
+            T_a_K = T_a - CERO_ABSOLUTO_C
+            T_cielo = 0.0552 * T_a_K**1.5 + CERO_ABSOLUTO_C
+            T_m_K = 0.5 * (T_a + T_cielo) - CERO_ABSOLUTO_C
+            h_r = 4.0 * self.emisividad * SIGMA * T_m_K**3
+        h_tot = h_c + h_r
+        if h_tot <= 0.0:
+            return 0.0, {"superior": T_a, "lateral": T_a, "inferior": T_a}
+        solar = self.absortividad * G
+        T_rad = {"superior": T_cielo, "lateral": 0.5 * (T_cielo + T_a), "inferior": T_a}
+        f = {"superior": 1.0, "lateral": self.factor_solar_lateral, "inferior": 0.0}
+        return h_tot, {o: (h_c * T_a + h_r * T_rad[o] + solar * f[o]) / h_tot for o in T_rad}
+
+    @property
+    def sin_intercambio(self) -> bool:
+        """Caras expuestas adiabáticas: sin convección ni radiación."""
+        return self.h == 0.0 and self.h_viento is None and self.emisividad == 0.0 and self.absortividad == 0.0
+
+    def h_max(self, t0: float, t1: float) -> float:
+        """Máximo de h_tot en [t0, t1] (para el paso estable)."""
+        instantes = [t0, t1] + [t for t in self.serie_t_s if t0 < t < t1]
+        return max(self.condiciones(t)[0] for t in instantes)
+
+
+def orientacion(cara: str) -> str:
+    return {"z+": "superior", "z-": "inferior"}.get(cara, "lateral")
 
 
 @dataclass(frozen=True)
@@ -186,6 +272,25 @@ class ResultadoEtapas:
         return float(serie[i]), self.tiempos_s[i]
 
 
+@dataclass(frozen=True)
+class _CaraExpuesta:
+    """Caras de una dirección expuestas al aire en una etapa (índices planos)."""
+
+    cara: str
+    orientacion: str  # superior | lateral | inferior
+    idx: np.ndarray
+    area: np.ndarray  # A·w [m²]
+    r_media: np.ndarray  # (Δ/2)/k [m²K/W]
+    R: np.ndarray  # moldaje o aislación [m²K/W]
+    hormigon: np.ndarray  # bool: la celda es hormigón activo (no suelo)
+
+    def conductancia(self, h_tot: float) -> np.ndarray:
+        """G = A/(r_media + R + 1/h) [W/K]: resistencias en serie."""
+        if h_tot <= 0.0:
+            return np.zeros(self.idx.shape)
+        return self.area / (self.r_media + self.R + 1.0 / h_tot)
+
+
 class SimuladorEtapas:
     """Integra las etapas de vertida con el motor ``SolverVoxel``."""
 
@@ -261,28 +366,14 @@ class SimuladorEtapas:
         k[~solido] = _K_VACIO_RELATIVO * k_ref
         return k, rho, cp
 
-    def _conductancias_externas(self, t: float, activo: np.ndarray, solido: np.ndarray, k: np.ndarray):
-        d = self.dominio.pasos
-        G_amb = np.zeros(activo.shape)
-        for cara, mascara, r_media, r_ext in self._resistencias_caras(t, activo, solido, k):
-            A = area_cara(d, "xyz".index(cara[0]))
-            G = A / (r_media + r_ext)  # resistencias por unidad de área en serie
-            if self.dominio.peso_area is not None:
-                G = G * self.dominio.peso_area[cara]  # A_real = w·A
-            G_amb += np.where(mascara, G, 0.0)
-        G_base = np.zeros(activo.shape)
-        if self.base.tipo == "dirichlet":
-            capa = solido[:, :, 0]
-            G_base[:, :, 0] = np.where(capa, k[:, :, 0] * area_cara(d, 2) / (d[2] / 2.0), 0.0)
-        return G_amb, G_base
+    def _caras_etapa(self, t: float, activo: np.ndarray, solido: np.ndarray, k: np.ndarray) -> list[_CaraExpuesta]:
+        """Caras expuestas al aire en esta etapa, como índices planos (dispersos).
 
-    def _resistencias_caras(self, t: float, activo: np.ndarray, solido: np.ndarray, k: np.ndarray):
-        """Por cara expuesta al aire: (cara, máscara, r_media, r_exterior) [m²K/W].
-
-        r_media = (Δ/2)/k es la media celda de sólido; r_exterior = R + 1/h es
-        moldaje o aislación más la película de aire.
+        Por cara: r_media = (Δ/2)/k (media celda de sólido) y R (moldaje o
+        aislación) [m²K/W]; la película 1/h se agrega en cada paso porque h
+        cambia con el viento y la radiación.
         """
-        if self.ambiente.h <= 0.0:
+        if self.ambiente.sin_intercambio:
             return []
         d = self.dominio.pasos
         ids = self.dominio.vertida_id
@@ -295,22 +386,39 @@ class SimuladorEtapas:
                 R_sup[m] = p.R_superior
         caras = []
         for cara, mascara in caras_expuestas(solido).items():
+            idx = np.flatnonzero(mascara)
+            if not idx.size:
+                continue
             eje = "xyz".index(cara[0])
-            R = R_sup if cara == "z+" else R_lat
-            caras.append((cara, mascara, (d[eje] / 2.0) / k, R + 1.0 / self.ambiente.h))
+            A = area_cara(d, eje)
+            if self.dominio.peso_area is not None:
+                A = A * self.dominio.peso_area[cara].ravel()[idx]  # A_real = w·A
+            caras.append(_CaraExpuesta(
+                cara=cara,
+                orientacion=orientacion(cara),
+                idx=idx,
+                area=np.broadcast_to(A, idx.shape),
+                r_media=(d[eje] / 2.0) / k.ravel()[idx],
+                R=(R_sup if cara == "z+" else R_lat).ravel()[idx],
+                hormigon=activo.ravel()[idx],
+            ))
         return caras
 
-    def _caras_superficie(self, t: float, activo: np.ndarray, solido: np.ndarray, k: np.ndarray):
-        """Caras de hormigón expuestas y su factor phi = r_media/(r_media + r_ext).
-
-        La temperatura de la cara del sólido es Ts = Ti + phi·(T_aire - Ti): el
-        mismo flujo cruza la media celda y el exterior en serie.
-        """
-        return [
-            (mascara & activo, r_media / (r_media + r_ext))
-            for _, mascara, r_media, r_ext in self._resistencias_caras(t, activo, solido, k)
-            if np.any(mascara & activo)
-        ]
+    def _conductancias_externas(self, t: float, activo: np.ndarray, solido: np.ndarray, k: np.ndarray,
+                                h_tot: float | None = None):
+        """G hacia el exterior (densa, a h_tot o al h de t) y G de la base [W/K]."""
+        d = self.dominio.pasos
+        if h_tot is None:
+            h_tot = self.ambiente.condiciones(t)[0]
+        G_amb = np.zeros(activo.size)
+        if h_tot > 0.0:
+            for c in self._caras_etapa(t, activo, solido, k):
+                G_amb[c.idx] += c.conductancia(h_tot)
+        G_base = np.zeros(activo.shape)
+        if self.base.tipo == "dirichlet":
+            capa = solido[:, :, 0]
+            G_base[:, :, 0] = np.where(capa, k[:, :, 0] * area_cara(d, 2) / (d[2] / 2.0), 0.0)
+        return G_amb.reshape(activo.shape), G_base
 
     # --- integración ----------------------------------------------------------
     def ejecutar(self) -> ResultadoEtapas:
@@ -357,8 +465,12 @@ class SimuladorEtapas:
 
             malla = MallaVoxel(forma, d, k, rho, cp)
             solver = SolverVoxel(malla, {c: adiabatico() for c in malla.caras}, lambda _t: self._q)
-            G_amb, G_base = self._conductancias_externas(t0, activo, solido, k)
-            superficie = self._caras_superficie(t0, activo, solido, k)
+            caras = self._caras_etapa(t0, activo, solido, k)
+            h_max = self.ambiente.h_max(t0, t1) if caras else 0.0
+            G_amb_max = np.zeros(T.size)
+            for c in caras:
+                G_amb_max[c.idx] += c.conductancia(h_max)
+            _, G_base = self._conductancias_externas(t0, activo, solido, k, h_tot=0.0)
             grupos = []
             for nombre, h in self.hormigones.items():
                 if h.hidratacion is None:
@@ -369,7 +481,8 @@ class SimuladorEtapas:
                     grupos.append((m, h.hidratacion))
 
             if solido.any():
-                limite = float(np.min((C / (solver.suma_G + G_amb + G_base))[solido]))
+                G_ext = G_amb_max.reshape(forma) + G_base  # h máximo de la etapa: paso estable siempre
+                limite = float(np.min((C / (solver.suma_G + G_ext))[solido]))
             else:
                 limite = math.inf
             dt_obj = min(self.tiempo.fraccion_dt * limite, self.tiempo.dt_max_s, t1 - t0)
@@ -385,14 +498,19 @@ class SimuladorEtapas:
             for paso in range(n_pasos):
                 t = t0 + paso * dt
                 if t >= proximo_guardado - 1e-9:
-                    self._registrar(res, t, T, activo, superficie, ids)
+                    self._registrar(res, t, T, activo, caras, ids)
                     while proximo_guardado <= t + 1e-9:
                         proximo_guardado += self.tiempo.guardar_cada_s
-                T_amb = self.ambiente.temperatura(t)
                 q_h = np.zeros(forma)
                 for m, modelo in grupos:
                     q_h[m] = modelo.potencia(te[m], T[m])
-                P_amb = G_amb * (T_amb - T)
+                P_amb = np.zeros(T.size)
+                h_tot, T_eq = self.ambiente.condiciones(t) if caras else (0.0, {})
+                if h_tot > 0.0:
+                    T_plano = T.ravel()
+                    for c in caras:  # idx único dentro de cada dirección
+                        P_amb[c.idx] += c.conductancia(h_tot) * (T_eq[c.orientacion] - T_plano[c.idx])
+                P_amb = P_amb.reshape(forma)
                 P_base = G_base * (T_base - T)
                 self._q = q_h + (P_amb + P_base) / V
                 T_nuevo = T + dt * solver.tasa_calor(T, t) / C
@@ -406,7 +524,7 @@ class SimuladorEtapas:
                 T[vacio] = self.ambiente.temperatura(t + dt)
             t = t1
 
-        self._registrar(res, t, T, activo, superficie, ids)
+        self._registrar(res, t, T, activo, caras, ids)
         solido = activo | dom.es_suelo
         E_final = float(np.sum((C * T)[solido]))
         aportes = E["colocacion"] + E["hidratacion"] + E["ambiente"] + E["base"] - E["fuga_vacio"]
@@ -421,7 +539,7 @@ class SimuladorEtapas:
         res.activo_final = activo
         return res
 
-    def _registrar(self, res, t, T, activo, superficie, ids) -> None:
+    def _registrar(self, res, t, T, activo, caras, ids) -> None:
         if res.tiempos_s and abs(res.tiempos_s[-1] - t) < 1e-9:
             return
         res.tiempos_s.append(t)
@@ -429,8 +547,17 @@ class SimuladorEtapas:
             Ta = T[activo]
             res.T_max_C.append(float(Ta.max()))
             res.T_min_C.append(float(Ta.min()))
-            T_aire = self.ambiente.temperatura(t)
-            Ts = [(T + phi * (T_aire - T))[m] for m, phi in superficie]
+            # Cara del sólido: el mismo flujo cruza la media celda y el exterior en
+            # serie, así que Ts = Ti + phi·(T_eq - Ti), phi = r_media/(r_media + R + 1/h).
+            h_tot, T_eq = self.ambiente.condiciones(t)
+            Ts = []
+            if h_tot > 0.0:
+                T_plano = T.ravel()
+                for c in caras:
+                    if c.hormigon.any():
+                        Ti = T_plano[c.idx][c.hormigon]
+                        phi = c.r_media[c.hormigon] / (c.r_media[c.hormigon] + c.R[c.hormigon] + 1.0 / h_tot)
+                        Ts.append(Ti + phi * (T_eq[c.orientacion] - Ti))
             res.T_sup_min_C.append(float(min(x.min() for x in Ts)) if Ts else math.nan)
         else:
             res.T_max_C.append(math.nan)

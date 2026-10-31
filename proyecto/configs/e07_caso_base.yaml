@@ -25,11 +25,20 @@ simulacion:
   fraccion_dt: 0.8        # dt = 0.8 · límite monótono C/ΣG
   dt_max_h: 0.5           # tope por precisión de la cinética de hidratación
   guardar_cada_h: 1
+  # inicio: "2026-11-27T04:00"   # fecha-hora local de t = 0; obligatoria con 'clima'
 
 ambiente:
-  T_C: 15.0
+  T_C: 15.0               # sin 'clima'; con 'clima' la temperatura sale del snapshot
   h_W_m2K: 10.0           # convección en caras expuestas (0 = adiabáticas)
-  # serie: [[0, 12.0], [12, 22.0], [24, 12.0]]   # opcional: T del aire [h, °C], interpolada
+  # serie: [[0, 12.0], [12, 22.0], [24, 12.0]]   # opcional sin clima: T del aire [h, °C]
+  # conveccion_viento: {a_W_m2K: 5.7, b_J_m3K: 3.8}   # h = a + b·v (v a 10 m), en vez de h_W_m2K
+  # absortividad_solar: 0.65   # α del hormigón/moldaje; requiere shortwave_radiation en el clima
+  # emisividad: 0.9            # onda larga hacia el cielo (T_cielo de Swinbank)
+  # factor_solar_lateral: 0.0  # fracción de la GHI que reciben las caras verticales
+
+# clima:                  # snapshot de Open-Meteo (G07): scripts/descargar_clima.py
+#   snapshot: ../data/weather/2026-11-20T1200_pronostico
+#   completar: error      # error | repetir_ultimo_dia (cola no cubierta por el pronóstico)
 
 base:                     # cara inferior de la caja (bajo el suelo)
   tipo: dirichlet         # dirichlet | adiabatico
@@ -48,8 +57,10 @@ hormigones:
     rho_kg_m3: 2400
     cp_J_kgK: 970
     hidratacion:
-      modelo: exponencial  # exponencial: θ∞(1-e^(-te/τ)) | schindler: θ∞·exp(-(τ/te)^β)
-      theta_inf_C: 45.0    # elevación adiabática final [K]
+      modelo: exponencial  # exponencial: θ∞(1-e^(-te/τ)) | schindler: θ∞·exp(-(τ/te)^β) | tabla
+      theta_inf_C: 45.0    # elevación adiabática final [K]; o bien la dosificación:
+      # cemento_kg_m3: 350, calor_cemento_J_kg: 450000, grado_hidratacion_ultimo: 0.8
+      # modelo: tabla + tabla: [[0, 0], [12, 8.5], [24, 22.0], ...]   # curva adiabática MEDIDA [h, K]
       tau_h: 30.0
       beta: 1.0            # solo schindler
       Ea_J_mol: 40000      # energía de activación (Arrhenius); 0 = sin efecto de T
@@ -62,4 +73,5 @@ vertidas:
     R_superior_m2K_W: 0.0      # cara superior descubierta
   # 2:
   #   inicio_h: 12             # sobrescribe Inicio_h del IFC
+  #   inicio: "2026-11-27T16:00"   # o con fecha-hora (requiere simulacion.inicio)
   #   T_colocacion_C: 14

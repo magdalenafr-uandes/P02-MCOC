@@ -20,6 +20,7 @@ import copy
 import math
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -33,7 +34,8 @@ from ..thermal.etapas import (
     ParametrosTiempo,
     PlanVertida,
 )
-from ..thermal.hidratacion import HORA, ModeloHidratacion
+from ..thermal.hidratacion import HORA, ModeloHidratacion, theta_inf_desde_dosificacion
+from .clima import VAR_G, VAR_VIENTO, leer_snapshot, series_para_simulacion
 
 _ESQUEMA: dict[str, Any] = {
     "ifc": str,
@@ -43,18 +45,26 @@ _ESQUEMA: dict[str, Any] = {
     },
     "simulacion": {
         "duracion_h": float, "fraccion_dt": float, "dt_max_h": float,
-        "guardar_cada_h": float, "guardar_campos": bool,
+        "guardar_cada_h": float, "guardar_campos": bool, "inicio": str,
     },
-    "ambiente": {"T_C": float, "h_W_m2K": float, "serie": list},
+    "ambiente": {
+        "T_C": float, "h_W_m2K": float, "serie": list, "conveccion_viento": dict,
+        "absortividad_solar": float, "emisividad": float, "factor_solar_lateral": float,
+    },
+    "clima": {"snapshot": str, "completar": str},
     "base": {"tipo": str, "T_C": float},
     "suelo": {"espesor_m": float, "k_W_mK": float, "rho_kg_m3": float, "cp_J_kgK": float, "T_inicial_C": float},
     "hormigones": dict,
     "vertidas": dict,
 }
 _HORMIGON = {"k_W_mK": float, "rho_kg_m3": float, "cp_J_kgK": float, "hidratacion": dict}
-_HIDRATACION = {"modelo": str, "theta_inf_C": float, "tau_h": float, "beta": float, "Ea_J_mol": float, "T_ref_C": float}
+_HIDRATACION = {
+    "modelo": str, "theta_inf_C": float, "tau_h": float, "beta": float, "Ea_J_mol": float, "T_ref_C": float,
+    "tabla": list, "cemento_kg_m3": float, "calor_cemento_J_kg": float, "grado_hidratacion_ultimo": float,
+}
+_DOSIFICACION = ("cemento_kg_m3", "calor_cemento_J_kg")
 _VERTIDA = {
-    "inicio_h": float, "T_colocacion_C": float, "hormigon": str, "visible": bool,
+    "inicio_h": float, "inicio": str, "T_colocacion_C": float, "hormigon": str, "visible": bool,
     "R_lateral_m2K_W": float, "R_superior_m2K_W": float, "retiro_moldaje_h": float,
 }
 _REQUERIDAS = ("ifc", "malla", "simulacion", "ambiente", "base", "hormigones")
@@ -101,6 +111,8 @@ class ConfigCaso:
     hormigones: dict[str, Hormigon]
     guardar_campos: bool
     datos: dict[str, Any]
+    inicio: datetime | None = None  # fecha-hora local de t = 0
+    nota_clima: str = ""  # fuente, modelo, descarga y completado del clima
 
 
 # --- lectura y sobrescritura ----------------------------------------------------
@@ -193,20 +205,139 @@ def _hormigon(nombre: str, d: Any) -> Hormigon:
     hid = None
     if d.get("hidratacion") is not None:
         dh = _claves(d["hidratacion"], _HIDRATACION, f"{donde}.hidratacion")
+        dondeh = f"{donde}.hidratacion"
         try:
+            modelo = str(_requerir(dh, "modelo", dondeh))
+            tabla_t: tuple[float, ...] = ()
+            tabla_th: tuple[float, ...] = ()
+            if modelo == "tabla":
+                # Curva adiabática medida: tau y theta_inf salen de la tabla.
+                for clave in ("theta_inf_C", "tau_h", "beta", *_DOSIFICACION):
+                    if clave in dh:
+                        raise ErrorConfiguracion(f"{dondeh}: con modelo tabla sobra '{clave}'.")
+                filas = _requerir(dh, "tabla", dondeh)
+                if not isinstance(filas, list) or not all(isinstance(f, (list, tuple)) and len(f) == 2 for f in filas):
+                    raise ErrorConfiguracion(f"{dondeh}.tabla: lista de pares [t_h, theta_C].")
+                tabla_t = tuple(_numero(f[0], f"{dondeh}.tabla t_h") for f in filas)
+                tabla_th = tuple(_numero(f[1], f"{dondeh}.tabla theta_C") for f in filas)
+                theta_inf, tau = tabla_th[-1], 1.0
+            else:
+                if "tabla" in dh:
+                    raise ErrorConfiguracion(f"{dondeh}: 'tabla' solo con modelo tabla.")
+                tau = _numero(_requerir(dh, "tau_h", dondeh), "tau_h")
+                theta_inf = _theta_inf(dh, dondeh, mat)
             hid = ModeloHidratacion(
-                modelo=str(_requerir(dh, "modelo", f"{donde}.hidratacion")),
-                theta_inf_C=_numero(_requerir(dh, "theta_inf_C", f"{donde}.hidratacion"), "theta_inf_C"),
-                tau_h=_numero(_requerir(dh, "tau_h", f"{donde}.hidratacion"), "tau_h"),
+                modelo=modelo,
+                theta_inf_C=theta_inf,
+                tau_h=tau,
                 rho=mat.rho,
                 cp=mat.cp,
                 beta=_numero(dh.get("beta", 1.0), "beta"),
                 Ea_J_mol=_numero(dh.get("Ea_J_mol", 0.0), "Ea_J_mol"),
                 T_ref_C=_numero(dh.get("T_ref_C", 20.0), "T_ref_C"),
+                tabla_t_h=tabla_t,
+                tabla_theta_C=tabla_th,
             )
+        except ErrorConfiguracion:
+            raise
         except ValueError as exc:
-            raise ErrorConfiguracion(f"{donde}.hidratacion: {exc}") from exc
+            raise ErrorConfiguracion(f"{dondeh}: {exc}") from exc
     return Hormigon(mat, hid)
+
+
+def _theta_inf(dh: Mapping[str, Any], donde: str, mat: Material) -> float:
+    """theta_inf directo o desde la dosificación; exactamente una de las dos fuentes."""
+    tiene_dosificacion = any(k in dh for k in (*_DOSIFICACION, "grado_hidratacion_ultimo"))
+    if ("theta_inf_C" in dh) == tiene_dosificacion:
+        raise ErrorConfiguracion(
+            f"{donde}: definir theta_inf_C o la dosificación (cemento_kg_m3, calor_cemento_J_kg), no ambas ni ninguna."
+        )
+    if "theta_inf_C" in dh:
+        return _numero(dh["theta_inf_C"], f"{donde}.theta_inf_C", no_negativo=True)
+    return theta_inf_desde_dosificacion(
+        _numero(_requerir(dh, "cemento_kg_m3", donde), f"{donde}.cemento_kg_m3", positivo=True),
+        _numero(_requerir(dh, "calor_cemento_J_kg", donde), f"{donde}.calor_cemento_J_kg", positivo=True),
+        _numero(dh.get("grado_hidratacion_ultimo", 1.0), f"{donde}.grado_hidratacion_ultimo", positivo=True),
+        mat.rho,
+        mat.cp,
+    )
+
+
+def _fecha(valor: Any, donde: str) -> datetime:
+    """Fecha-hora ISO local (p. ej. '2026-11-27T04:00'), en la zona del snapshot."""
+    if isinstance(valor, datetime):
+        return valor.replace(tzinfo=None)
+    if isinstance(valor, date):
+        return datetime(valor.year, valor.month, valor.day)
+    try:
+        return datetime.fromisoformat(str(valor)).replace(tzinfo=None)
+    except ValueError as exc:
+        raise ErrorConfiguracion(f"{donde}: fecha ISO inválida {valor!r} (ej. 2026-11-27T04:00).") from exc
+
+
+def _ambiente(a: Mapping[str, Any], clima: Any, inicio: datetime | None, duracion_s: float,
+              carpeta: Path) -> tuple[Ambiente, str]:
+    """Ambiente constante, con serie manual o con un snapshot de clima (G07)."""
+    viento = None
+    if a.get("conveccion_viento") is not None:
+        cv = _claves(a["conveccion_viento"], {"a_W_m2K": float, "b_J_m3K": float}, "ambiente.conveccion_viento")
+        viento = (
+            _numero(_requerir(cv, "a_W_m2K", "ambiente.conveccion_viento"), "conveccion_viento.a_W_m2K", no_negativo=True),
+            _numero(_requerir(cv, "b_J_m3K", "ambiente.conveccion_viento"), "conveccion_viento.b_J_m3K", no_negativo=True),
+        )
+        if "h_W_m2K" in a:
+            raise ErrorConfiguracion("ambiente: usar h_W_m2K o conveccion_viento, no ambos.")
+    radiacion = {
+        "absortividad": _numero(a.get("absortividad_solar", 0.0), "ambiente.absortividad_solar", no_negativo=True),
+        "emisividad": _numero(a.get("emisividad", 0.0), "ambiente.emisividad", no_negativo=True),
+        "factor_solar_lateral": _numero(a.get("factor_solar_lateral", 0.0), "ambiente.factor_solar_lateral",
+                                        no_negativo=True),
+    }
+    h = 0.0 if viento else _numero(_requerir(a, "h_W_m2K", "ambiente"), "ambiente.h_W_m2K", no_negativo=True)
+
+    if clima is None:
+        serie = a.get("serie") or []
+        if not all(isinstance(p, (list, tuple)) and len(p) == 2 for p in serie):
+            raise ErrorConfiguracion("ambiente.serie: lista de pares [t_h, T_C].")
+        if viento:
+            raise ErrorConfiguracion("ambiente.conveccion_viento requiere una sección 'clima' con viento.")
+        try:
+            return Ambiente(
+                T_C=_numero(_requerir(a, "T_C", "ambiente"), "ambiente.T_C"),
+                h=h,
+                serie_t_s=tuple(_numero(p[0], "ambiente.serie t_h") * HORA for p in serie),
+                serie_T_C=tuple(_numero(p[1], "ambiente.serie T_C") for p in serie),
+                **radiacion,
+            ), "ambiente constante o serie manual"
+        except ValueError as exc:
+            raise ErrorConfiguracion(f"ambiente: {exc}") from exc
+
+    c = _claves(clima, _ESQUEMA["clima"], "clima")
+    if inicio is None:
+        raise ErrorConfiguracion("clima: definir simulacion.inicio (fecha-hora de t = 0).")
+    for clave in ("T_C", "serie"):
+        if clave in a:
+            raise ErrorConfiguracion(f"ambiente.{clave}: con 'clima' la temperatura viene del snapshot.")
+    ruta = Path(str(_requerir(c, "snapshot", "clima")))
+    if not ruta.is_absolute():
+        ruta = (carpeta / ruta).resolve()
+    try:
+        snap = leer_snapshot(ruta)
+        s = series_para_simulacion(snap, inicio, duracion_s, str(c.get("completar", "error")))
+        if viento and not s.viento_m_s:
+            raise ErrorConfiguracion(f"clima: el snapshot no trae {VAR_VIENTO} y conveccion_viento lo necesita.")
+        if radiacion["absortividad"] > 0.0 and not s.G_W_m2:
+            raise ErrorConfiguracion(f"clima: el snapshot no trae {VAR_G} y absortividad_solar > 0 lo necesita.")
+        return Ambiente(
+            T_C=s.T_C[0], h=h, serie_t_s=s.t_s, serie_T_C=s.T_C,
+            serie_viento_m_s=s.viento_m_s if viento else (),
+            serie_G_W_m2=s.G_W_m2 if radiacion["absortividad"] > 0.0 else (),
+            h_viento=viento, **radiacion,
+        ), s.nota
+    except ErrorConfiguracion:
+        raise
+    except (ValueError, FileNotFoundError) as exc:
+        raise ErrorConfiguracion(f"clima: {exc}") from exc
 
 
 def validar_config(datos: Mapping[str, Any], carpeta: Path) -> ConfigCaso:
@@ -239,15 +370,8 @@ def validar_config(datos: Mapping[str, Any], carpeta: Path) -> ConfigCaso:
             dt_max_s=dt_max_s,
             guardar_cada_s=_numero(s.get("guardar_cada_h", 1.0), "simulacion.guardar_cada_h", positivo=True) * HORA,
         )
-        serie = a.get("serie") or []
-        if not all(isinstance(p, (list, tuple)) and len(p) == 2 for p in serie):
-            raise ErrorConfiguracion("ambiente.serie: lista de pares [t_h, T_C].")
-        ambiente = Ambiente(
-            T_C=_numero(_requerir(a, "T_C", "ambiente"), "ambiente.T_C"),
-            h=_numero(_requerir(a, "h_W_m2K", "ambiente"), "ambiente.h_W_m2K", no_negativo=True),
-            serie_t_s=tuple(_numero(p[0], "ambiente.serie t_h") * HORA for p in serie),
-            serie_T_C=tuple(_numero(p[1], "ambiente.serie T_C") for p in serie),
-        )
+        inicio = _fecha(s["inicio"], "simulacion.inicio") if "inicio" in s else None
+        ambiente, nota_clima = _ambiente(a, datos.get("clima"), inicio, tiempo.duracion_s, carpeta)
         base = CondicionBase(
             str(_requerir(b, "tipo", "base")),
             _numero(b["T_C"], "base.T_C") if "T_C" in b else math.nan,
@@ -285,7 +409,7 @@ def validar_config(datos: Mapping[str, Any], carpeta: Path) -> ConfigCaso:
 
     return ConfigCaso(
         ruta_ifc, malla, tiempo, ambiente, base, suelo, T_suelo, hormigones,
-        bool(s.get("guardar_campos", False)), dict(datos),
+        bool(s.get("guardar_campos", False)), dict(datos), inicio, nota_clima,
     )
 
 
@@ -316,6 +440,18 @@ def resolver_plan(config: ConfigCaso, vertidas_ifc: Sequence[tuple[int, str, Map
             elif campo in _DESDE_IFC and _es_valido(pset.get(_DESDE_IFC[campo])):
                 valores[campo], origen[campo] = pset[_DESDE_IFC[campo]], f"IFC:{_DESDE_IFC[campo]}"
         donde = f"vertida {vid} ({nombre})"
+        for alcance, datos_alcance in ((f"vertidas.{vid}", propia), ("vertidas.defecto", defecto)):
+            if "inicio" in datos_alcance and "inicio_h" in datos_alcance:
+                raise ErrorConfiguracion(f"{alcance}: usar 'inicio' (fecha) o 'inicio_h', no ambos.")
+        prioridad = {f"vertidas.{vid}": 0, "vertidas.defecto": 1}
+        if "inicio" in valores and prioridad.get(origen["inicio"], 2) <= prioridad.get(origen.get("inicio_h", ""), 2):
+            if config.inicio is None:
+                raise ErrorConfiguracion(f"{donde}: 'inicio' con fecha requiere simulacion.inicio.")
+            fecha = _fecha(valores["inicio"], f"{donde}.inicio")
+            valores["inicio_h"] = (fecha - config.inicio).total_seconds() / HORA
+            origen["inicio_h"] = f"{origen['inicio']} ({fecha:%Y-%m-%d %H:%M})"
+            if valores["inicio_h"] < 0.0:
+                raise ErrorConfiguracion(f"{donde}: inicio {fecha} es anterior a simulacion.inicio {config.inicio}.")
         for campo in ("inicio_h", "T_colocacion_C", "hormigon"):
             if campo not in valores:
                 raise ErrorConfiguracion(f"{donde}: falta '{campo}' en la config y en el IFC.")
