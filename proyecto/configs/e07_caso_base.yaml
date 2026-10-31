@@ -13,8 +13,10 @@
 ifc: ../geometry/foundation.ifc   # relativo a este archivo
 
 malla:
-  paso_m: 0.25            # Δx = Δy = Δz. Para error por vertida < 1 %: 0.05 (divide 0.55, 1.10 y 1.00 m)
-  margen_lateral_m: 0.5   # aire alrededor (>= paso)
+  paso_m: 0.25            # Δx = Δy
+  paso_z_m: 0.05          # Δz: divide 0.55, 1.10 y 1.00 m => interfaces exactas (error por vertida < 1 %
+                          #     en vez de 9-16 % con Δz = 0.25). Omitirlo = voxel cúbico.
+  margen_lateral_m: 2.0   # aire y suelo alrededor (>= paso); 2 m > 2·√(α_suelo·14 d) ≈ 1.7 m
   margen_superior_m: 0.5  # aire sobre el pedestal (>= paso)
   corregir_area: true     # convección con el área real: la escalera la sobrestima ~30 % y no converge
 
@@ -34,7 +36,7 @@ base:                     # cara inferior de la caja (bajo el suelo)
   T_C: 15.0
 
 suelo:                    # espesor_m: 0 => sin suelo (la base actúa bajo el hormigón)
-  espesor_m: 1.0
+  espesor_m: 3.0          # con 1 m la base Dirichlet extrae 7.5 GJ artificiales en 14 d; con 3 m ≈ 0
   k_W_mK: 1.39            # Ju y Lei
   rho_kg_m3: 1800
   cp_J_kgK: 1273

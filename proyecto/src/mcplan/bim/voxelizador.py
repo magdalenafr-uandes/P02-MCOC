@@ -31,21 +31,40 @@ import numpy as np
 from .mallas_ifc import SolidoVertida
 
 DIRECCIONES = ("x-", "x+", "y-", "y+", "z-", "z+")
-_DESPLAZAMIENTO = (1.0e-7 * math.pi, 1.0e-7 * math.e)  # fracción de Δx en (x, y)
-_TOL_Z = 1.0e-6  # fracción de Δx: desempate de centros en una interfaz horizontal
+_DESPLAZAMIENTO = (1.0e-7 * math.pi, 1.0e-7 * math.e)  # fracción de Δx, Δy en (x, y)
+_TOL_Z = 1.0e-6  # fracción de Δz: desempate de centros en una interfaz horizontal
+
+Paso = float | Sequence[float]
+
+
+def pasos(paso: Paso) -> tuple[float, float, float]:
+    """(Δx, Δy, Δz) desde un escalar (voxel cúbico) o una terna."""
+    if isinstance(paso, (int, float)):
+        terna = (float(paso),) * 3
+    else:
+        terna = tuple(float(p) for p in paso)
+    if len(terna) != 3 or any(not math.isfinite(p) or p <= 0.0 for p in terna):
+        raise ValueError("El paso de malla debe ser positivo y finito (escalar o (Δx, Δy, Δz)).")
+    return terna  # type: ignore[return-value]
+
+
+def area_cara(paso: Paso, eje: int) -> float:
+    """Área de la cara de un voxel normal al eje [m²]."""
+    d = pasos(paso)
+    return d[(eje + 1) % 3] * d[(eje + 2) % 3]
 
 
 @dataclass(frozen=True)
 class DefinicionGrilla:
-    """Caja de cálculo: origen (esquina mínima), paso y número de celdas."""
+    """Caja de cálculo: origen (esquina mínima), pasos (Δx, Δy, Δz) y número de celdas."""
 
     origen: tuple[float, float, float]
-    paso: float
+    paso: tuple[float, float, float]
     forma: tuple[int, int, int]
     n_suelo: int = 0  # capas de suelo bajo la base del hormigón
 
     def centros(self, eje: int) -> np.ndarray:
-        return self.origen[eje] + (np.arange(self.forma[eje]) + 0.5) * self.paso
+        return self.origen[eje] + (np.arange(self.forma[eje]) + 0.5) * self.paso[eje]
 
 
 @dataclass
@@ -58,7 +77,7 @@ class GrillaBIM:
     voxeles_solapados: int = 0
 
     @property
-    def paso(self) -> float:
+    def paso(self) -> tuple[float, float, float]:
         return self.definicion.paso
 
     @property
@@ -67,45 +86,48 @@ class GrillaBIM:
 
     @property
     def volumen_voxel(self) -> float:
-        return self.paso**3
+        return float(np.prod(self.paso))
 
     def ids(self) -> list[int]:
         return sorted(int(v) for v in np.unique(self.vertida_id) if v != 0)
 
     def volumen(self, vid: int) -> float:
-        """V_h = N_activo · Δx³ de una vertida [m³]."""
+        """V_h = N_activo · ΔxΔyΔz de una vertida [m³]."""
         return float(np.count_nonzero(self.vertida_id == vid)) * self.volumen_voxel
 
 
 def definir_grilla(
     solidos: Sequence[SolidoVertida],
-    paso: float,
+    paso: Paso,
     margen_lateral: float,
     margen_superior: float,
     espesor_suelo: float = 0.0,
 ) -> DefinicionGrilla:
-    """Caja que contiene los sólidos con márgenes; la base cae en una cara de voxel."""
-    if not math.isfinite(paso) or paso <= 0.0:
-        raise ValueError("El paso de malla debe ser positivo y finito.")
+    """Caja que contiene los sólidos con márgenes; la base cae en una cara de voxel.
+
+    ``paso`` puede ser un escalar (voxel cúbico) o (Δx, Δy, Δz). Un Δz que
+    divide los espesores de las vertidas hace exactas sus interfaces horizontales.
+    """
+    d = pasos(paso)
     if min(margen_lateral, margen_superior, espesor_suelo) < 0.0:
         raise ValueError("Márgenes y espesor de suelo no pueden ser negativos.")
-    if margen_lateral < paso or margen_superior < paso:
+    if margen_lateral < max(d[0], d[1]) or margen_superior < d[2]:
         raise ValueError("Los márgenes deben ser >= paso: el hormigón no puede tocar la caja.")
     lo = np.min([s.limites[0] for s in solidos], axis=0)
     hi = np.max([s.limites[1] for s in solidos], axis=0)
     forma: list[int] = []
     origen: list[float] = []
     for eje in (0, 1):
-        n = int(math.ceil((hi[eje] - lo[eje] + 2.0 * margen_lateral) / paso))
+        n = int(math.ceil((hi[eje] - lo[eje] + 2.0 * margen_lateral) / d[eje]))
         forma.append(n)
-        origen.append(0.5 * (lo[eje] + hi[eje]) - 0.5 * n * paso)
-    n_suelo = int(round(espesor_suelo / paso))
+        origen.append(0.5 * (lo[eje] + hi[eje]) - 0.5 * n * d[eje])
+    n_suelo = int(round(espesor_suelo / d[2]))
     if espesor_suelo > 0.0 and n_suelo == 0:
         raise ValueError("espesor de suelo menor que media celda: aumentarlo o refinar.")
-    n_sobre = int(math.ceil((hi[2] - lo[2] + margen_superior) / paso))
+    n_sobre = int(math.ceil((hi[2] - lo[2] + margen_superior) / d[2]))
     forma.append(n_suelo + n_sobre)
-    origen.append(float(lo[2]) - n_suelo * paso)
-    return DefinicionGrilla((origen[0], origen[1], origen[2]), float(paso), tuple(forma), n_suelo)
+    origen.append(float(lo[2]) - n_suelo * d[2])
+    return DefinicionGrilla((origen[0], origen[1], origen[2]), d, tuple(forma), n_suelo)
 
 
 def _cruces_rayo_z(
@@ -143,9 +165,9 @@ def _cruces_rayo_z(
 
 def ocupacion(solido: SolidoVertida, grilla: DefinicionGrilla) -> np.ndarray:
     """Máscara booleana de voxeles cuyo centro está dentro de la malla."""
-    d = grilla.paso
-    xs = grilla.centros(0) + _DESPLAZAMIENTO[0] * d
-    ys = grilla.centros(1) + _DESPLAZAMIENTO[1] * d
+    dx, dy, dz = grilla.paso
+    xs = grilla.centros(0) + _DESPLAZAMIENTO[0] * dx
+    ys = grilla.centros(1) + _DESPLAZAMIENTO[1] * dy
     zc = grilla.centros(2)
     nx, ny, nz = grilla.forma
     ix, iy, z = _cruces_rayo_z(solido.triangulos, xs, ys)
@@ -163,7 +185,7 @@ def ocupacion(solido: SolidoVertida, grilla: DefinicionGrilla) -> np.ndarray:
         )
     posicion = np.arange(z.size) - np.repeat(inicio, cuenta)
     entra = posicion % 2 == 0
-    z = z + _TOL_Z * d
+    z = z + _TOL_Z * dz
     k0 = np.searchsorted(zc, z[entra], side="left")
     k1 = np.searchsorted(zc, z[~entra], side="left")
     marcas = np.zeros((nx, ny, nz + 1), dtype=np.int32)
@@ -224,7 +246,7 @@ def pesos_area(solidos: Sequence[SolidoVertida], grilla: GrillaBIM) -> dict[str,
     Δx) contiene el centro de la cara y cuyo plano está más cerca. Sin
     candidato (p. ej. suelo), w = 1.
     """
-    d = grilla.paso
+    d = np.asarray(grilla.paso)
     origen = np.asarray(grilla.definicion.origen)
     pesos = {c: np.ones(grilla.forma) for c in DIRECCIONES}
     for s in solidos:
@@ -244,7 +266,7 @@ def pesos_area(solidos: Sequence[SolidoVertida], grilla: GrillaBIM) -> dict[str,
                 continue
             eje, signo = "xyz".index(cara[0]), (1.0 if cara[1] == "+" else -1.0)
             P = origen + (celdas + 0.5) * d
-            P[:, eje] += signo * d / 2.0  # centro de la cara
+            P[:, eje] += signo * d[eje] / 2.0  # centro de la cara
             mejor = np.full(len(P), np.inf)
             w = np.ones(len(P))
             for j in np.nonzero(signo * normal[:, eje] > 1e-9)[0]:
@@ -259,7 +281,7 @@ def pesos_area(solidos: Sequence[SolidoVertida], grilla: GrillaBIM) -> dict[str,
 
 def area_expuesta(
     expuestas: dict[str, np.ndarray],
-    paso: float,
+    paso: Paso,
     mascara: np.ndarray | None = None,
     pesos: dict[str, np.ndarray] | None = None,
 ) -> dict[str, float]:
@@ -271,8 +293,9 @@ def area_expuesta(
         total = 0.0
         for c in claves:
             e = expuestas[c] if mascara is None else expuestas[c] & mascara
-            total += float(np.sum(pesos[c][e])) if pesos is not None else float(np.count_nonzero(e))
-        return total * paso**2
+            n = float(np.sum(pesos[c][e])) if pesos is not None else float(np.count_nonzero(e))
+            total += n * area_cara(paso, "xyz".index(c[0]))
+        return total
 
     lateral = suma(("x-", "x+", "y-", "y+"))
     superior = suma(("z+",))

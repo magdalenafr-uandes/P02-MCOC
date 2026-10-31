@@ -37,7 +37,10 @@ from ..thermal.hidratacion import HORA, ModeloHidratacion
 
 _ESQUEMA: dict[str, Any] = {
     "ifc": str,
-    "malla": {"paso_m": float, "margen_lateral_m": float, "margen_superior_m": float, "corregir_area": bool},
+    "malla": {
+        "paso_m": float, "paso_z_m": float, "margen_lateral_m": float, "margen_superior_m": float,
+        "corregir_area": bool,
+    },
     "simulacion": {
         "duracion_h": float, "fraccion_dt": float, "dt_max_h": float,
         "guardar_cada_h": float, "guardar_campos": bool,
@@ -76,6 +79,12 @@ class ConfigMalla:
     margen_superior_m: float
     espesor_suelo_m: float
     corregir_area: bool = False  # convección con área real (w = 1/||n||₁) en vez de staircase
+    paso_z_m: float | None = None  # Δz propio; None = paso_m (voxel cúbico)
+
+    @property
+    def pasos(self) -> tuple[float, float, float]:
+        dz = self.paso_m if self.paso_z_m is None else self.paso_z_m
+        return (self.paso_m, self.paso_m, dz)
 
 
 @dataclass(frozen=True)
@@ -218,6 +227,7 @@ def validar_config(datos: Mapping[str, Any], carpeta: Path) -> ConfigCaso:
         _numero(_requerir(m, "margen_superior_m", "malla"), "malla.margen_superior_m", no_negativo=True),
         espesor,
         _booleano(m.get("corregir_area", False), "malla.corregir_area"),
+        _numero(m["paso_z_m"], "malla.paso_z_m", positivo=True) if m.get("paso_z_m") is not None else None,
     )
     dt_max_s = math.inf
     if "dt_max_h" in s:

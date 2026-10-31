@@ -41,7 +41,7 @@ class ResultadoPipeline:
 
 def construir_grilla(config: ConfigCaso, solidos: list[SolidoVertida]) -> GrillaBIM:
     m = config.malla
-    definicion = definir_grilla(solidos, m.paso_m, m.margen_lateral_m, m.margen_superior_m, m.espesor_suelo_m)
+    definicion = definir_grilla(solidos, m.pasos, m.margen_lateral_m, m.margen_superior_m, m.espesor_suelo_m)
     return voxelizar_solidos(solidos, definicion)
 
 

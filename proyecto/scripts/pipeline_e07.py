@@ -27,8 +27,9 @@ HORA = 3600.0
 def _imprimir(r) -> None:
     c, g = r.config, r.grilla
     print(f"IFC: {c.ruta_ifc}")
-    print(f"Grilla: {g.forma} voxeles, Δx = {g.paso} m, {g.definicion.n_suelo} capas de suelo, "
-          f"solapados = {g.voxeles_solapados}")
+    dx, _, dz = g.paso
+    print(f"Grilla: {g.forma} = {np.prod(g.forma):,} voxeles, Δx = Δy = {dx:g} m, Δz = {dz:g} m, "
+          f"{g.definicion.n_suelo} capas de suelo, solapados = {g.voxeles_solapados}")
     print("\nPlan de vertidas (valor [origen]):")
     for p in r.plan:
         o = p.origen
@@ -66,7 +67,7 @@ def _imprimir(r) -> None:
     dT = s.delta_T_C
     i = int(np.nanargmax(dT))
     print(f"T_max global = {np.nanmax(s.T_max_C):.2f} °C;  ΔT núcleo-superficie máx = {dT[i]:.2f} °C "
-          f"a las {s.tiempos_s[i] / HORA:.1f} h (centros de celda)")
+          f"a las {s.tiempos_s[i] / HORA:.1f} h (T de la cara expuesta)")
     b = s.balance
     print(f"Balance de energía: residuo = {b['residuo_J']:.3e} J "
           f"({abs(b['residuo_J']) / max(abs(b['E_final_J']), 1.0):.1e} relativo); "
@@ -94,13 +95,14 @@ def _figura(r, salida: Path) -> None:
     j = g.forma[1] // 2
     T = np.where(s.activo_final | g.es_suelo, s.T_final, np.nan)[:, j, :]
     x0, z0 = g.definicion.origen[0], g.definicion.origen[2]
-    extension = [x0, x0 + g.forma[0] * g.paso, z0, z0 + g.forma[2] * g.paso]
+    extension = [x0, x0 + g.forma[0] * g.paso[0], z0, z0 + g.forma[2] * g.paso[2]]
     im = ejes[1].imshow(T.T, origin="lower", extent=extension, cmap="inferno", aspect="equal")
     fig.colorbar(im, ax=ejes[1], label="T [°C]")
     ejes[1].set_xlabel("x [m]")
     ejes[1].set_ylabel("z [m]")
     ejes[1].set_title(f"Corte central y = 0 a t = {t[-1]:.0f} h (suelo bajo z = 0)")
-    fig.suptitle(f"Pipeline E07: Δx = {g.paso} m; parámetros desde {r.config.ruta_ifc.name} + YAML")
+    fig.suptitle(f"Pipeline E07: Δx = Δy = {g.paso[0]:g} m, Δz = {g.paso[2]:g} m; "
+                 f"parámetros desde {r.config.ruta_ifc.name} + YAML")
     salida.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(salida, dpi=150)
     plt.close(fig)

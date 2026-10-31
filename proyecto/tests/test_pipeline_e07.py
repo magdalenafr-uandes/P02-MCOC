@@ -164,6 +164,28 @@ def test_desempate_interfaz_horizontal_va_a_vertida_inferior():
     assert g.volumen(2) == pytest.approx(4 * 0.5)
 
 
+def test_dz_que_divide_espesores_hace_exactas_las_interfaces():
+    abajo = prisma(1, rectangulo(-1, 1, -1, 1), 0, 0.55)
+    arriba = prisma(2, rectangulo(-1, 1, -1, 1), 0.55, 1.1)
+    for paso, exacto in (((0.25, 0.25, 0.25), False), ((0.25, 0.25, 0.05), True)):
+        g = voxelizar_solidos([abajo, arriba], definir_grilla([abajo, arriba], paso, 0.5, 0.5))
+        errores = [abs(g.volumen(v) - 4 * 0.55) / (4 * 0.55) for v in (1, 2)]
+        if exacto:
+            assert max(errores) < 1e-9
+        else:
+            assert max(errores) > 0.05  # 0.55 no es múltiplo de 0.25
+
+
+def test_area_expuesta_anisotropica():
+    s = prisma(1, rectangulo(-1, 1, -0.5, 0.5), 0, 0.5)
+    paso = (0.25, 0.25, 0.05)
+    g = voxelizar_solidos([s], definir_grilla([s], paso, 0.5, 0.5))
+    assert g.volumen(1) == pytest.approx(1.0)
+    a = area_expuesta(caras_expuestas(g.vertida_id > 0), paso)
+    assert a["lateral"] == pytest.approx(3.0)
+    assert a["superior"] == pytest.approx(2.0)
+
+
 def test_malla_abierta_se_rechaza():
     s = prisma(1, rectangulo(0, 1, 0, 1), 0, 1)
     abierta = SolidoVertida(1, "abierta", "", s.triangulos[1:])  # falta medio fondo
@@ -271,6 +293,38 @@ def test_activacion_por_etapas_y_caras_expuestas():
         G_amb, _ = sim._conductancias_externas(0.0, activo, activo, k)
         assert np.all(G_amb[tapa] > 0) == expuesta
     assert abs(r.balance["residuo_J"]) < 1e-9 * abs(r.balance["E_final_J"])
+
+
+def test_temperatura_superficial_es_la_de_la_cara_no_la_del_centro():
+    # Campo uniforme a 20 °C y aire a 15 °C: el mismo flujo cruza la media celda y la
+    # película de aire, así que Ts = Ti + φ(T_aire - Ti) con φ = r_media/(r_media + 1/h).
+    k, h, paso = HORMIGON.k, 10.0, (0.1, 0.1, 0.02)
+    sim = SimuladorEtapas(
+        DominioVoxel(dominio_caja().vertida_id, dominio_caja().es_suelo, paso),
+        [PlanVertida(1, 0.0, 20.0, "M1")], {"M1": Hormigon(HORMIGON)},
+        Ambiente(15.0, h), CondicionBase("adiabatico"), ParametrosTiempo(HORA, guardar_cada_s=HORA),
+    )
+    r = sim.ejecutar()
+    phi = (0.1 / 2 / k) / (0.1 / 2 / k + 1 / h)  # la cara lateral (Δ = 0,1) es la más fría
+    assert r.T_sup_min_C[0] == pytest.approx(20.0 + phi * (15.0 - 20.0))
+    assert r.T_sup_min_C[0] < r.T_min_C[0]  # la cara está más fría que cualquier centro
+
+
+def test_dominio_anisotropico_conserva_energia():
+    ids = np.zeros((5, 5, 12), dtype=np.int16)
+    ids[1:4, 1:4, 1:6] = 1
+    ids[1:4, 1:4, 6:11] = 2
+    modelo = ModeloHidratacion("exponencial", 40.0, 20.0, 2400.0, 970.0, Ea_J_mol=40000.0)
+    sim = SimuladorEtapas(
+        DominioVoxel(ids, np.zeros(ids.shape, dtype=bool), (0.2, 0.2, 0.05)),
+        [PlanVertida(1, 0.0, 18.0, "M1", R_lateral=0.1, retiro_moldaje_s=4 * HORA),
+         PlanVertida(2, 3 * HORA, 12.0, "M1")],
+        {"M1": Hormigon(HORMIGON, modelo)}, Ambiente(10.0, 8.0), CondicionBase("dirichlet", 10.0),
+        ParametrosTiempo(10 * HORA),
+    )
+    r = sim.ejecutar()
+    assert abs(r.balance["residuo_J"]) < 1e-10 * abs(r.balance["E_final_J"])
+    assert all(e["dt_s"] <= e["dt_limite_s"] for e in r.etapas)
 
 
 def test_peso_de_area_escala_la_conductancia_convectiva():

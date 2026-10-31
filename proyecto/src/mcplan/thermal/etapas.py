@@ -34,7 +34,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from ..bim.voxelizador import caras_expuestas
+from ..bim.voxelizador import area_cara, caras_expuestas, pasos
 from .hidratacion import ModeloHidratacion
 from .voxel import MallaVoxel, SolverVoxel, adiabatico
 
@@ -145,9 +145,13 @@ class DominioVoxel:
 
     vertida_id: np.ndarray  # (nx, ny, nz) int, 0 = sin hormigón
     es_suelo: np.ndarray  # (nx, ny, nz) bool
-    paso: float
+    paso: float | tuple[float, float, float]  # escalar (cúbico) o (Δx, Δy, Δz) [m]
     # w = A_real/A_staircase por cara ("x-"... "z+"); None = área staircase (w = 1)
     peso_area: Mapping[str, np.ndarray] | None = None
+
+    @property
+    def pasos(self) -> tuple[float, float, float]:
+        return pasos(self.paso)
 
 
 @dataclass
@@ -155,7 +159,7 @@ class ResultadoEtapas:
     tiempos_s: list[float] = field(default_factory=list)
     T_max_C: list[float] = field(default_factory=list)  # hormigón activo
     T_min_C: list[float] = field(default_factory=list)  # hormigón activo
-    T_sup_min_C: list[float] = field(default_factory=list)  # voxeles con cara expuesta
+    T_sup_min_C: list[float] = field(default_factory=list)  # cara de hormigón expuesta al aire
     T_max_vertida_C: dict[int, list[float]] = field(default_factory=dict)  # nan si inactiva
     etapas: list[dict] = field(default_factory=list)
     balance: dict[str, float] = field(default_factory=dict)
@@ -166,7 +170,11 @@ class ResultadoEtapas:
 
     @property
     def delta_T_C(self) -> np.ndarray:
-        """T_max - T_sup_min: diferencial núcleo-superficie (centros de celda)."""
+        """T_max - T_sup_min: diferencial núcleo-superficie.
+
+        T_sup es la temperatura de la **cara** del sólido (antes de moldaje o
+        aislación), no la del centro del voxel superficial, que está Δ/2 adentro.
+        """
         return np.asarray(self.T_max_C) - np.asarray(self.T_sup_min_C)
 
     def pico(self, vid: int) -> tuple[float, float]:
@@ -254,8 +262,29 @@ class SimuladorEtapas:
         return k, rho, cp
 
     def _conductancias_externas(self, t: float, activo: np.ndarray, solido: np.ndarray, k: np.ndarray):
-        d = self.dominio.paso
-        A = d * d
+        d = self.dominio.pasos
+        G_amb = np.zeros(activo.shape)
+        for cara, mascara, r_media, r_ext in self._resistencias_caras(t, activo, solido, k):
+            A = area_cara(d, "xyz".index(cara[0]))
+            G = A / (r_media + r_ext)  # resistencias por unidad de área en serie
+            if self.dominio.peso_area is not None:
+                G = G * self.dominio.peso_area[cara]  # A_real = w·A
+            G_amb += np.where(mascara, G, 0.0)
+        G_base = np.zeros(activo.shape)
+        if self.base.tipo == "dirichlet":
+            capa = solido[:, :, 0]
+            G_base[:, :, 0] = np.where(capa, k[:, :, 0] * area_cara(d, 2) / (d[2] / 2.0), 0.0)
+        return G_amb, G_base
+
+    def _resistencias_caras(self, t: float, activo: np.ndarray, solido: np.ndarray, k: np.ndarray):
+        """Por cara expuesta al aire: (cara, máscara, r_media, r_exterior) [m²K/W].
+
+        r_media = (Δ/2)/k es la media celda de sólido; r_exterior = R + 1/h es
+        moldaje o aislación más la película de aire.
+        """
+        if self.ambiente.h <= 0.0:
+            return []
+        d = self.dominio.pasos
         ids = self.dominio.vertida_id
         R_lat = np.zeros(activo.shape)
         R_sup = np.zeros(activo.shape)
@@ -264,27 +293,31 @@ class SimuladorEtapas:
             if m.any():
                 R_lat[m] = p.R_lateral if t < p.inicio_s + p.retiro_moldaje_s else 0.0
                 R_sup[m] = p.R_superior
-        G_amb = np.zeros(activo.shape)
-        if self.ambiente.h > 0.0:
-            expuestas = caras_expuestas(solido)
-            for cara, mascara in expuestas.items():
-                R = R_sup if cara == "z+" else R_lat
-                G = 1.0 / ((d / 2.0) / (k * A) + R / A + 1.0 / (self.ambiente.h * A))
-                if self.dominio.peso_area is not None:
-                    G = G * self.dominio.peso_area[cara]  # A_real = w·A en las tres resistencias
-                G_amb += np.where(mascara, G, 0.0)
-        G_base = np.zeros(activo.shape)
-        if self.base.tipo == "dirichlet":
-            capa = solido[:, :, 0]
-            G_base[:, :, 0] = np.where(capa, k[:, :, 0] * A / (d / 2.0), 0.0)
-        return G_amb, G_base
+        caras = []
+        for cara, mascara in caras_expuestas(solido).items():
+            eje = "xyz".index(cara[0])
+            R = R_sup if cara == "z+" else R_lat
+            caras.append((cara, mascara, (d[eje] / 2.0) / k, R + 1.0 / self.ambiente.h))
+        return caras
+
+    def _caras_superficie(self, t: float, activo: np.ndarray, solido: np.ndarray, k: np.ndarray):
+        """Caras de hormigón expuestas y su factor phi = r_media/(r_media + r_ext).
+
+        La temperatura de la cara del sólido es Ts = Ti + phi·(T_aire - Ti): el
+        mismo flujo cruza la media celda y el exterior en serie.
+        """
+        return [
+            (mascara & activo, r_media / (r_media + r_ext))
+            for _, mascara, r_media, r_ext in self._resistencias_caras(t, activo, solido, k)
+            if np.any(mascara & activo)
+        ]
 
     # --- integración ----------------------------------------------------------
     def ejecutar(self) -> ResultadoEtapas:
         dom = self.dominio
         forma = dom.vertida_id.shape
-        d = dom.paso
-        V = d**3
+        d = dom.pasos
+        V = float(np.prod(d))
         ids = dom.vertida_id
         res = ResultadoEtapas(T_max_vertida_C={vid: [] for vid in sorted(self.plan)})
 
@@ -322,10 +355,10 @@ class SimuladorEtapas:
                 m = ids == vid
                 E["colocacion"] += float(np.sum(C[m] * T[m]))
 
-            malla = MallaVoxel(forma, (d, d, d), k, rho, cp)
+            malla = MallaVoxel(forma, d, k, rho, cp)
             solver = SolverVoxel(malla, {c: adiabatico() for c in malla.caras}, lambda _t: self._q)
             G_amb, G_base = self._conductancias_externas(t0, activo, solido, k)
-            expuesto = G_amb > 0.0
+            superficie = self._caras_superficie(t0, activo, solido, k)
             grupos = []
             for nombre, h in self.hormigones.items():
                 if h.hidratacion is None:
@@ -352,7 +385,7 @@ class SimuladorEtapas:
             for paso in range(n_pasos):
                 t = t0 + paso * dt
                 if t >= proximo_guardado - 1e-9:
-                    self._registrar(res, t, T, activo, expuesto, ids)
+                    self._registrar(res, t, T, activo, superficie, ids)
                     while proximo_guardado <= t + 1e-9:
                         proximo_guardado += self.tiempo.guardar_cada_s
                 T_amb = self.ambiente.temperatura(t)
@@ -373,7 +406,7 @@ class SimuladorEtapas:
                 T[vacio] = self.ambiente.temperatura(t + dt)
             t = t1
 
-        self._registrar(res, t, T, activo, expuesto, ids)
+        self._registrar(res, t, T, activo, superficie, ids)
         solido = activo | dom.es_suelo
         E_final = float(np.sum((C * T)[solido]))
         aportes = E["colocacion"] + E["hidratacion"] + E["ambiente"] + E["base"] - E["fuga_vacio"]
@@ -388,7 +421,7 @@ class SimuladorEtapas:
         res.activo_final = activo
         return res
 
-    def _registrar(self, res, t, T, activo, expuesto, ids) -> None:
+    def _registrar(self, res, t, T, activo, superficie, ids) -> None:
         if res.tiempos_s and abs(res.tiempos_s[-1] - t) < 1e-9:
             return
         res.tiempos_s.append(t)
@@ -396,8 +429,9 @@ class SimuladorEtapas:
             Ta = T[activo]
             res.T_max_C.append(float(Ta.max()))
             res.T_min_C.append(float(Ta.min()))
-            sup = activo & expuesto
-            res.T_sup_min_C.append(float(T[sup].min()) if sup.any() else math.nan)
+            T_aire = self.ambiente.temperatura(t)
+            Ts = [(T + phi * (T_aire - T))[m] for m, phi in superficie]
+            res.T_sup_min_C.append(float(min(x.min() for x in Ts)) if Ts else math.nan)
         else:
             res.T_max_C.append(math.nan)
             res.T_min_C.append(math.nan)
