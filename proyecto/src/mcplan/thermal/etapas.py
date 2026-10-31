@@ -245,8 +245,9 @@ class ResultadoEtapas:
     tiempos_s: list[float] = field(default_factory=list)
     T_max_C: list[float] = field(default_factory=list)  # hormigón activo
     T_min_C: list[float] = field(default_factory=list)  # hormigón activo
-    T_sup_min_C: list[float] = field(default_factory=list)  # cara de hormigón expuesta al aire
+    T_sup_min_C: list[float] = field(default_factory=list)  # hormigón expuesto, a la profundidad del criterio
     T_max_vertida_C: dict[int, list[float]] = field(default_factory=dict)  # nan si inactiva
+    T_sup_min_vertida_C: dict[int, list[float]] = field(default_factory=dict)  # nan sin cara expuesta
     etapas: list[dict] = field(default_factory=list)
     balance: dict[str, float] = field(default_factory=dict)
     T_final: np.ndarray | None = None
@@ -258,10 +259,34 @@ class ResultadoEtapas:
     def delta_T_C(self) -> np.ndarray:
         """T_max - T_sup_min: diferencial núcleo-superficie.
 
-        T_sup es la temperatura de la **cara** del sólido (antes de moldaje o
-        aislación), no la del centro del voxel superficial, que está Δ/2 adentro.
+        T_sup es la temperatura a ``profundidad_superficie_m`` bajo la cara del
+        sólido (0 = la cara misma, antes de moldaje o aislación), interpolada
+        entre la cara y el centro del voxel superficial, que está Δ/2 adentro.
         """
         return np.asarray(self.T_max_C) - np.asarray(self.T_sup_min_C)
+
+    def delta_T_vertida_C(self, vid: int) -> np.ndarray:
+        """Diferencial núcleo-superficie **dentro de una vertida**: su T máxima
+        menos la T mínima de sus propias caras expuestas.
+
+        Es el criterio de la misma pieza. El global (``delta_T_C``) compara el
+        núcleo de una vertida con la superficie de otra, p. ej. hormigón recién
+        colocado a T de colocación junto a una vertida antigua caliente: es una
+        cota conservadora, no un diferencial de sección.
+        """
+        return np.asarray(self.T_max_vertida_C[vid]) - np.asarray(self.T_sup_min_vertida_C[vid])
+
+    def delta_T_max_por_vertida(self) -> tuple[float, int, float]:
+        """(ΔT máx [°C], vertida, tiempo [s]) del diferencial dentro de cada vertida."""
+        mejor = (math.nan, 0, math.nan)
+        for vid in self.T_max_vertida_C:
+            serie = self.delta_T_vertida_C(vid)
+            if np.all(np.isnan(serie)):
+                continue
+            i = int(np.nanargmax(serie))
+            if math.isnan(mejor[0]) or serie[i] > mejor[0]:
+                mejor = (float(serie[i]), vid, self.tiempos_s[i])
+        return mejor
 
     def pico(self, vid: int) -> tuple[float, float]:
         """(T_max [°C], tiempo del pico [s]) de una vertida."""
@@ -280,6 +305,7 @@ class _CaraExpuesta:
     orientacion: str  # superior | lateral | inferior
     idx: np.ndarray
     area: np.ndarray  # A·w [m²]
+    media_m: float  # Δ/2 normal a la cara [m]
     r_media: np.ndarray  # (Δ/2)/k [m²K/W]
     R: np.ndarray  # moldaje o aislación [m²K/W]
     hormigon: np.ndarray  # bool: la celda es hormigón activo (no suelo)
@@ -305,7 +331,11 @@ class SimuladorEtapas:
         suelo: Material | None = None,
         T_suelo_inicial_C: float | None = None,
         guardar_campos: bool = False,
+        profundidad_superficie_m: float = 0.0,
     ) -> None:
+        if not math.isfinite(profundidad_superficie_m) or profundidad_superficie_m < 0.0:
+            raise ValueError("profundidad_superficie_m no negativa y finita.")
+        self.profundidad_superficie_m = profundidad_superficie_m
         self.dominio = dominio
         self.plan = {p.vertida_id: p for p in plan}
         if len(self.plan) != len(plan):
@@ -398,6 +428,7 @@ class SimuladorEtapas:
                 orientacion=orientacion(cara),
                 idx=idx,
                 area=np.broadcast_to(A, idx.shape),
+                media_m=d[eje] / 2.0,
                 r_media=(d[eje] / 2.0) / k.ravel()[idx],
                 R=(R_sup if cara == "z+" else R_lat).ravel()[idx],
                 hormigon=activo.ravel()[idx],
@@ -549,22 +580,31 @@ class SimuladorEtapas:
             res.T_min_C.append(float(Ta.min()))
             # Cara del sólido: el mismo flujo cruza la media celda y el exterior en
             # serie, así que Ts = Ti + phi·(T_eq - Ti), phi = r_media/(r_media + R + 1/h).
+            # A la profundidad p del criterio, el perfil entre la cara y el centro
+            # (a Δ/2) es lineal: T(p) = Ts + (Ti - Ts)·min(p/(Δ/2), 1).
             h_tot, T_eq = self.ambiente.condiciones(t)
-            Ts = []
+            sup_vertida = np.full(int(ids.max()) + 1, np.inf)
             if h_tot > 0.0:
                 T_plano = T.ravel()
+                ids_plano = ids.ravel()
                 for c in caras:
                     if c.hormigon.any():
                         Ti = T_plano[c.idx][c.hormigon]
                         phi = c.r_media[c.hormigon] / (c.r_media[c.hormigon] + c.R[c.hormigon] + 1.0 / h_tot)
-                        Ts.append(Ti + phi * (T_eq[c.orientacion] - Ti))
-            res.T_sup_min_C.append(float(min(x.min() for x in Ts)) if Ts else math.nan)
+                        hacia_cara = 1.0 - min(self.profundidad_superficie_m / c.media_m, 1.0)
+                        Ts = Ti + phi * hacia_cara * (T_eq[c.orientacion] - Ti)
+                        np.minimum.at(sup_vertida, ids_plano[c.idx][c.hormigon], Ts)
+            minimo = float(sup_vertida.min())
+            res.T_sup_min_C.append(minimo if math.isfinite(minimo) else math.nan)
         else:
             res.T_max_C.append(math.nan)
             res.T_min_C.append(math.nan)
             res.T_sup_min_C.append(math.nan)
+            sup_vertida = np.full(int(ids.max()) + 1, np.inf)
         for vid in res.T_max_vertida_C:
             m = activo & (ids == vid)
             res.T_max_vertida_C[vid].append(float(T[m].max()) if m.any() else math.nan)
+            s = sup_vertida[vid] if vid < len(sup_vertida) else np.inf
+            res.T_sup_min_vertida_C.setdefault(vid, []).append(float(s) if math.isfinite(s) else math.nan)
         if self.guardar_campos:
             res.campos[t] = T.copy()

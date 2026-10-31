@@ -289,6 +289,14 @@ def test_activacion_por_etapas_y_caras_expuestas():
     assert np.all(r.campos[antes][ids == 2] == 15.0)  # aún no vertida: vacío a T del aire
     assert np.all(r.campos[10 * HORA][ids == 2] == 30.0)  # se activa a T de colocación
     assert all(math.isnan(x) for x in r.T_max_vertida_C[2][:10])
+    # ΔT dentro de cada vertida: la 2 recién colocada (uniforme a 30 °C) no hereda
+    # el contraste con la 1; el global sí los mezcla y es una cota superior.
+    for vid in (1, 2):
+        dv = r.delta_T_vertida_C(vid)
+        assert np.all(dv[~np.isnan(dv)] <= r.delta_T_C[~np.isnan(dv)] + 1e-12)
+    i = next(j for j, t in enumerate(r.tiempos_s) if t >= 10 * HORA)
+    assert r.T_max_vertida_C[2][i] == 30.0 and r.T_sup_min_vertida_C[2][i] < 30.0
+    assert r.delta_T_max_por_vertida()[0] <= np.nanmax(r.delta_T_C)
 
     # La cara superior de la vertida 1 deja de estar expuesta al cubrirla la 2.
     tapa = (slice(1, 4), slice(1, 4), 2)
@@ -547,17 +555,55 @@ def test_snapshot_clima_unidades_y_horizonte(tmp_path):
         series_para_simulacion(snap, datetime(2026, 11, 26), 3600.0)
 
 
+def test_clima_analogo_de_otro_anio(tmp_path):
+    snap = leer_snapshot(snapshot_sintetico(tmp_path / "s", inicio="2025-11-27T00:00"))
+    with pytest.raises(ValueError, match="desplazar_anios"):
+        series_para_simulacion(snap, datetime(2026, 11, 27, 4), 24 * HORA)
+    s = series_para_simulacion(snap, datetime(2026, 11, 27, 4), 24 * HORA, desplazar_anios=1)
+    assert "ANÁLOGO" in s.nota and "2025-11-27" in s.nota
+    # misma hora del día: a las 04:00 el valor es el de las 04:00 de 2025
+    assert np.interp(0.0, s.t_s, s.T_C) == pytest.approx(snap.T_C[4])
+
+
+def test_superficie_a_la_profundidad_del_criterio():
+    k, h, paso = HORMIGON.k, 10.0, (0.1, 0.1, 0.1)
+
+    def T_sup(profundidad):
+        sim = SimuladorEtapas(
+            DominioVoxel(dominio_caja().vertida_id, dominio_caja().es_suelo, paso),
+            [PlanVertida(1, 0.0, 20.0, "M1")], {"M1": Hormigon(HORMIGON)},
+            Ambiente(15.0, h), CondicionBase("adiabatico"), ParametrosTiempo(HORA, guardar_cada_s=HORA),
+            profundidad_superficie_m=profundidad,
+        )
+        return sim.ejecutar().T_sup_min_C[0]
+
+    phi = (0.05 / k) / (0.05 / k + 1 / h)
+    Ts = 20.0 + phi * (15.0 - 20.0)
+    assert T_sup(0.0) == pytest.approx(Ts)  # la cara
+    assert T_sup(0.025) == pytest.approx(0.5 * (Ts + 20.0))  # mitad entre cara y centro
+    assert T_sup(0.05) == pytest.approx(20.0)  # el centro del voxel superficial
+    assert T_sup(0.2) == pytest.approx(20.0)  # más hondo que el centro: se usa el centro
+
+
+def test_criterios_en_config():
+    base = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))
+    c = leer_config(base, base_rutas=CONFIG.parent)
+    assert (c.criterios.T_max_C, c.criterios.delta_T_C, c.criterios.profundidad_superficie_m) == (70.0, 20.0, 0.025)
+    assert c.tiempo.duracion_s == 14 * 24 * HORA
+    assert "ANÁLOGO" in c.nota_clima
+    with pytest.raises(ErrorConfiguracion, match="claves desconocidas"):
+        leer_config(aplicar_sobrescrituras(base, ["criterios.Tmax=70"]), base_rutas=CONFIG.parent)
+
+
 def test_config_con_clima_y_fechas(tmp_path):
     carpeta = snapshot_sintetico(tmp_path / "weather" / "s")
     datos = aplicar_sobrescrituras(yaml.safe_load(CONFIG.read_text(encoding="utf-8")), [
         "simulacion.inicio=2026-11-27T04:00", "simulacion.duracion_h=24",
-        f"clima.snapshot={carpeta.as_posix()}",
+        f"clima.snapshot={carpeta.as_posix()}", "clima.desplazar_anios=0",
         "ambiente.conveccion_viento={a_W_m2K: 5.7, b_J_m3K: 3.8}",
         "ambiente.absortividad_solar=0.6", "ambiente.emisividad=0.9",
         "vertidas.2.inicio=2026-11-27T10:30",
     ])
-    for clave in ("T_C", "h_W_m2K"):
-        del datos["ambiente"][clave]
     c = leer_config(datos, base_rutas=CONFIG.parent)
     assert c.ambiente.h_viento == (5.7, 3.8) and c.ambiente.serie_G_W_m2
     assert "sintético" in c.nota_clima

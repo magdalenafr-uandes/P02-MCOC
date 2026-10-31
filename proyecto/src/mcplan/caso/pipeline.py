@@ -78,5 +78,6 @@ def ejecutar_pipeline(config: ConfigCaso, simular: bool = True) -> ResultadoPipe
             config.suelo,
             config.T_suelo_inicial_C,
             config.guardar_campos,
+            config.criterios.profundidad_superficie_m if config.criterios else 0.0,
         ).ejecutar()
     return resultado

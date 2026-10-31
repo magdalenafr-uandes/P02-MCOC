@@ -73,8 +73,29 @@ def _imprimir(r) -> None:
         print(f"  {vid}: T_max = {T:.2f} °C a las {t / HORA:.1f} h")
     dT = s.delta_T_C
     i = int(np.nanargmax(dT))
-    print(f"T_max global = {np.nanmax(s.T_max_C):.2f} °C;  ΔT núcleo-superficie máx = {dT[i]:.2f} °C "
-          f"a las {s.tiempos_s[i] / HORA:.1f} h (T de la cara expuesta)")
+    cr = c.criterios
+    prof = f"a {cr.profundidad_superficie_m * 1000:g} mm bajo la cara" if cr else "en la cara"
+    dTv, vid_dT, t_dT = s.delta_T_max_por_vertida()
+    print(f"T_max global = {np.nanmax(s.T_max_C):.2f} °C")
+    print(f"ΔT núcleo-superficie (superficie {prof}):")
+    for vid in sorted(s.T_max_vertida_C):
+        serie = s.delta_T_vertida_C(vid)
+        if not np.all(np.isnan(serie)):
+            j = int(np.nanargmax(serie))
+            print(f"  vertida {vid}: máx {serie[j]:6.2f} °C a las {s.tiempos_s[j] / HORA:6.1f} h")
+    print(f"  global (núcleo de una vertida vs. superficie de otra; cota conservadora): "
+          f"{dT[i]:.2f} °C a las {s.tiempos_s[i] / HORA:.1f} h")
+    if cr:
+        T_max = float(np.nanmax(s.T_max_C))
+        dias = s.tiempos_s[-1] / 86400.0
+        print(f"\nCriterios docentes (hoja de ruta; no normativos), {dias:g} días simulados:")
+        for nombre, valor, limite in (("T_max", T_max, cr.T_max_C),
+                                      (f"ΔT (vertida {vid_dT})", dTv, cr.delta_T_C)):
+            estado = "cumple" if valor <= limite else "NO cumple"
+            print(f"  {nombre:21s} {valor:6.2f} °C  límite {limite:g} °C  -> {estado} (margen {limite - valor:+.2f} °C)")
+        if dias < 14.0 - 1e-9:
+            print("  ATENCIÓN: el criterio se evalúa sobre los máximos de 14 días; esta corrida es más corta.")
+        print("  Incertidumbre de discretización (convergencia en Δx): ±0,2 °C en T_max, ~1 °C en ΔT.")
     b = s.balance
     print(f"Balance de energía: residuo = {b['residuo_J']:.3e} J "
           f"({abs(b['residuo_J']) / max(abs(b['E_final_J']), 1.0):.1e} relativo); "

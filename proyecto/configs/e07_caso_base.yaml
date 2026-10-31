@@ -1,4 +1,5 @@
-# Caso base E07/E08: fundación de 5 vertidas (geometry/foundation.ifc).
+# Caso base E07/E08: fundación de 5 vertidas (geometry/foundation.ifc) en el
+# sitio oficial del curso (configs/site.yaml: Parque Eólico Wayra, Taltal).
 #
 # Todo parámetro del caso vive aquí, nunca en el solver. Se puede cambiar sin
 # editar este archivo con --set, por ejemplo:
@@ -7,13 +8,14 @@
 # Prioridad por vertida: vertidas.<id>  >  vertidas.defecto  >  pset del IFC
 # (Inicio_h, TemperaturaColocacion_C, TipoHormigon, RetiroMoldaje_h).
 #
-# ADVERTENCIA: los parámetros de hidratación son ilustrativos (guía §24), no
-# están calibrados con el hormigón real del proyecto.
+# Origen de cada dato:
+#   [repo]     dato del repositorio o de las guías del curso.
+#   [SUPUESTO] valor provisional sin dato del proyecto: reemplazar cuando exista.
 
 ifc: ../geometry/foundation.ifc   # relativo a este archivo
 
 malla:
-  paso_m: 0.25            # Δx = Δy
+  paso_m: 0.25            # Δx = Δy; convergencia: ±0.2 °C en T_max, ~1 °C en ΔT
   paso_z_m: 0.05          # Δz: divide 0.55, 1.10 y 1.00 m => interfaces exactas (error por vertida < 1 %
                           #     en vez de 9-16 % con Δz = 0.25). Omitirlo = voxel cúbico.
   margen_lateral_m: 2.0   # aire y suelo alrededor (>= paso); 2 m > 2·√(α_suelo·14 d) ≈ 1.7 m
@@ -21,42 +23,48 @@ malla:
   corregir_area: true     # convección con el área real: la escalera la sobrestima ~30 % y no converge
 
 simulacion:
-  duracion_h: 168         # 7 días
+  inicio: "2026-11-27T04:00"   # [SUPUESTO] fecha final TBD (G07); es la fecha de ejemplo de la guía G08
+  duracion_h: 336         # [repo] 14 días: los criterios se evalúan sobre los máximos de 14 días
   fraccion_dt: 0.8        # dt = 0.8 · límite monótono C/ΣG
   dt_max_h: 0.5           # tope por precisión de la cinética de hidratación
   guardar_cada_h: 1
-  # inicio: "2026-11-27T04:00"   # fecha-hora local de t = 0; obligatoria con 'clima'
+
+criterios:                # [repo] docs/hoja_de_ruta.md (docentes, no normativos)
+  T_max_C: 70.0
+  delta_T_C: 20.0
+  profundidad_superficie_m: 0.025   # "superficie" a ~25 mm bajo la cara exterior
+
+clima:                    # [repo] snapshot de Open-Meteo del sitio oficial (G07)
+  # ERA5 (reanálisis) 26-nov a 12-dic de 2025, usado como ANÁLOGO de las mismas
+  # fechas de 2026 [SUPUESTO]: el pronóstico real solo existirá ~16 días antes.
+  snapshot: ../data/weather/2026-10-31T1807_historico
+  desplazar_anios: 1
+  completar: error        # error | repetir_ultimo_dia (cola no cubierta por el pronóstico)
 
 ambiente:
-  T_C: 15.0               # sin 'clima'; con 'clima' la temperatura sale del snapshot
-  h_W_m2K: 10.0           # convección en caras expuestas (0 = adiabáticas)
-  # serie: [[0, 12.0], [12, 22.0], [24, 12.0]]   # opcional sin clima: T del aire [h, °C]
-  # conveccion_viento: {a_W_m2K: 5.7, b_J_m3K: 3.8}   # h = a + b·v (v a 10 m), en vez de h_W_m2K
-  # absortividad_solar: 0.65   # α del hormigón/moldaje; requiere shortwave_radiation en el clima
-  # emisividad: 0.9            # onda larga hacia el cielo (T_cielo de Swinbank)
-  # factor_solar_lateral: 0.0  # fracción de la GHI que reciben las caras verticales
-
-# clima:                  # snapshot de Open-Meteo (G07): scripts/descargar_clima.py
-#   snapshot: ../data/weather/2026-11-20T1200_pronostico
-#   completar: error      # error | repetir_ultimo_dia (cola no cubierta por el pronóstico)
+  conveccion_viento: {a_W_m2K: 5.7, b_J_m3K: 3.8}   # h = a + b·v (McAdams), v a 10 m
+  absortividad_solar: 0.65     # [SUPUESTO] hormigón gris / moldaje de madera
+  emisividad: 0.9              # [SUPUESTO] hormigón
+  factor_solar_lateral: 0.0    # [SUPUESTO] sin sol en caras verticales: conservador para ΔT
+  # Sin 'clima': T_C y h_W_m2K constantes, o 'serie' [[t_h, T_C], ...].
 
 base:                     # cara inferior de la caja (bajo el suelo)
   tipo: dirichlet         # dirichlet | adiabatico
-  T_C: 15.0
+  T_C: 16.6               # [SUPUESTO] T media del aire en el período (suelo profundo ≈ media anual)
 
 suelo:                    # espesor_m: 0 => sin suelo (la base actúa bajo el hormigón)
   espesor_m: 3.0          # con 1 m la base Dirichlet extrae 7.5 GJ artificiales en 14 d; con 3 m ≈ 0
-  k_W_mK: 1.39            # Ju y Lei
+  k_W_mK: 1.39            # [repo] Ju y Lei (2019), guía §31
   rho_kg_m3: 1800
   cp_J_kgK: 1273
-  T_inicial_C: 15.0
+  T_inicial_C: 16.6       # [SUPUESTO] igual que la base
 
 hormigones:
   M1:
-    k_W_mK: 2.22
+    k_W_mK: 2.22          # [repo] Ju y Lei (2019), guía §31
     rho_kg_m3: 2400
     cp_J_kgK: 970
-    hidratacion:
+    hidratacion:          # [SUPUESTO] curva pedagógica de la guía §24 hasta tener datos de la mezcla
       modelo: exponencial  # exponencial: θ∞(1-e^(-te/τ)) | schindler: θ∞·exp(-(τ/te)^β) | tabla
       theta_inf_C: 45.0    # elevación adiabática final [K]; o bien la dosificación:
       # cemento_kg_m3: 350, calor_cemento_J_kg: 450000, grado_hidratacion_ultimo: 0.8
@@ -67,10 +75,11 @@ hormigones:
       T_ref_C: 20.0
 
 vertidas:
+  # [repo] inicio (0, 6, 12, 18, 24 h), T_colocación (18 °C) y retiro de moldaje (72 h) salen del IFC.
   defecto:
     visible: true              # false = la vertida no se incluye en la grilla
-    R_lateral_m2K_W: 0.12      # moldaje (≈ 18 mm de madera, k ≈ 0.15)
-    R_superior_m2K_W: 0.0      # cara superior descubierta
+    R_lateral_m2K_W: 0.12      # [SUPUESTO] moldaje ≈ 18 mm de madera (k ≈ 0.15)
+    R_superior_m2K_W: 0.0      # [SUPUESTO] cara superior descubierta (sin aislación)
   # 2:
   #   inicio_h: 12             # sobrescribe Inicio_h del IFC
   #   inicio: "2026-11-27T16:00"   # o con fecha-hora (requiere simulacion.inicio)

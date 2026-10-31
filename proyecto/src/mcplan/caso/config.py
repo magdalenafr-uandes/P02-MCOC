@@ -51,7 +51,8 @@ _ESQUEMA: dict[str, Any] = {
         "T_C": float, "h_W_m2K": float, "serie": list, "conveccion_viento": dict,
         "absortividad_solar": float, "emisividad": float, "factor_solar_lateral": float,
     },
-    "clima": {"snapshot": str, "completar": str},
+    "clima": {"snapshot": str, "completar": str, "desplazar_anios": int},
+    "criterios": {"T_max_C": float, "delta_T_C": float, "profundidad_superficie_m": float},
     "base": {"tipo": str, "T_C": float},
     "suelo": {"espesor_m": float, "k_W_mK": float, "rho_kg_m3": float, "cp_J_kgK": float, "T_inicial_C": float},
     "hormigones": dict,
@@ -113,6 +114,16 @@ class ConfigCaso:
     datos: dict[str, Any]
     inicio: datetime | None = None  # fecha-hora local de t = 0
     nota_clima: str = ""  # fuente, modelo, descarga y completado del clima
+    criterios: Criterios | None = None
+
+
+@dataclass(frozen=True)
+class Criterios:
+    """Criterios docentes de la hoja de ruta (no normativos)."""
+
+    T_max_C: float = 70.0
+    delta_T_C: float = 20.0
+    profundidad_superficie_m: float = 0.025  # "superficie" ~25 mm bajo la cara exterior
 
 
 # --- lectura y sobrescritura ----------------------------------------------------
@@ -323,7 +334,8 @@ def _ambiente(a: Mapping[str, Any], clima: Any, inicio: datetime | None, duracio
         ruta = (carpeta / ruta).resolve()
     try:
         snap = leer_snapshot(ruta)
-        s = series_para_simulacion(snap, inicio, duracion_s, str(c.get("completar", "error")))
+        s = series_para_simulacion(snap, inicio, duracion_s, str(c.get("completar", "error")),
+                                   c.get("desplazar_anios", 0))
         if viento and not s.viento_m_s:
             raise ErrorConfiguracion(f"clima: el snapshot no trae {VAR_VIENTO} y conveccion_viento lo necesita.")
         if radiacion["absortividad"] > 0.0 and not s.G_W_m2:
@@ -407,9 +419,15 @@ def validar_config(datos: Mapping[str, Any], carpeta: Path) -> ConfigCaso:
     if not ruta_ifc.is_absolute():
         ruta_ifc = (carpeta / ruta_ifc).resolve()
 
+    cr = _claves(datos.get("criterios") or {}, _ESQUEMA["criterios"], "criterios")
+    criterios = Criterios(
+        _numero(cr.get("T_max_C", 70.0), "criterios.T_max_C"),
+        _numero(cr.get("delta_T_C", 20.0), "criterios.delta_T_C", positivo=True),
+        _numero(cr.get("profundidad_superficie_m", 0.025), "criterios.profundidad_superficie_m", no_negativo=True),
+    )
     return ConfigCaso(
         ruta_ifc, malla, tiempo, ambiente, base, suelo, T_suelo, hormigones,
-        bool(s.get("guardar_campos", False)), dict(datos), inicio, nota_clima,
+        bool(s.get("guardar_campos", False)), dict(datos), inicio, nota_clima, criterios,
     )
 
 

@@ -102,25 +102,45 @@ def leer_snapshot(carpeta: str | Path) -> SnapshotClima:
 
 
 def series_para_simulacion(
-    snapshot: SnapshotClima, inicio: datetime, duracion_s: float, completar: str = "error"
+    snapshot: SnapshotClima, inicio: datetime, duracion_s: float, completar: str = "error",
+    desplazar_anios: int = 0,
 ) -> SeriesClima:
-    """Recorta y, si se declara, completa el snapshot para [inicio, inicio + duración]."""
+    """Recorta y, si se declara, completa el snapshot para [inicio, inicio + duración].
+
+    ``desplazar_anios`` usa el clima de otro año como **análogo** de las mismas
+    fechas (p. ej. ERA5 2025 para una obra en 2026 aún sin pronóstico): suma
+    años enteros a los tiempos, conservando día y hora.
+    """
     if completar not in COMPLETAR:
         raise ValueError(f"clima.completar debe ser uno de {COMPLETAR}.")
-    t = np.array([(x - inicio).total_seconds() for x in snapshot.tiempos])
+    if isinstance(desplazar_anios, bool) or not isinstance(desplazar_anios, int):
+        raise ValueError("clima.desplazar_anios debe ser un entero.")
+    try:
+        tiempos = [x.replace(year=x.year + desplazar_anios) for x in snapshot.tiempos]
+    except ValueError as exc:  # 29 de febrero en un año no bisiesto
+        raise ValueError(f"No se puede desplazar {desplazar_anios} años: {exc}") from exc
+    t = np.array([(x - inicio).total_seconds() for x in tiempos])
+    if t[-1] < 0.0:
+        raise ValueError(
+            f"El clima termina {tiempos[-1]:%Y-%m-%d %H:%M}, antes del inicio de la simulación "
+            f"{inicio:%Y-%m-%d %H:%M}. ¿Es un análogo de otro año? Usar clima.desplazar_anios."
+        )
     if t[0] > 0.0:
         raise ValueError(
-            f"El clima empieza {snapshot.tiempos[0]:%Y-%m-%d %H:%M}, después del inicio de la "
+            f"El clima empieza {tiempos[0]:%Y-%m-%d %H:%M}, después del inicio de la "
             f"simulación {inicio:%Y-%m-%d %H:%M}."
         )
     columnas = [snapshot.T_C, snapshot.viento_m_s, snapshot.G_W_m2]
     horas_completadas = 0.0
     nota = f"{snapshot.metadata['source']} / {snapshot.metadata['model']}, descargado {snapshot.metadata['retrieved_at']}"
+    if desplazar_anios:
+        nota += (f"; ANÁLOGO: clima de {snapshot.tiempos[0]:%Y-%m-%d} a {snapshot.tiempos[-1]:%Y-%m-%d} "
+                 f"desplazado {desplazar_anios:+d} año(s)")
     if t[-1] < duracion_s:
         faltan_h = (duracion_s - t[-1]) / 3600.0
         if completar == "error":
             raise ValueError(
-                f"El clima cubre hasta {snapshot.tiempos[-1]:%Y-%m-%d %H:%M} y faltan {faltan_h:.1f} h "
+                f"El clima cubre hasta {tiempos[-1]:%Y-%m-%d %H:%M} y faltan {faltan_h:.1f} h "
                 "de simulación. Declarar cómo completar la cola (clima.completar, G07)."
             )
         paso = float(np.median(np.diff(t)))
