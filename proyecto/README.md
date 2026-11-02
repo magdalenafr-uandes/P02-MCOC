@@ -1,5 +1,42 @@
 # P02-MCOC — Grupo 1 — Capstone de hormigón masivo
 
+## E07: IFC, activación e hidratación
+
+El flujo `scripts/demo_e07.py` extrae mallas cerradas del IFC en metros,
+voxeliza por centro, identifica caras expuestas e interfaces y simula la
+colocación por eventos con edad cero y temperatura del IFC. La hidratación
+usa una curva exponencial adiabática; la energía incluye calor generado,
+intercambio exterior y energía incorporada por las vertidas.
+
+```powershell
+.\proyecto\.venv\Scripts\python.exe proyecto/scripts/demo_e07.py
+powershell -NoProfile -ExecutionPolicy Bypass -File proyecto/scripts/verificar_entregas.ps1
+```
+
+Resultados locales en `proyecto/results/e07/`: figuras, CSV de volúmenes y
+activación, parámetros con fuentes y SHA-256 del IFC, resumen del balance
+energético y campo final `estado_final.npz` (temperaturas en °C; vacío e
+inactivo como NaN). Los resultados se regeneran y no se versionan.
+
+`configs/hormigon_M1.json` centraliza las propiedades docentes: k=2,22,
+rho=2400, cp=970 en SI, elevación adiabática final de 45 K y escala de 30 h.
+**No hay ensayos de M1: estos parámetros no son una calibración experimental.**
+La fuente local y la elección de cp están registradas en el JSON.
+
+El ajuste por mínimos cuadrados funciona con `--curva-adiabatica ensayo.csv`;
+el CSV UTF-8 debe contener `edad_h,incremento_K`, al menos cuatro edades
+distintas y elevaciones desde la colocación (no temperaturas absolutas).
+Se guardan parámetros ajustados, RMSE, hash del CSV y advertencias de ajuste.
+Los ensayos semiadiabáticos requieren corrección de pérdidas antes de usarse.
+Esta curva identifica incremento final y escala; no determina k, rho ni cp.
+
+Alcance físico actual: un material homogéneo por simulación, contacto perfecto,
+Robin uniforme en todas las caras expuestas y cinética independiente de la
+temperatura. No hay todavía suelo, moldaje/aislación diferenciados ni clima real.
+Los tests E07 comparan unidades/posiciones IFC, geometrías analíticas,
+conservación de energía, activación, ajuste de curvas y convergencia contra
+soluciones exactas; los datos sintéticos de ajuste no son ensayos de M1.
+
 ## E06: dossier de verificación y BIM
 
 Entrega del 30 de octubre: [dossier con matriz, convergencias y figuras](docs/e06.md).
@@ -21,8 +58,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File proyecto/scripts/verificar_e
 .\proyecto\.venv\Scripts\python.exe proyecto/scripts/verification_nd.py --dim 3 --figura proyecto/results/figures/verificacion_3d.png
 ```
 
-La geometría IFC existente se conserva y hay voxelización paramétrica preliminar.
-No hay todavía acoplamiento automático IFC-solver, hidratación realista ni clima real.
+La geometría IFC existente se conserva. El flujo E07 conecta el IFC con el
+simulador por vertidas; la voxelización paramétrica sigue como referencia.
 
 Proyecto continuo para diseñar, justificar y defender un **plan de vertidas de
 hormigón masivo**, sustentado en simulación térmica y análisis de

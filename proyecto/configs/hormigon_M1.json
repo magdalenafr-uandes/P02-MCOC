@@ -1,0 +1,11 @@
+{
+  "material": "M1",
+  "estado": "referencia_docente_no_calibrada_experimentalmente",
+  "propiedades": {"k_W_m_K": 2.22, "rho_kg_m3": 2400.0, "cp_J_kg_K": 970.0},
+  "hidratacion": {"incremento_K": 45.0, "escala_s": 108000.0},
+  "fuentes": [
+    {"archivo": "guias/DIFUSION_DE_CALOR_1D_2D_3D.md", "seccion": "24. Ejemplo pedagógico de hidratación", "datos": "incremento final 45 K; tau=30 h"},
+    {"archivo": "guias/DIFUSION_DE_CALOR_1D_2D_3D.md", "seccion": "Tabla de propiedades, líneas 1783-1785", "datos": "k=2.22 W/(m K), rho=2400 kg/m3, cp=970 J/(kg K)"}
+  ],
+  "nota": "La curva docente usa cp=900 en su ejemplo; se adopta cp=970 de la tabla del caso. qdot se calcula con este mismo rho*cp para mantener consistencia energética. No hay ensayos de M1. k, rho y cp no se identifican a partir de una curva de elevación adiabática."
+}

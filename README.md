@@ -49,9 +49,11 @@ fuente volumétrica, dos materiales y criterio de estabilidad general
 dt ≤ min C/ΣG; verificación 2D/3D y voxelización preliminar de la
 fundación. Guía oral en [`proyecto/docs/guia_e04.md`](proyecto/docs/guia_e04.md).
 
-**Aún no implementado:** lectura de mallas IFC para voxelizar, hidratación,
-activación de vertidas, meteorología, Monte Carlo, HPC y la simulación
-de 14 días.
+**E07:** voxelización desde mallas IFC, superficies e interfaces, activación
+temporal e hidratación adiabática exponencial con parámetros docentes trazables
+y ajuste opcional a curvas CSV. Ver `proyecto/README.md`. No hay ensayos de M1
+para calibración experimental. Permanecen pendientes meteorología, Monte Carlo,
+HPC y la evaluación completa de 14 días con datos del caso.
 
 ## Sitio oficial del Grupo 1
 

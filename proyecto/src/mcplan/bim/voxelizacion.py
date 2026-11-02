@@ -4,7 +4,8 @@ Regla de la guía G04: un voxel pertenece a una vertida si su **centro** está
 dentro del sólido (frontera "staircase"). Cada voxel guarda ``vertida_id``
 (0 = fuera del hormigón). La geometría se toma de la misma definición
 paramétrica (``VERTIDAS_FOUNDATION``) con la que se construye
-``geometry/foundation.ifc``; leer las mallas trianguladas del IFC queda para W3.
+``geometry/foundation.ifc``. La variante que lee las mallas trianguladas
+del IFC está en ``voxel_ifc.py``; este módulo conserva la referencia paramétrica.
 
 Sólidos soportados: prisma de polígono regular y tronco de pirámide de
 polígono regular (radio al vértice que varía linealmente con z).
