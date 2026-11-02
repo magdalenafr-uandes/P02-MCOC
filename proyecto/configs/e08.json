@@ -1,0 +1,18 @@
+{
+  "ifc": "../geometry/foundation.ifc",
+  "material": "hormigon_M1.json",
+  "paso_m": 0.4,
+  "pasos_convergencia_m": [0.4, 0.2, 0.1],
+  "final_h": 48.0,
+  "dt_s": 600.0,
+  "guardar_cada_h": 2.0,
+  "ambiente_C": 20.0,
+  "h_W_m2_K": 8.0,
+  "vertidas": [
+    {"id": 1, "inicio_h": 0.0, "temperatura_C": 18.0},
+    {"id": 2, "inicio_h": 6.0, "temperatura_C": 18.0},
+    {"id": 3, "inicio_h": 12.0, "temperatura_C": 18.0},
+    {"id": 4, "inicio_h": 18.0, "temperatura_C": 18.0},
+    {"id": 5, "inicio_h": 24.0, "temperatura_C": 18.0}
+  ]
+}

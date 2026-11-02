@@ -1,5 +1,52 @@
 # P02-MCOC — Grupo 1 — Capstone de hormigón masivo
 
+## E08: demo 3D del pipeline completo
+
+Desde la raíz del repositorio, con el entorno del proyecto instalado:
+
+```powershell
+.\proyecto\.venv\Scripts\python.exe proyecto/scripts/demo_e08.py
+```
+
+Abrir `http://127.0.0.1:8765` en el navegador local. Permite cambiar Δx,
+hora de inicio y temperatura de cada vertida, ejecutar el solver Python,
+recorrer el tiempo, alternar mallas IFC/voxeles/temperatura, girar y cortar
+la vista y ocultar/mostrar vertidas. Ocultar es un filtro visual: no elimina
+material del cálculo ni cambia las métricas del dominio completo.
+Una edición de inputs avisa que se necesita una nueva ejecución.
+
+La secuencia completa está en `configs/e08.json`; sus horarios y temperaturas
+**prevalecen sobre las propiedades de colocación del IFC**, sin modificarlo.
+El IFC aporta geometría, identidad (ID y GUID) y tipo de hormigón. Los paths
+del JSON se resuelven respecto de su carpeta. El solver recibe el plan ya
+cargado; no contiene IDs, horarios ni temperaturas particulares del caso.
+
+Por defecto una ejecución interactiva calcula el error de volumen para el
+Δx elegido. Marcar «Incluir convergencia geométrica» para comparar tres o
+más resoluciones, por vertida y total. Las grillas se reutilizan cuando solo
+cambia el plan; al cambiar el IFC o Δx se recalculan. La primera ejecución
+de convergencia puede demorar alrededor de un minuto según el equipo.
+
+El botón «Guardar inputs JSON» descarga el plan editable. Para repetirlo
+por lote (incluye convergencia), sin interfaz ni servidor:
+
+```powershell
+.\proyecto\.venv\Scripts\python.exe proyecto/scripts/demo_e08.py --ejecutar --plan proyecto/configs/e08.json
+```
+
+Resultados en `results/e08/` (cada ejecución interactiva tiene una carpeta):
+`plan_ejecutado.json`, `resultado.json`, serie `temperaturas.pvd` y sus VTI.
+Abrir el PVD en ParaView para campos 3D de temperatura, edad, ID y activación;
+el tiempo se expresa en segundos y los campos se almacenan por celda.
+El JSON registra commit, estado de cambios locales y hashes de IFC/material.
+Las temperaturas del visor proceden de Python; no usa el solver ilustrativo
+del antiguo `visor/index.html`. El material mantiene el alcance docente E07.
+
+Las pruebas E08 cubren el pipeline con IFC real, el efecto de cambiar inputs,
+la independencia del archivo IFC, convergencia geométrica, balance energético,
+orden y unidades de VTK y ejecución mediante la API local. No se necesita
+instalar bibliotecas de visualización adicionales para la demo del navegador.
+
 ## E07: IFC, activación e hidratación
 
 El flujo `scripts/demo_e07.py` extrae mallas cerradas del IFC en metros,

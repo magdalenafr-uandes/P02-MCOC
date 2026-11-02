@@ -49,6 +49,11 @@ fuente volumétrica, dos materiales y criterio de estabilidad general
 dt ≤ min C/ΣG; verificación 2D/3D y voxelización preliminar de la
 fundación. Guía oral en [`proyecto/docs/guia_e04.md`](proyecto/docs/guia_e04.md).
 
+**E08:** demo 3D local conectada al pipeline Python, inputs JSON editables,
+comparación de volúmenes y exportación temporal VTK/ParaView. Iniciar con
+`proyecto/.venv/Scripts/python.exe proyecto/scripts/demo_e08.py` y abrir
+`http://127.0.0.1:8765` en el navegador local. Detalle en `proyecto/README.md`.
+
 **E07:** voxelización desde mallas IFC, superficies e interfaces, activación
 temporal e hidratación adiabática exponencial con parámetros docentes trazables
 y ajuste opcional a curvas CSV. Ver `proyecto/README.md`. No hay ensayos de M1
