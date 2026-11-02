@@ -250,6 +250,7 @@ class ResultadoEtapas:
     T_sup_min_vertida_C: dict[int, list[float]] = field(default_factory=dict)  # nan sin cara expuesta
     etapas: list[dict] = field(default_factory=list)
     balance: dict[str, float] = field(default_factory=dict)
+    advertencias: list[str] = field(default_factory=list)
     T_final: np.ndarray | None = None
     edad_equivalente_final_s: np.ndarray | None = None
     activo_final: np.ndarray | None = None
@@ -332,7 +333,12 @@ class SimuladorEtapas:
         T_suelo_inicial_C: float | None = None,
         guardar_campos: bool = False,
         profundidad_superficie_m: float = 0.0,
+        campos_cada_s: float | None = None,
     ) -> None:
+        if campos_cada_s is not None and not campos_cada_s > 0.0:
+            raise ValueError("campos_cada_s debe ser positivo.")
+        self.campos_cada_s = campos_cada_s  # None: un campo por registro
+        self._proximo_campo = 0.0
         if not math.isfinite(profundidad_superficie_m) or profundidad_superficie_m < 0.0:
             raise ValueError("profundidad_superficie_m no negativa y finita.")
         self.profundidad_superficie_m = profundidad_superficie_m
@@ -358,6 +364,34 @@ class SimuladorEtapas:
         self.T_suelo_inicial_C = T_suelo_inicial_C
         self.guardar_campos = guardar_campos
         self._q = np.zeros(dominio.vertida_id.shape)
+
+    # --- coherencia constructiva -------------------------------------------
+    def advertencias_apoyo(self) -> list[str]:
+        """Vertidas que quedarían sin apoyo: la de abajo está oculta o se vierte después.
+
+        No detiene la simulación (ocultar o reordenar vertidas es parte del
+        laboratorio), pero el plan resultante no es construible tal cual.
+        """
+        ids = self.dominio.vertida_id
+        abajo = np.zeros_like(ids)
+        abajo[:, :, 1:] = ids[:, :, :-1]
+        avisos = []
+        for vid, p in sorted(self.plan.items()):
+            if not p.visible:
+                continue
+            base_propia = (ids == vid) & (abajo != vid)
+            for soporte in sorted(int(s) for s in np.unique(abajo[base_propia]) if s not in (0, vid)):
+                q = self.plan.get(soporte)
+                if q is None:
+                    continue
+                if not q.visible:
+                    avisos.append(f"Vertida {vid} se apoya en la vertida {soporte}, que está oculta.")
+                elif q.inicio_s > p.inicio_s:
+                    avisos.append(
+                        f"Vertida {vid} (inicio {p.inicio_s / 3600:g} h) se apoya en la vertida {soporte}, "
+                        f"que se vierte después ({q.inicio_s / 3600:g} h): queda sin apoyo."
+                    )
+        return avisos
 
     # --- eventos -----------------------------------------------------------
     def eventos(self) -> list[float]:
@@ -459,6 +493,7 @@ class SimuladorEtapas:
         V = float(np.prod(d))
         ids = dom.vertida_id
         res = ResultadoEtapas(T_max_vertida_C={vid: [] for vid in sorted(self.plan)})
+        res.advertencias = self.advertencias_apoyo()
 
         activo = np.zeros(forma, dtype=bool)  # hormigón activo
         T = np.full(forma, self.ambiente.temperatura(0.0))
@@ -607,4 +642,8 @@ class SimuladorEtapas:
             s = sup_vertida[vid] if vid < len(sup_vertida) else np.inf
             res.T_sup_min_vertida_C.setdefault(vid, []).append(float(s) if math.isfinite(s) else math.nan)
         if self.guardar_campos:
-            res.campos[t] = T.copy()
+            final = t >= self.tiempo.duracion_s - 1e-9
+            if self.campos_cada_s is None or t >= self._proximo_campo - 1e-9 or final:
+                res.campos[t] = T.astype(np.float32)  # campos 3D: float32 basta y usa la mitad de memoria
+                while self.campos_cada_s is not None and self._proximo_campo <= t + 1e-9:
+                    self._proximo_campo += self.campos_cada_s

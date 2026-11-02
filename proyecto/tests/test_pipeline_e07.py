@@ -1,6 +1,7 @@
 """Pipeline E07/E08: extracción IFC, voxelización, hidratación, etapas y config."""
 
 import ast
+import base64
 import importlib.util
 import inspect
 import json
@@ -644,3 +645,105 @@ def test_richardson():
     p, extrapolado = modulo.richardson(f)
     assert p == pytest.approx(2.0) and extrapolado == pytest.approx(1.0)
     assert math.isnan(modulo.richardson([1.0, 2.0, 1.5])[0])
+
+
+# --- E08: visualización, apoyo de vertidas y comparación ------------------------------------
+
+def _leer_vti(ruta: Path) -> dict[str, np.ndarray]:
+    """Lector mínimo del .vti que escribe visualizacion.py (verifica el formato)."""
+    import xml.etree.ElementTree as ET
+    import struct as st
+    raiz = ET.parse(ruta).getroot()
+    tipos = {"Float32": np.float32, "Int16": np.int16, "UInt8": np.uint8}
+    img = raiz.find("ImageData")
+    nx, ny, nz = (int(v) for v in img.get("WholeExtent").split()[1::2])
+    campos = {}
+    for arr in raiz.iter("DataArray"):
+        crudo = base64.b64decode(arr.text)
+        n = st.unpack("<Q", crudo[:8])[0]
+        campos[arr.get("Name")] = np.frombuffer(crudo[8:8 + n], dtype=tipos[arr.get("type")]).reshape(
+            (nx, ny, nz), order="F")
+    return campos
+
+
+def test_vti_ida_y_vuelta(tmp_path):
+    from mcplan.visualizacion import escribir_vti
+    s = prisma(1, rectangulo(-1, 1, -0.5, 0.5), 0, 0.5)
+    g = voxelizar_solidos([s], definir_grilla([s], (0.25, 0.25, 0.1), 0.5, 0.5))
+    T = np.random.default_rng(0).random(g.forma).astype(np.float32)
+    ruta = escribir_vti(tmp_path / "t.vti", g, {"temperatura": T, "vertida_id": g.vertida_id.astype(np.int16)})
+    leido = _leer_vti(ruta)
+    np.testing.assert_array_equal(leido["temperatura"], T)
+    np.testing.assert_array_equal(leido["vertida_id"], g.vertida_id)
+    texto = ruta.read_text(encoding="ascii")
+    assert 'Spacing="0.25 0.25 0.1"' in texto
+
+
+def test_serie_vtk_y_campos_cada(tmp_path):
+    from mcplan.visualizacion import escribir_serie_vtk
+    s = prisma(1, rectangulo(-0.3, 0.3, -0.3, 0.3), 0, 0.3)
+    g = voxelizar_solidos([s], definir_grilla([s], 0.1, 0.2, 0.2))
+    plan = [PlanVertida(1, 2 * HORA, 20.0, "M1")]
+    sim = SimuladorEtapas(
+        DominioVoxel(g.vertida_id, g.es_suelo, g.paso), plan, {"M1": Hormigon(HORMIGON)},
+        Ambiente(15.0, 10.0), CondicionBase("adiabatico"), ParametrosTiempo(10 * HORA, guardar_cada_s=HORA),
+        guardar_campos=True, campos_cada_s=4 * HORA,
+    )
+    r = sim.ejecutar()
+    # cada 4 h (en el primer registro que lo alcanza, a menos de un paso) más el final
+    assert sorted(t / HORA for t in r.campos) == pytest.approx([0.0, 4.0, 8.0, 10.0], abs=0.5)
+    assert all(c.dtype == np.float32 for c in r.campos.values())
+    pvd = escribir_serie_vtk(tmp_path / "vtk", g, plan, r)
+    assert pvd.read_text(encoding="ascii").count("<DataSet") == 4
+    inicial = _leer_vti(tmp_path / "vtk" / "temperatura_0000.vti")
+    assert np.all(np.isnan(inicial["temperatura"]))  # t = 0: aún no vertida, todo vacío
+    assert not np.any(inicial["material"])
+    final = _leer_vti(tmp_path / "vtk" / "temperatura_0003.vti")
+    assert np.all(final["material"][g.vertida_id == 1] == 1)
+
+
+def test_caras_3d_de_un_cubo():
+    from mcplan.visualizacion import _caras
+    quads, celdas = _caras(np.ones((2, 2, 2), dtype=bool), np.zeros(3), np.ones(3))
+    assert len(quads) == 24  # 6 caras × 4 voxeles
+    assert quads.min() == 0.0 and quads.max() == 2.0
+
+
+def test_advertencias_de_apoyo():
+    ids = np.zeros((3, 3, 4), dtype=np.int16)
+    ids[:, :, 1] = 1
+    ids[:, :, 2] = 2
+    dom = DominioVoxel(ids, np.zeros(ids.shape, dtype=bool), 0.1)
+
+    def avisos(plan):
+        return SimuladorEtapas(dom, plan, {"M1": Hormigon(HORMIGON)}, Ambiente(15.0, 10.0),
+                               CondicionBase("adiabatico"), ParametrosTiempo(HORA)).advertencias_apoyo()
+
+    assert avisos([PlanVertida(1, 0.0, 20.0, "M1"), PlanVertida(2, HORA, 20.0, "M1")]) == []
+    assert "se vierte después" in avisos([PlanVertida(1, 2 * HORA, 20.0, "M1"), PlanVertida(2, HORA, 20.0, "M1")])[0]
+    assert "oculta" in avisos([PlanVertida(1, 0.0, 20.0, "M1", visible=False), PlanVertida(2, HORA, 20.0, "M1")])[0]
+    assert avisos([PlanVertida(1, 0.0, 20.0, "M1"), PlanVertida(2, HORA, 20.0, "M1", visible=False)]) == []
+
+
+def test_ocultar_vertida_no_cambia_la_caja_y_no_la_activa():
+    base = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))
+    rapido = ["malla.paso_m=0.5", "malla.paso_z_m=0.275", "suelo.espesor_m=1.1", "simulacion.duracion_h=30"]
+    r_todas = ejecutar_pipeline(leer_config(aplicar_sobrescrituras(base, rapido), base_rutas=CONFIG.parent))
+    r_oculta = ejecutar_pipeline(leer_config(aplicar_sobrescrituras(base, rapido + ["vertidas.5.visible=false"]),
+                                             base_rutas=CONFIG.parent))
+    assert r_oculta.grilla.forma == r_todas.grilla.forma  # misma caja: corridas comparables
+    assert all(math.isnan(x) for x in r_oculta.simulacion.T_max_vertida_C[5])
+    assert r_oculta.area_exterior_m2["total"] != r_todas.area_exterior_m2["total"]
+    assert abs(r_oculta.simulacion.balance["residuo_J"]) < 1e-10 * abs(r_oculta.simulacion.balance["E_final_J"])
+
+
+def test_cli_comparar_e08(tmp_path):
+    script = RAIZ / "scripts" / "comparar_e08.py"
+    r = subprocess.run(
+        [sys.executable, str(script), "--variante", "vertidas.defecto.T_colocacion_C=10",
+         "--comun", "malla.paso_z_m=0.275", "--comun", "suelo.espesor_m=1.1", "--comun", "simulacion.duracion_h=12",
+         "--salida", str(tmp_path / "c.png")],
+        capture_output=True, text=True, encoding="utf-8",
+    )
+    assert r.returncode == 0, r.stderr
+    assert "Efecto: T_max -" in r.stdout and (tmp_path / "c.png").is_file()

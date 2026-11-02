@@ -45,7 +45,7 @@ _ESQUEMA: dict[str, Any] = {
     },
     "simulacion": {
         "duracion_h": float, "fraccion_dt": float, "dt_max_h": float,
-        "guardar_cada_h": float, "guardar_campos": bool, "inicio": str,
+        "guardar_cada_h": float, "guardar_campos": bool, "guardar_campos_cada_h": float, "inicio": str,
     },
     "ambiente": {
         "T_C": float, "h_W_m2K": float, "serie": list, "conveccion_viento": dict,
@@ -115,6 +115,7 @@ class ConfigCaso:
     inicio: datetime | None = None  # fecha-hora local de t = 0
     nota_clima: str = ""  # fuente, modelo, descarga y completado del clima
     criterios: Criterios | None = None
+    campos_cada_s: float | None = None  # campos 3D para visualizar (None: cada registro)
 
 
 @dataclass(frozen=True)
@@ -425,9 +426,13 @@ def validar_config(datos: Mapping[str, Any], carpeta: Path) -> ConfigCaso:
         _numero(cr.get("delta_T_C", 20.0), "criterios.delta_T_C", positivo=True),
         _numero(cr.get("profundidad_superficie_m", 0.025), "criterios.profundidad_superficie_m", no_negativo=True),
     )
+    campos_cada_s = None
+    if s.get("guardar_campos_cada_h") is not None:
+        campos_cada_s = _numero(s["guardar_campos_cada_h"], "simulacion.guardar_campos_cada_h", positivo=True) * HORA
+    guardar_campos = _booleano(s.get("guardar_campos", campos_cada_s is not None), "simulacion.guardar_campos")
     return ConfigCaso(
         ruta_ifc, malla, tiempo, ambiente, base, suelo, T_suelo, hormigones,
-        bool(s.get("guardar_campos", False)), dict(datos), inicio, nota_clima, criterios,
+        guardar_campos, dict(datos), inicio, nota_clima, criterios, campos_cada_s,
     )
 
 

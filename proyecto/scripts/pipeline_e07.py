@@ -46,9 +46,12 @@ def _imprimir(r) -> None:
               f"T_col={p.T_colocacion_C:g} °C [{o.get('T_colocacion_C')}]  "
               f"{p.hormigon} [{o.get('hormigon')}]  retiro={retiro}  "
               f"R_lat={p.R_lateral:g} R_sup={p.R_superior:g}")
+    ocultas = {p.vertida_id for p in r.plan if not p.visible}
     print("\nVolumen (G04):  vertida   V_malla [m³]   V_h [m³]   e_V")
     for f in r.volumetria:
-        print(f"                {f['vertida_id']:5d}   {f['V_malla_m3']:12.3f}   {f['V_h_m3']:8.3f}   {f['e_V']:.2%}")
+        nota = "   (oculta: no se activa)" if f["vertida_id"] in ocultas else ""
+        print(f"                {f['vertida_id']:5d}   {f['V_malla_m3']:12.3f}   {f['V_h_m3']:8.3f}   "
+              f"{f['e_V']:.2%}{nota}")
     V = sum(f["V_malla_m3"] for f in r.volumetria)
     Vh = sum(f["V_h_m3"] for f in r.volumetria)
     print(f"                total   {V:12.3f}   {Vh:8.3f}   {abs(Vh - V) / V:.2%}")
@@ -96,6 +99,8 @@ def _imprimir(r) -> None:
         if dias < 14.0 - 1e-9:
             print("  ATENCIÓN: el criterio se evalúa sobre los máximos de 14 días; esta corrida es más corta.")
         print("  Incertidumbre de discretización (convergencia en Δx): ±0,2 °C en T_max, ~1 °C en ΔT.")
+    for aviso in s.advertencias:
+        print(f"ADVERTENCIA (plan no construible tal cual): {aviso}")
     b = s.balance
     print(f"Balance de energía: residuo = {b['residuo_J']:.3e} J "
           f"({abs(b['residuo_J']) / max(abs(b['E_final_J']), 1.0):.1e} relativo); "
@@ -137,6 +142,75 @@ def _figura(r, salida: Path) -> None:
     print(f"\nFigura: {salida}")
 
 
+def instantes_automaticos(r) -> list[float]:
+    """Segunda vertida recién colocada, última recién colocada, pico de T y final [s]."""
+    s = r.simulacion
+    inicios = sorted({p.inicio_s for p in r.plan if p.visible and p.inicio_s < r.config.tiempo.duracion_s})
+    elegidos = []
+    if len(inicios) > 1:
+        elegidos.append(inicios[1] + HORA)
+    elegidos.append(inicios[-1] + HORA)
+    elegidos.append(s.tiempos_s[int(np.nanargmax(s.T_max_C))])
+    elegidos.append(s.tiempos_s[-1])
+    return sorted({min(t, s.tiempos_s[-1]) for t in elegidos})
+
+
+def _figura_3d(r, salida: Path, instantes_h: list[float] | None) -> None:
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.colors import BoundaryNorm, ListedColormap, Normalize
+
+    from mcplan.visualizacion import activo_en, dibujar_3d
+
+    g, s = r.grilla, r.simulacion
+    visibles = [p for p in r.plan if p.visible]
+    hormigon = np.isin(g.vertida_id, [p.vertida_id for p in visibles])
+    paneles = 1
+    instantes = []
+    if s is not None:
+        pedidos = [h * HORA for h in instantes_h] if instantes_h else instantes_automaticos(r)
+        guardados = np.array(sorted(s.campos))
+        # primer campo guardado en o después del instante pedido (si no hay, el último)
+        instantes = sorted({float(guardados[guardados >= t - 1e-9][0]) if np.any(guardados >= t - 1e-9)
+                            else float(guardados[-1]) for t in pedidos})
+        paneles += len(instantes)
+    columnas = min(paneles, 3)
+    filas = -(-paneles // columnas)
+    fig = plt.figure(figsize=(6.2 * columnas, 4.6 * filas), layout="constrained")
+
+    ids_visibles = sorted(p.vertida_id for p in visibles)
+    colores = plt.get_cmap("tab10")(np.arange(len(ids_visibles)) % 10)
+    mapa_ids = np.zeros(g.forma)
+    for n, vid in enumerate(ids_visibles):
+        mapa_ids[g.vertida_id == vid] = n
+    cmap_ids = ListedColormap(colores)
+    norm_ids = BoundaryNorm(np.arange(len(ids_visibles) + 1) - 0.5, len(ids_visibles))
+    ax = fig.add_subplot(filas, columnas, 1, projection="3d")
+    dibujar_3d(ax, g, mapa_ids, hormigon, cmap_ids, norm_ids,
+               titulo=f"vertida_id (visibles: {ids_visibles})\nΔx = {g.paso[0]:g} m, Δz = {g.paso[2]:g} m")
+    fig.colorbar(plt.cm.ScalarMappable(norm_ids, cmap_ids), ax=ax, shrink=0.5, ticks=range(len(ids_visibles)),
+                 format=lambda x, _: f"V{ids_visibles[int(x)]}" if 0 <= int(x) < len(ids_visibles) else "")
+
+    if instantes:
+        T_vals = np.concatenate([s.campos[t][activo_en(g, r.plan, t)] for t in instantes])
+        norm = Normalize(float(T_vals.min()), float(T_vals.max()))
+        cmap = plt.get_cmap("inferno")
+        for n, t in enumerate(instantes, start=2):
+            ax = fig.add_subplot(filas, columnas, n, projection="3d")
+            activas = sorted(p.vertida_id for p in visibles if p.inicio_s <= t + 1e-9)
+            fecha = f" ({r.config.inicio + __import__('datetime').timedelta(seconds=t):%d-%b %H:%M})" if r.config.inicio else ""
+            dibujar_3d(ax, g, s.campos[t], activo_en(g, r.plan, t), cmap, norm,
+                       titulo=f"t = {t / HORA:.0f} h{fecha}\nactivas: {activas}")
+        fig.colorbar(plt.cm.ScalarMappable(norm, cmap), ax=fig.axes[-1], shrink=0.5, label="T [°C]")
+    fig.suptitle("Fundación voxelizada (media fundación, corte en y = 0; z exagerada ×2) y temperatura por etapas", fontsize=12)
+    salida.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(salida, dpi=110)
+    plt.close(fig)
+    print(f"Figura 3D: {salida}")
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--config", type=Path, default=RAIZ / "configs" / "e07_caso_base.yaml")
@@ -144,9 +218,16 @@ def main(argv: list[str] | None = None) -> int:
                    help="Sobrescribe un parámetro del YAML (repetible).")
     p.add_argument("--solo-grilla", action="store_true", help="Voxeliza sin simular.")
     p.add_argument("--figura", type=Path, help="Guarda historia de temperaturas y corte final (PNG).")
+    p.add_argument("--figura3d", type=Path, help="Figura 3D: vertida_id y temperatura en varios instantes (PNG).")
+    p.add_argument("--instantes", type=float, nargs="+", metavar="H",
+                   help="Horas de los paneles 3D (por defecto: activaciones, pico y final).")
+    p.add_argument("--vtk", type=Path, metavar="CARPETA", help="Serie .vti + .pvd para ParaView.")
     a = p.parse_args(argv)
     try:
         datos = yaml.safe_load(a.config.read_text(encoding="utf-8")) or {}
+        if (a.figura3d or a.vtk) and not a.solo_grilla:
+            # Campos 3D cada 3 h salvo que la config o --set digan otra cosa.
+            datos = aplicar_sobrescrituras(datos, ["simulacion.guardar_campos_cada_h=3"])
         datos = aplicar_sobrescrituras(datos, a.sobrescrituras)
         config = leer_config(datos, base_rutas=a.config.parent)
         resultado = ejecutar_pipeline(config, simular=not a.solo_grilla)
@@ -156,6 +237,13 @@ def main(argv: list[str] | None = None) -> int:
     _imprimir(resultado)
     if a.figura and resultado.simulacion is not None:
         _figura(resultado, a.figura)
+    if a.figura3d:
+        _figura_3d(resultado, a.figura3d, a.instantes)
+    if a.vtk and resultado.simulacion is not None:
+        from mcplan.visualizacion import escribir_serie_vtk
+
+        pvd = escribir_serie_vtk(a.vtk, resultado.grilla, resultado.plan, resultado.simulacion)
+        print(f"VTK: {pvd} ({len(resultado.simulacion.campos)} instantes; abrir el .pvd en ParaView)")
     return 0
 
 

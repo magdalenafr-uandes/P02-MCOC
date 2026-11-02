@@ -13,6 +13,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+import numpy as np
+
 from ..bim.mallas_ifc import SolidoVertida, extraer_vertidas
 from ..bim.voxelizador import (
     GrillaBIM,
@@ -51,12 +53,14 @@ def ejecutar_pipeline(config: ConfigCaso, simular: bool = True) -> ResultadoPipe
     visibles = {p.vertida_id for p in plan if p.visible}
     if not visibles:
         raise ValueError("Ninguna vertida visible: revisar 'visible' en la configuración.")
-    solidos = [s for s in solidos if s.vertida_id in visibles]
+    # Se voxelizan todas las vertidas: la caja no cambia al ocultar una (las
+    # corridas son comparables) y una vertida oculta queda como vacío que nunca
+    # se activa, lo que permite advertir si otra se apoya en ella.
     grilla = construir_grilla(config, solidos)
     if grilla.voxeles_solapados:
         raise ValueError(f"{grilla.voxeles_solapados} voxeles caen en dos vertidas: revisar el IFC.")
 
-    hormigon = grilla.vertida_id > 0
+    hormigon = np.isin(grilla.vertida_id, sorted(visibles))
     expuestas = caras_expuestas(hormigon | grilla.es_suelo)
     pesos = pesos_area(solidos, grilla)
     resultado = ResultadoPipeline(
@@ -70,7 +74,7 @@ def ejecutar_pipeline(config: ConfigCaso, simular: bool = True) -> ResultadoPipe
                 grilla.vertida_id, grilla.es_suelo, grilla.paso,
                 pesos if config.malla.corregir_area else None,
             ),
-            [p for p in plan if p.visible],
+            plan,
             config.hormigones,
             config.ambiente,
             config.base,
@@ -79,5 +83,6 @@ def ejecutar_pipeline(config: ConfigCaso, simular: bool = True) -> ResultadoPipe
             config.T_suelo_inicial_C,
             config.guardar_campos,
             config.criterios.profundidad_superficie_m if config.criterios else 0.0,
+            config.campos_cada_s,
         ).ejecutar()
     return resultado
