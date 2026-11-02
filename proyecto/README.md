@@ -2,6 +2,11 @@
 
 ## E08: demo 3D del pipeline completo
 
+**Acceso rápido en Windows:** doble clic en `Abrir visualizador.cmd`, en la
+raíz del repositorio. Inicia Python en segundo plano y abre el navegador
+cuando el servicio está listo; si ya estaba iniciado, reutiliza el servidor.
+No es necesario escribir comandos ni mantener una terminal abierta.
+
 Desde la raíz del repositorio, con el entorno del proyecto instalado:
 
 ```powershell
