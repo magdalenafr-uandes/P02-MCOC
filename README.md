@@ -49,7 +49,8 @@ fuente volumétrica, dos materiales y criterio de estabilidad general
 dt ≤ min C/ΣG; verificación 2D/3D y voxelización preliminar de la
 fundación. Guía oral en [`proyecto/docs/guia_e04.md`](proyecto/docs/guia_e04.md).
 
-**E08:** demo 3D local conectada al pipeline Python, inputs JSON editables,
+**E08:** demo 3D local conectada al motor compartido por etapas, inputs YAML
+editables (JSON anteriores compatibles), suelo, clima, moldaje e hidratación,
 comparación de volúmenes y exportación temporal VTK/ParaView. Iniciar con
 `proyecto/.venv/Scripts/python.exe proyecto/scripts/demo_e08.py` y abrir
 `http://127.0.0.1:8765` en el navegador local. Detalle en `proyecto/README.md`.

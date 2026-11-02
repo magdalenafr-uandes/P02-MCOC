@@ -12,13 +12,17 @@ import subprocess
 import xml.etree.ElementTree as ET
 
 import numpy as np
+import copy
+import math
+from types import SimpleNamespace
+import yaml
 
 from .bim.voxel_ifc import extraer_solidos, voxelizar_ifc
 from .thermal.material import cargar_hormigon
 from .thermal.vertidas import SimuladorVertidas
 
 MAX_CELDAS = 2_000_000
-MAX_FOTOGRAMAS = 250
+MAX_FOTOGRAMAS = 512
 
 
 def cargar_plan(ruta):
@@ -83,7 +87,7 @@ def exportar_vti(ruta, grilla, estado):
     forma = grilla.vertida_id.shape
     extent = f'0 {forma[0]} 0 {forma[1]} 0 {forma[2]}'
     raiz = ET.Element('VTKFile', type='ImageData', version='0.1', byte_order='LittleEndian', header_type='UInt32')
-    imagen = ET.SubElement(raiz, 'ImageData', WholeExtent=extent, Origin=' '.join(map(str, grilla.origen)), Spacing=' '.join([str(grilla.paso)]*3))
+    imagen = ET.SubElement(raiz, 'ImageData', WholeExtent=extent, Origin=' '.join(map(str, grilla.origen)), Spacing=' '.join(map(str, (grilla.paso,)*3 if np.isscalar(grilla.paso) else grilla.paso)))
     pieza = ET.SubElement(imagen, 'Piece', Extent=extent)
     celdas = ET.SubElement(pieza, 'CellData', Scalars='temperatura_C')
     for nombre, arr, dtype, vtk in (
@@ -93,92 +97,202 @@ def exportar_vti(ruta, grilla, estado):
         encabezado = np.asarray([len(raw)], dtype='<u4').tobytes()
         elemento = ET.SubElement(celdas, 'DataArray', type=vtk, Name=nombre, format='binary')
         elemento.text = base64.b64encode(encabezado+raw).decode('ascii')
+    if hasattr(grilla,'es_suelo'):
+        material = estado.activos.astype(np.uint8)+2*grilla.es_suelo.astype(np.uint8)
+        raw=material.ravel(order='F').tobytes()
+        elemento=ET.SubElement(celdas,'DataArray',type='UInt8',Name='material',format='binary')
+        elemento.text=base64.b64encode(np.asarray([len(raw)],dtype='<u4').tobytes()+raw).decode('ascii')
     ET.ElementTree(raiz).write(ruta, encoding='utf-8', xml_declaration=True)
 
 
+# Compatibilidad con planes JSON E08 anteriores. La ejecución usa siempre
+# SimuladorEtapas; el modelo simple queda solo en las demos/verificaciones E07.
+_cargar_json = cargar_plan
+_validar_basico = validar_plan
+
+
+def _normalizar_caso(datos):
+    datos = copy.deepcopy(datos)
+    datos['vertidas'] = {int(k) if str(k).isdigit() else k: v for k,v in datos.get('vertidas', {}).items()}
+    return datos
+
+
+def cargar_plan(ruta):
+    from .caso.config import leer_config, resolver_plan, aplicar_sobrescrituras
+    from .bim.mallas_ifc import extraer_vertidas
+    ruta = Path(ruta).resolve()
+    if ruta.suffix.lower() == '.json':
+        return _cargar_json(ruta)
+    datos = yaml.safe_load(ruta.read_text(encoding='utf-8-sig'))
+    pasos_conv = [.5, .375, .25]
+    if 'caso' in datos:
+        if set(datos) != {'caso', 'ajustes', 'pasos_convergencia_m'}:
+            raise ValueError('Perfil de demo: campos caso, ajustes y pasos_convergencia_m.')
+        fuente = (ruta.parent/datos['caso']).resolve()
+        pasos_conv = datos['pasos_convergencia_m']
+        datos = aplicar_sobrescrituras(yaml.safe_load(fuente.read_text(encoding='utf-8')), datos['ajustes'])
+    else:
+        fuente = ruta
+    datos['ifc'] = str((fuente.parent/datos['ifc']).resolve())
+    if datos.get('clima'):
+        datos['clima']['snapshot'] = str((fuente.parent/datos['clima']['snapshot']).resolve())
+    config = leer_config(datos, fuente.parent)
+    solidos = extraer_vertidas(config.ruta_ifc)
+    planes = resolver_plan(config, [(s.vertida_id,s.nombre,s.propiedades) for s in solidos])
+    return dict(ifc=str(config.ruta_ifc), material=str(fuente), caso=datos,
+                paso_m=config.malla.paso_m, paso_z_m=config.malla.pasos[2],
+                pasos_convergencia_m=pasos_conv, final_h=config.tiempo.duracion_s/3600,
+                dt_s=min(config.tiempo.dt_max_s, 1800.), guardar_cada_h=config.tiempo.guardar_cada_s/3600,
+                ambiente_C=config.ambiente.T_C, h_W_m2_K=config.ambiente.h_conveccion(0),
+                usar_clima=bool(datos.get('clima')),
+                vertidas=[dict(id=p.vertida_id,inicio_h=p.inicio_s/3600,temperatura_C=p.T_colocacion_C) for p in planes])
+
+
+def validar_plan(plan, solidos):
+    extras = {'caso', 'paso_z_m', 'usar_clima'}
+    _validar_basico({k:v for k,v in plan.items() if k not in extras}, solidos)
+    if 'paso_z_m' in plan:
+        _numero(plan['paso_z_m'], 'paso_z_m', positivo=True)
+    if 'usar_clima' in plan and type(plan['usar_clima']) is not bool:
+        raise ValueError('usar_clima debe ser booleano.')
+    return plan
+
+
+def configurar_caso(plan):
+    """Traduce controles del visor a la misma configuración usada por la CLI."""
+    from .caso.config import leer_config
+    if 'caso' in plan:
+        datos = _normalizar_caso(plan['caso'])
+        datos['malla'].update(paso_m=plan['paso_m'], paso_z_m=plan['paso_z_m'])
+        if not plan['usar_clima']:
+            datos.pop('clima', None)
+            datos['ambiente'] = dict(T_C=plan['ambiente_C'], h_W_m2K=plan['h_W_m2_K'])
+    else:
+        props, hid, material = cargar_hormigon(plan['material'])
+        datos = dict(malla=dict(paso_m=plan['paso_m'], margen_lateral_m=plan['paso_m'],
+                               margen_superior_m=plan['paso_m'], corregir_area=False),
+                     simulacion={},ambiente=dict(T_C=plan['ambiente_C'],h_W_m2K=plan['h_W_m2_K']),
+                     base=dict(tipo='adiabatico'), suelo=dict(espesor_m=0),
+                     hormigones={material['material']:dict(k_W_mK=props.k,rho_kg_m3=props.rho,cp_J_kgK=props.cp,
+                         hidratacion=dict(modelo='exponencial',theta_inf_C=hid.incremento_K,tau_h=hid.escala_s/3600,Ea_J_mol=0))},vertidas={})
+    datos['ifc'] = plan['ifc']
+    datos['simulacion'].update(duracion_h=plan['final_h'],dt_max_h=plan['dt_s']/3600,
+                               guardar_cada_h=plan['guardar_cada_h'],guardar_campos=True,
+                               guardar_campos_cada_h=plan['guardar_cada_h'])
+    for v in plan['vertidas']:
+        propia = datos.setdefault('vertidas',{}).setdefault(v['id'],{})
+        propia.pop('inicio',None)
+        propia.update(inicio_h=v['inicio_h'],T_colocacion_C=v['temperatura_C'])
+    return leer_config(datos, Path(plan['ifc']).parent)
+
+
 class Pipeline:
+    """Adaptador del motor compartido a los datos del visor y VTK."""
     def __init__(self):
         self._grillas = {}
+        self._pesos = {}
 
     def ejecutar(self, plan, salida, progreso=lambda mensaje: None, convergencia=True):
+        from .bim.mallas_ifc import extraer_vertidas
+        from .bim.voxelizador import definir_grilla, voxelizar_solidos, pesos_area
+        from .caso.config import resolver_plan
+        from .thermal.etapas import DominioVoxel, SimuladorEtapas
+        from .visualizacion import activo_en
         plan = json.loads(json.dumps(plan, allow_nan=False))
         salida = Path(salida)
-        ruta_ifc = Path(plan['ifc'])
-        sha_ifc = hashlib.sha256(ruta_ifc.read_bytes()).hexdigest()
+        sha_ifc = hashlib.sha256(Path(plan['ifc']).read_bytes()).hexdigest()
         progreso('Extrayendo geometría IFC')
-        solidos_ifc = extraer_solidos(ruta_ifc)
-        validar_plan(plan, solidos_ifc)
-        propiedades, hidratacion, material = cargar_hormigon(plan['material'])
-        if {s.tipo_hormigon for s in solidos_ifc} != {material['material']}:
-            raise ValueError('TipoHormigon del IFC incompatible con el material seleccionado.')
-        entradas = {v['id']: v for v in plan['vertidas']}
-        solidos = [replace(s, inicio_s=entradas[s.vertida_id]['inicio_h']*3600,
-                           temperatura_C=entradas[s.vertida_id]['temperatura_C']) for s in solidos_ifc]
-        minimo = np.min([s.vertices.min(axis=0) for s in solidos], axis=0)
-        maximo = np.max([s.vertices.max(axis=0) for s in solidos], axis=0)
+        solidos = extraer_vertidas(plan['ifc'])
+        validar_plan(plan, solidos)
+        config = configurar_caso(plan)
+        if {s.propiedades['TipoHormigon'] for s in solidos} - set(config.hormigones):
+            raise ValueError('TipoHormigon del IFC incompatible con la configuración.')
+        planes = resolver_plan(config, [(s.vertida_id,s.nombre,s.propiedades) for s in solidos])
+        m = config.malla
 
         def grilla(dx):
-            forma = np.ceil((maximo-minimo)/dx)
-            if not np.isfinite(forma).all() or np.prod(forma) > MAX_CELDAS:
-                raise ValueError(f'Grilla demasiado grande; aumentar Δx (máximo {MAX_CELDAS:,} celdas).')
-            clave = (sha_ifc, float(dx))
+            d = (dx, dx, m.pasos[2] if 'paso_z_m' in plan else dx)
+            margen = max(m.margen_lateral_m,dx)
+            superior = max(m.margen_superior_m,d[2])
+            definicion = definir_grilla(solidos,d,margen,superior,m.espesor_suelo_m)
+            if math.prod(definicion.forma) > MAX_CELDAS:
+                raise ValueError(f'Grilla demasiado grande; aumentar Δx/Δz (máximo {MAX_CELDAS:,} celdas).')
+            clave = (sha_ifc,d,margen,superior,m.espesor_suelo_m)
             if clave not in self._grillas:
-                progreso(f'Voxelizando Δx={dx:g} m')
-                nueva = voxelizar_ifc(solidos_ifc, dx)
+                progreso(f'Voxelizando Δx={dx:g} m, Δz={d[2]:g} m')
+                nueva = voxelizar_solidos(solidos,definicion)
+                if nueva.voxeles_solapados:
+                    raise ValueError('Solape entre vertidas del IFC.')
                 if len(self._grillas) >= 6:
-                    self._grillas.pop(next(iter(self._grillas)))
+                    vieja = next(iter(self._grillas))
+                    self._grillas.pop(vieja)
+                    self._pesos.pop(vieja,None)
                 self._grillas[clave] = nueva
-            return self._grillas[clave]
+            return self._grillas[clave],clave
 
-        pasos = sorted(set([plan['paso_m']] + (plan['pasos_convergencia_m'] if convergencia else [])), reverse=True)
         volumenes = []
-        for dx in pasos:
-            g = grilla(dx)
-            refs = [(s.vertida_id, s.volumen, g.volumen(s.vertida_id)) for s in solidos]
-            refs.append(('total', sum(s.volumen for s in solidos), float(np.count_nonzero(g.vertida_id))*dx**3))
-            for vid, ref, vh in refs:
-                volumenes.append(dict(paso_m=dx, vertida_id=vid, ifc_m3=ref, voxel_m3=vh, error_relativo=abs(vh-ref)/ref))
-        g = grilla(plan['paso_m'])
-        sim = SimuladorVertidas(g, solidos, propiedades, hidratacion, plan['ambiente_C'], plan['h_W_m2_K'])
-        fin = plan['final_h']*3600
-        tiempos = sorted(set([0., fin] + list(np.arange(0., fin, plan['guardar_cada_h']*3600)) +
-                             [s.inicio_s for s in solidos if s.inicio_s <= fin]))
-        mascara = g.vertida_id > 0
-        indices = np.argwhere(mascara)
-        fotogramas = []
-        balances = []
-        salida.mkdir(parents=True, exist_ok=True)
-        coleccion = ET.Element('VTKFile', type='Collection', version='0.1', byte_order='LittleEndian')
-        datasets = ET.SubElement(coleccion, 'Collection')
-        for numero, t in enumerate(tiempos):
-            progreso(f'Simulando {t/3600:g} / {plan["final_h"]:g} h')
-            estado = sim.avanzar(t, plan['dt_s'])
-            temperaturas = estado.T[mascara]
-            activos = temperaturas[np.isfinite(temperaturas)]
-            fotogramas.append(dict(tiempo_h=t/3600, T_f32=codificar_f32(temperaturas),
-                                   Tmax_C=float(activos.max()) if len(activos) else None,
-                                   Tmin_C=float(activos.min()) if len(activos) else None,
-                                   volumen_activo_m3=int(estado.activos.sum())*g.paso**3))
-            balances.append(dict(tiempo_h=t/3600, energia_J=estado.energia_J, hidratacion_J=estado.hidratacion_J,
-                                 borde_J=estado.borde_J, colocacion_J=estado.colocacion_J, residuo_J=estado.residuo_energia_J))
-            archivo = f'temperatura_{numero:04d}.vti'
-            exportar_vti(salida/archivo, g, estado)
-            ET.SubElement(datasets, 'DataSet', timestep=str(t), group='', part='0', file=archivo)
-        ET.ElementTree(coleccion).write(salida/'temperaturas.pvd', encoding='utf-8', xml_declaration=True)
-        try:
-            commit = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=Path(__file__).resolve().parents[3], capture_output=True, text=True, timeout=5).stdout.strip() or None
-            cambios = subprocess.run(['git', 'status', '--porcelain'], cwd=Path(__file__).resolve().parents[3], capture_output=True, text=True, timeout=5)
-            codigo_modificado = bool(cambios.stdout.strip()) if cambios.returncode == 0 else None
-        except (OSError, subprocess.TimeoutExpired):
-            commit = None
-            codigo_modificado = None
-        resultado = dict(plan=plan, ifc_sha256=sha_ifc, commit=commit, codigo_modificado=codigo_modificado, material=material,
-                         material_sha256=hashlib.sha256(Path(plan['material']).read_bytes()).hexdigest(),
-                         origen_m=list(g.origen), forma=list(g.vertida_id.shape), paso_m=g.paso,
-                         indices=indices.tolist(), vertida_id=g.vertida_id[mascara].tolist(),
-                         volumenes=volumenes, balances=balances, fotogramas=fotogramas,
-                         mallas=[dict(id=s.vertida_id, guid=s.guid, vertices=s.vertices.tolist(), triangulos=s.triangulos.tolist()) for s in solidos])
-        (salida/'plan_ejecutado.json').write_text(json.dumps(plan, ensure_ascii=False, indent=2, allow_nan=False), encoding='utf-8')
-        (salida/'resultado.json').write_text(json.dumps(resultado, ensure_ascii=False, allow_nan=False), encoding='utf-8')
+        for dx in sorted(set([plan['paso_m']]+(plan['pasos_convergencia_m'] if convergencia else [])),reverse=True):
+            g,_ = grilla(dx)
+            filas = [(s.vertida_id,s.volumen,g.volumen(s.vertida_id)) for s in solidos]
+            filas.append(('total',sum(s.volumen for s in solidos),float(np.count_nonzero(g.vertida_id))*g.volumen_voxel))
+            for vid,vref,vh in filas:
+                volumenes.append(dict(paso_m=dx,paso_z_m=g.paso[2],vertida_id=vid,ifc_m3=vref,voxel_m3=vh,error_relativo=abs(vh-vref)/vref))
+        g,clave = grilla(plan['paso_m'])
+        if np.prod(g.forma)*(plan['final_h']/plan['guardar_cada_h']+len(planes)+2)>40_000_000:
+            raise ValueError('Demasiados campos 3D en memoria; aumentar guardar_cada_h o el paso de malla.')
+        if m.corregir_area and clave not in self._pesos:
+            progreso('Corrigiendo el área exterior desde las normales IFC')
+            self._pesos[clave] = pesos_area(solidos,g)
+        simu = SimuladorEtapas(DominioVoxel(g.vertida_id,g.es_suelo,g.paso,self._pesos.get(clave) if m.corregir_area else None),
+                    planes,config.hormigones,config.ambiente,config.base,config.tiempo,config.suelo,
+                    config.T_suelo_inicial_C,True,config.criterios.profundidad_superficie_m,config.campos_cada_s,
+                    progreso=lambda t,fin: progreso(f'Simulando {t/3600:g} / {fin/3600:g} h')).ejecutar()
+        salida.mkdir(parents=True,exist_ok=True)
+        mascara = g.vertida_id>0
+        fotogramas=[]
+        coleccion=ET.Element('VTKFile',type='Collection',version='0.1',byte_order='LittleEndian')
+        datasets=ET.SubElement(coleccion,'Collection')
+        proxy=SimpleNamespace(vertida_id=g.vertida_id,es_suelo=g.es_suelo,origen=g.definicion.origen,paso=g.paso)
+        for n,(t,T) in enumerate(sorted(simu.campos.items())):
+            activos=activo_en(g,planes,t)
+            temperaturas=np.where(activos,T,np.nan)
+            valores=temperaturas[activos]
+            fotogramas.append(dict(tiempo_h=t/3600,T_f32=codificar_f32(temperaturas[mascara]),
+                                   Tmax_C=float(valores.max()) if valores.size else None,
+                                   Tmin_C=float(valores.min()) if valores.size else None,
+                                   volumen_activo_m3=float(activos.sum())*g.volumen_voxel))
+            edades=np.full(g.forma,np.nan)
+            for p in planes:
+                edades[activos & (g.vertida_id==p.vertida_id)]=t-p.inicio_s
+            Tvtk=np.where(activos|g.es_suelo,T,np.nan)
+            archivo=f'temperatura_{n:04d}.vti'
+            exportar_vti(salida/archivo,proxy,SimpleNamespace(T=Tvtk,edad_s=edades,activos=activos))
+            ET.SubElement(datasets,'DataSet',timestep=str(t),group='',part='0',file=archivo)
+        ET.ElementTree(coleccion).write(salida/'temperaturas.pvd',encoding='utf-8',xml_declaration=True)
+        b=simu.balance
+        balances=[dict(tiempo_h=plan['final_h'],energia_J=b['E_final_J'],inicial_J=b['E_inicial_J'],
+                        hidratacion_J=b['hidratacion_J'],borde_J=b['ambiente_J']+b['base_J']-b['fuga_vacio_J'],
+                        colocacion_J=b['colocacion_J'],residuo_J=b['residuo_J'])]
+        def git(*args):
+            try:
+                r=subprocess.run(['git',*args],cwd=Path(__file__).resolve().parents[3],capture_output=True,text=True,timeout=5)
+                return r.stdout.strip() if r.returncode==0 else None
+            except (OSError,subprocess.TimeoutExpired):
+                return None
+        mallas=[dict(id=s.vertida_id,guid=s.guid,vertices=s.triangulos.reshape(-1,3).tolist(),
+                      triangulos=np.arange(s.triangulos.size//3).reshape(-1,3).tolist()) for s in solidos]
+        if 'caso' in plan:
+            plan['caso']=config.datos
+        material=dict(material=', '.join(config.hormigones),estado='parámetros docentes y supuestos; sin calibración experimental')
+        resultado=dict(plan=plan,caso_ejecutado=config.datos,ifc_sha256=sha_ifc,commit=git('rev-parse','HEAD'),
+                        codigo_modificado=bool(git('status','--porcelain')),material=material,
+                        origen_m=list(g.definicion.origen),forma=list(g.forma),paso_m=plan['paso_m'],pasos_m=list(g.paso),
+                        indices=np.argwhere(mascara).tolist(),vertida_id=g.vertida_id[mascara].tolist(),
+                        volumenes=volumenes,balances=balances,fotogramas=fotogramas,mallas=mallas,
+                        advertencias=simu.advertencias,nota_clima=config.nota_clima,
+                        suelo_incluido=bool(g.es_suelo.any()),motor='SimuladorEtapas')
+        (salida/'plan_ejecutado.json').write_text(json.dumps(plan,ensure_ascii=False,indent=2,allow_nan=False),encoding='utf-8')
+        (salida/'caso_ejecutado.yaml').write_text(yaml.safe_dump(config.datos,allow_unicode=True,sort_keys=False),encoding='utf-8')
+        (salida/'resultado.json').write_text(json.dumps(resultado,ensure_ascii=False,allow_nan=False),encoding='utf-8')
         progreso('Completado')
         return resultado

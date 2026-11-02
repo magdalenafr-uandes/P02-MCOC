@@ -1,56 +1,54 @@
 # P02-MCOC — Grupo 1 — Capstone de hormigón masivo
 
-## E08: demo 3D del pipeline completo
+## E08: demo 3D con el motor compartido
 
-**Acceso rápido en Windows:** doble clic en `Abrir visualizador.cmd`, en la
-raíz del repositorio. Inicia Python en segundo plano y abre el navegador
-cuando el servicio está listo; si ya estaba iniciado, reutiliza el servidor.
-No es necesario escribir comandos ni mantener una terminal abierta.
+**Windows: doble clic en `Abrir visualizador.cmd` en la raíz.** El acceso
+inicia el servicio en segundo plano y abre el navegador. Cuando cambia el
+código o la configuración, reinicia el servidor compatible si está inactivo;
+si hay un cálculo en curso, espera a que termine antes de actualizar.
 
-Desde la raíz del repositorio, con el entorno del proyecto instalado:
+El visor y los scripts de línea de comandos usan ahora el mismo motor
+`thermal/etapas.py`: suelo, materiales, edad equivalente/Arrhenius, moldaje,
+aislación, clima histórico, radiación y corrección del área staircase.
+Los parámetros sin ensayos siguen siendo supuestos docentes; integrar este
+motor no calibra experimentalmente M1.
+
+La fuente física es `configs/e07_caso_base.yaml`. El perfil ligero
+`configs/e08_demo.yaml` selecciona 48 h, Δx=0,5 m, Δz=0,05 m y campos cada 2 h.
+El caso de 14 días sigue disponible mediante el YAML base. Los controles del
+visor sobrescriben Δx, Δz, duración, guardado, horarios y temperaturas; el
+resultado incluye `caso_ejecutado.yaml` con **todos los parámetros efectivos**
+para repetir el cálculo en la CLI. El clima puede desactivarse desde el visor
+para usar temperatura ambiente y convección constantes, sin radiación.
+
+**Ocultar/mostrar en el visor es solo un filtro visual.** No cambia el
+cálculo ni las métricas. En cambio, `vertidas.<id>.visible=false` en el YAML
+excluye físicamente una vertida: es otra operación, y el motor advierte si
+otra pieza queda sin apoyo. El visor muestra el hormigón; el suelo participa
+en el cálculo y puede verse en ParaView (campo `material`: 1 hormigón,
+2 suelo, 0 vacío/inactivo).
 
 ```powershell
+# Alternativa al doble clic: iniciar servidor, luego abrir http://127.0.0.1:8765
 .\proyecto\.venv\Scripts\python.exe proyecto/scripts/demo_e08.py
+# Lote del perfil interactivo; incluye tres resoluciones geométricas
+.\proyecto\.venv\Scripts\python.exe proyecto/scripts/demo_e08.py --ejecutar
+# Repetir un caso exportado con la CLI compartida
+.\proyecto\.venv\Scripts\python.exe proyecto/scripts/pipeline_e07.py --config ruta/al/caso_ejecutado.yaml
 ```
 
-Abrir `http://127.0.0.1:8765` en el navegador local. Permite cambiar Δx,
-hora de inicio y temperatura de cada vertida, ejecutar el solver Python,
-recorrer el tiempo, alternar mallas IFC/voxeles/temperatura, girar y cortar
-la vista y ocultar/mostrar vertidas. Ocultar es un filtro visual: no elimina
-material del cálculo ni cambia las métricas del dominio completo.
-Una edición de inputs avisa que se necesita una nueva ejecución.
+Cada ejecución guarda su plan, caso YAML, procedencia del clima, advertencias,
+balance energético, resultado JSON y serie `temperaturas.pvd`/VTI. La serie
+del visor expresa el tiempo en **segundos**; la CLI histórica exporta su PVD
+en **horas**, tal como indica su documentación. Los campos son datos de celda
+y se guardan en tiempos exactos, además de activaciones y cambios de etapa.
+El visor respeta los tres pasos espaciales; no dibuja celdas anisotrópicas
+como cubos. Una edición avisa que los resultados necesitan recalcularse.
 
-La secuencia completa está en `configs/e08.json`; sus horarios y temperaturas
-**prevalecen sobre las propiedades de colocación del IFC**, sin modificarlo.
-El IFC aporta geometría, identidad (ID y GUID) y tipo de hormigón. Los paths
-del JSON se resuelven respecto de su carpeta. El solver recibe el plan ya
-cargado; no contiene IDs, horarios ni temperaturas particulares del caso.
-
-Por defecto una ejecución interactiva calcula el error de volumen para el
-Δx elegido. Marcar «Incluir convergencia geométrica» para comparar tres o
-más resoluciones, por vertida y total. Las grillas se reutilizan cuando solo
-cambia el plan; al cambiar el IFC o Δx se recalculan. La primera ejecución
-de convergencia puede demorar alrededor de un minuto según el equipo.
-
-El botón «Guardar inputs JSON» descarga el plan editable. Para repetirlo
-por lote (incluye convergencia), sin interfaz ni servidor:
-
-```powershell
-.\proyecto\.venv\Scripts\python.exe proyecto/scripts/demo_e08.py --ejecutar --plan proyecto/configs/e08.json
-```
-
-Resultados en `results/e08/` (cada ejecución interactiva tiene una carpeta):
-`plan_ejecutado.json`, `resultado.json`, serie `temperaturas.pvd` y sus VTI.
-Abrir el PVD en ParaView para campos 3D de temperatura, edad, ID y activación;
-el tiempo se expresa en segundos y los campos se almacenan por celda.
-El JSON registra commit, estado de cambios locales y hashes de IFC/material.
-Las temperaturas del visor proceden de Python; no usa el solver ilustrativo
-del antiguo `visor/index.html`. El material mantiene el alcance docente E07.
-
-Las pruebas E08 cubren el pipeline con IFC real, el efecto de cambiar inputs,
-la independencia del archivo IFC, convergencia geométrica, balance energético,
-orden y unidades de VTK y ejecución mediante la API local. No se necesita
-instalar bibliotecas de visualización adicionales para la demo del navegador.
+Los JSON antiguos `configs/e08.json` siguen aceptándose por compatibilidad:
+se convierten al mismo motor, conservando el caso simple sin suelo ni clima.
+Las demos E07 simples y sus pruebas se mantienen como referencia de verificación.
+El viejo `visor/index.html` es ilustrativo y no es la demo integrada.
 
 ## E07: IFC, activación e hidratación
 

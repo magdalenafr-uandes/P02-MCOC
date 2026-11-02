@@ -160,6 +160,14 @@ def test_api_servidor_ejecuta_pipeline_real_y_rechaza_origen_ajeno(plan, tmp_pat
     body = json.dumps(dict(plan=plan, convergencia=False)).encode()
     try:
         assert obtener('/api/plan') == plan
+        version=obtener('/api/version')
+        assert version['aplicacion']=='mcplan-e08'
+        assert len(version['version'])==64
+        spec_lanzador=importlib.util.spec_from_file_location('abrir_e08',RAIZ/'scripts/abrir_visualizador.py')
+        lanzador=importlib.util.module_from_spec(spec_lanzador)
+        spec_lanzador.loader.exec_module(lanzador)
+        lanzador.URL=url
+        assert lanzador.disponible()
         with urlopen(url, timeout=10) as respuesta:
             html = respuesta.read().decode()
         assert 'Ejecutar simulación' in html

@@ -5,8 +5,9 @@ import subprocess
 import sys
 import time
 from urllib.error import URLError
-from urllib.request import ProxyHandler, build_opener
+from urllib.request import ProxyHandler, build_opener, Request
 import webbrowser
+from mcplan.version_demo import version_visualizador
 
 RAIZ = Path(__file__).resolve().parents[1]
 URL = 'http://127.0.0.1:8765'
@@ -15,9 +16,9 @@ URL = 'http://127.0.0.1:8765'
 def disponible():
     # El servicio es local: no enviar su consulta a un proxy de Internet.
     try:
-        with build_opener(ProxyHandler({})).open(URL+'/api/plan', timeout=.6) as respuesta:
-            plan = json.load(respuesta)
-        return isinstance(plan, dict) and {'ifc', 'material', 'vertidas', 'paso_m'} <= plan.keys()
+        with build_opener(ProxyHandler({})).open(URL+'/api/version', timeout=.6) as respuesta:
+            info = json.load(respuesta)
+        return info.get('aplicacion')=='mcplan-e08' and info.get('version')==version_visualizador()
     except (URLError, OSError, ValueError, TypeError):
         return False
 
@@ -25,6 +26,23 @@ def disponible():
 def iniciar():
     if disponible():
         return
+    try:
+        opener=build_opener(ProxyHandler({}))
+        with opener.open(URL+'/api/version',timeout=.6) as respuesta:
+            anterior=json.load(respuesta)
+        if anterior.get('aplicacion')=='mcplan-e08':
+            with opener.open(Request(URL+'/api/cerrar',data=b'',method='POST'),timeout=3):
+                pass
+            for _ in range(40):
+                try:
+                    with opener.open(URL+'/api/version',timeout=.2):
+                        pass
+                except OSError:
+                    break
+                time.sleep(.1)
+    except URLError as exc:
+        if getattr(exc,'code',None)==409:
+            raise RuntimeError('Espera a que termine la simulación antes de actualizar el visualizador.') from exc
     carpeta = RAIZ/'results/e08'
     carpeta.mkdir(parents=True, exist_ok=True)
     registro = carpeta/'servidor.log'

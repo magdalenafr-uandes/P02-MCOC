@@ -14,6 +14,7 @@ import uuid
 from urllib.parse import urlparse
 
 from mcplan.pipeline import Pipeline, cargar_plan
+from mcplan.version_demo import version_visualizador
 
 RAIZ = Path(__file__).resolve().parents[1]
 
@@ -24,6 +25,7 @@ def crear_servidor(plan, puerto, salida):
     candado = threading.Lock()
     estado = dict(estado='idle', mensaje='Listo para ejecutar', resultado=None, carpeta=None)
     salida = Path(salida).resolve()
+    version = version_visualizador()
 
     def ejecutar(entrada, convergencia, destino):
         def progreso(mensaje):
@@ -54,6 +56,8 @@ def crear_servidor(plan, puerto, salida):
                 self.responder((RAIZ/'visor_e08/index.html').read_bytes(), tipo='text/html; charset=utf-8')
             elif ruta == '/api/plan':
                 self.responder(plan)
+            elif ruta == '/api/version':
+                self.responder(dict(aplicacion='mcplan-e08',version=version))
             elif ruta == '/api/estado':
                 with candado:
                     resumen = {k: v for k, v in estado.items() if k != 'resultado'}
@@ -66,13 +70,22 @@ def crear_servidor(plan, puerto, salida):
                 self.responder({'error': 'Ruta inexistente'}, 404)
 
         def do_POST(self):
-            if self.path != '/api/ejecutar':
+            if self.path not in ('/api/ejecutar','/api/cerrar'):
                 self.responder({'error': 'Ruta inexistente'}, 404)
                 return
             origen = self.headers.get('Origin')
             permitidos = {f'http://127.0.0.1:{self.server.server_port}', f'http://localhost:{self.server.server_port}'}
             if origen is not None and origen not in permitidos:
                 self.responder({'error': 'Origen no permitido'}, 403)
+                return
+            if self.path == '/api/cerrar':
+                with candado:
+                    ocupado = estado['estado']=='running'
+                if ocupado:
+                    self.responder({'error':'Hay una simulación en curso; espera a que termine.'},409)
+                    return
+                self.responder({'estado':'cerrando'})
+                threading.Thread(target=self.server.shutdown,daemon=True).start()
                 return
             try:
                 longitud = int(self.headers.get('Content-Length', '0'))
@@ -108,7 +121,7 @@ def main():
     if hasattr(sys.stdout, 'reconfigure'):
         sys.stdout.reconfigure(encoding='utf-8')
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument('--plan', type=Path, default=RAIZ/'configs/e08.json')
+    parser.add_argument('--plan', type=Path, default=RAIZ/'configs/e08_demo.yaml')
     parser.add_argument('--puerto', type=int, default=8765)
     parser.add_argument('--salida', type=Path, default=RAIZ/'results/e08')
     parser.add_argument('--ejecutar', action='store_true', help='Ejecutar por lote sin servidor; incluye convergencia.')

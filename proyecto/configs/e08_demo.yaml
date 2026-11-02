@@ -1,0 +1,8 @@
+# Perfil interactivo. La física y los datos se mantienen en el caso compartido.
+caso: e07_caso_base.yaml
+ajustes:
+  - malla.paso_m=0.5
+  - simulacion.duracion_h=48
+  - simulacion.guardar_cada_h=2
+  - simulacion.guardar_campos_cada_h=2
+pasos_convergencia_m: [0.5, 0.375, 0.25]
