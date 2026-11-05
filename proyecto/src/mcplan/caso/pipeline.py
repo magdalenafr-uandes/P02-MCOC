@@ -47,6 +47,7 @@ def construir_grilla(config: ConfigCaso, solidos: list[SolidoVertida]) -> Grilla
     return voxelizar_solidos(solidos, definicion)
 
 
+# [MAPA:pipeline] config -> IFC -> grilla -> SimuladorEtapas
 def ejecutar_pipeline(config: ConfigCaso, simular: bool = True) -> ResultadoPipeline:
     solidos = extraer_vertidas(config.ruta_ifc)
     plan = resolver_plan(config, [(s.vertida_id, s.nombre, s.propiedades) for s in solidos])

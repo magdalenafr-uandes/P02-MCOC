@@ -101,6 +101,7 @@ def leer_snapshot(carpeta: str | Path) -> SnapshotClima:
     )
 
 
+# [MAPA:clima] snapshot de clima -> series T, viento, radiación
 def series_para_simulacion(
     snapshot: SnapshotClima, inicio: datetime, duracion_s: float, completar: str = "error",
     desplazar_anios: int = 0,

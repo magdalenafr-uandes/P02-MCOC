@@ -35,6 +35,7 @@ HORA = 3600.0
 MODELOS = ("exponencial", "schindler", "tabla")
 
 
+# [MAPA:dosificacion] θ∞ = cemento·calor·α_u/(ρ cp)
 def theta_inf_desde_dosificacion(
     cemento_kg_m3: float, calor_J_kg: float, grado_ultimo: float, rho: float, cp: float
 ) -> float:
@@ -53,6 +54,7 @@ def theta_inf_desde_dosificacion(
 
 
 @dataclass(frozen=True)
+# [MAPA:hidratacion-modelos] exponencial | schindler | tabla
 class ModeloHidratacion:
     """Curva adiabática + cinética de un tipo de hormigón.
 
@@ -135,6 +137,7 @@ class ModeloHidratacion:
             d = self.theta_inf_C * np.exp(-x) * self.beta * x / (te_seguro * HORA)
         return np.where(positivo, d, 0.0)
 
+    # [MAPA:arrhenius] exp(-Ea/R (1/T - 1/T_ref))
     def factor_arrhenius(self, T_C: np.ndarray | float) -> np.ndarray:
         """f(T) = dt_e/dt [-]; vale 1 en T_ref."""
         T_C = np.asarray(T_C, dtype=float)
@@ -146,6 +149,7 @@ class ModeloHidratacion:
         T_ref_K = self.T_ref_C - CERO_ABSOLUTO_C
         return np.exp(self.Ea_J_mol / R_GAS * (1.0 / T_ref_K - 1.0 / T_K))
 
+    # [MAPA:hidratacion-potencia] q''' = ρ cp dθ/dt_e · f(T) [W/m³]
     def potencia(self, te_s: np.ndarray | float, T_C: np.ndarray | float) -> np.ndarray:
         """qdot_h [W/m³] para la edad equivalente y la temperatura actuales."""
         return self.rho * self.cp * self.tasa_elevacion(te_s) * self.factor_arrhenius(T_C)

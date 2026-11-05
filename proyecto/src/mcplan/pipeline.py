@@ -158,6 +158,7 @@ def validar_plan(plan, solidos):
     return plan
 
 
+# [MAPA:visor-adaptador] controles del visor E08 -> mismo YAML y mismo motor que la CLI
 def configurar_caso(plan):
     """Traduce controles del visor a la misma configuración usada por la CLI."""
     from .caso.config import leer_config

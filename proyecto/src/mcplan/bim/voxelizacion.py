@@ -1,3 +1,5 @@
+# [LEGADO] LEGADO E04: voxelización analítica desde foundation.py (sin leer el IFC). El caso base usa bim/voxelizador.py.
+# Ver proyecto/MAPA_DEL_CODIGO.md. No editar aquí para cambiar el caso.
 """Voxelización cartesiana de la fundación (avance BIM -> grilla del solver).
 
 Regla de la guía G04: un voxel pertenece a una vertida si su **centro** está

@@ -1,3 +1,5 @@
+# [LEGADO] LEGADO E05: caso sinusoidal para tests. El caso base no lo usa.
+# Ver proyecto/MAPA_DEL_CODIGO.md. No editar aquí para cambiar el caso.
 """Casos reproducibles E04/E05; parámetros de verificación, no calibración real."""
 import numpy as np
 from .boundaries import CondicionBorde

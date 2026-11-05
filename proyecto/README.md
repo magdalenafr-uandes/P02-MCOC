@@ -1,5 +1,9 @@
 # P02-MCOC — Grupo 1 — Capstone de hormigón masivo
 
+> **¿Dónde está X? ¿Cómo cambio Y?** Ver [`MAPA_DEL_CODIGO.md`](MAPA_DEL_CODIGO.md):
+> condiciones de borde, voxel, estabilidad, hidratación, BIM, y la tabla de
+> cambios en vivo (material, temperaturas, aislación, espesores).
+
 ## E08: demo 3D con el motor compartido
 
 **Windows: doble clic en `Abrir visualizador.cmd` en la raíz.** El acceso

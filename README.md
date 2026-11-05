@@ -15,6 +15,11 @@ El horizonte de análisis será de **14 días** desde el inicio de la primera ve
 El núcleo numérico (solver térmico 3D sobre grilla cartesiana) será desarrollado por
 el equipo; no se usará Kratos, ANSYS, OpenSees u otro solver como sustituto.
 
+> **Para revisiones:** [`proyecto/MAPA_DEL_CODIGO.md`](proyecto/MAPA_DEL_CODIGO.md)
+> indica en qué archivo y línea está cada concepto (búscalo como `MAPA:robin`,
+> `MAPA:balance-voxel`, …) y cómo cambiar en vivo material, temperaturas,
+> aislación o espesores.
+
 ## Alcance implementado
 
 ### E00 — Kickoff y registro de repositorio

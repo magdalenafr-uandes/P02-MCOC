@@ -1,3 +1,5 @@
+# [LEGADO] LEGADO E05: envoltorio de SolverVoxel para tests de verificación. El caso base no lo usa.
+# Ver proyecto/MAPA_DEL_CODIGO.md. No editar aquí para cambiar el caso.
 """Adaptador de la API local al único motor SolverVoxel del equipo.
 
 Esta API conserva Neumann SALIENTE positivo y caras (eje, lado).

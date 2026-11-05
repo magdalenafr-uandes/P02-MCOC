@@ -12,6 +12,33 @@
 #   [repo]     dato del repositorio o de las guías del curso.
 #   [SUPUESTO] valor provisional sin dato del proyecto: reemplazar cuando exista.
 
+#
+# ─── CAMBIOS RÁPIDOS (lo que puede pedir el profesor) ─────────────────────────
+# Desde proyecto/:  .venv\Scripts\python.exe scripts\comparar_e08.py --variante CLAVE=VALOR
+# (base vs. variante en una figura) o scripts\pipeline_e07.py --set CLAVE=VALOR.
+# Modo rápido (~12 s): agregar --set malla.paso_m=0.5 --set simulacion.duracion_h=72
+#
+#   Material del hormigón ....... hormigones.M1.k_W_mK=2.5   (también rho_kg_m3, cp_J_kgK)
+#   Calor de hidratación ........ hormigones.M1.hidratacion.theta_inf_C=55   (tau_h, Ea_J_mol)
+#   T de colocación (todas) ..... vertidas.defecto.T_colocacion_C=12
+#   T de colocación (una) ....... vertidas.3.T_colocacion_C=12
+#   Hora de inicio de una vertida vertidas.3.inicio_h=20
+#   Ocultar una vertida ......... vertidas.5.visible=false
+#   Aislación superior .......... vertidas.defecto.R_superior_m2K_W=1.25
+#                                 R = espesor / k  ->  50 mm con k = 0.04 W/mK: 0.05/0.04 = 1.25
+#   Moldaje lateral ............. vertidas.defecto.R_lateral_m2K_W=0.12  (18 mm madera k≈0.15)
+#   Retiro del moldaje .......... vertidas.defecto.retiro_moldaje_h=48
+#   Material del suelo .......... suelo.k_W_mK=1.8   (rho_kg_m3, cp_J_kgK, T_inicial_C)
+#   Espesor de suelo modelado ... suelo.espesor_m=4.0   (0 = sin suelo)
+#   T del suelo profundo ........ base.T_C=18   o   base.tipo=adiabatico
+#   Ambiente constante (sin clima) --set clima=null --set "ambiente={T_C: 25, h_W_m2K: 10}"
+#   Malla ....................... malla.paso_m=0.2  malla.paso_z_m=0.05
+#   Duración .................... simulacion.duracion_h=168
+#   Criterios ................... criterios.T_max_C=70  criterios.delta_T_C=20
+#
+#   Espesor / geometría de la FUNDACIÓN: no está aquí; está en el IFC
+#   (geometry/foundation.ifc). Ver proyecto/MAPA_DEL_CODIGO.md, sección 3.
+
 ifc: ../geometry/foundation.ifc   # relativo a este archivo
 
 malla:

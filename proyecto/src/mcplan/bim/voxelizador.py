@@ -96,6 +96,7 @@ class GrillaBIM:
         return float(np.count_nonzero(self.vertida_id == vid)) * self.volumen_voxel
 
 
+# [MAPA:grilla] caja: márgenes de aire, suelo bajo la fundación, Δx/Δz
 def definir_grilla(
     solidos: Sequence[SolidoVertida],
     paso: Paso,
@@ -163,6 +164,7 @@ def _cruces_rayo_z(
     return np.concatenate(ix_l), np.concatenate(iy_l), np.concatenate(z_l)
 
 
+# [MAPA:voxel-pertenece] regla del centro del voxel (rayo en z)
 def ocupacion(solido: SolidoVertida, grilla: DefinicionGrilla) -> np.ndarray:
     """Máscara booleana de voxeles cuyo centro está dentro de la malla."""
     dx, dy, dz = grilla.paso
@@ -209,6 +211,7 @@ def voxelizar_solidos(
     return GrillaBIM(grilla, ids, es_suelo, solapados)
 
 
+# [MAPA:caras-expuestas] cara de sólido que da al vacío = superficie exterior
 def caras_expuestas(solido: np.ndarray) -> dict[str, np.ndarray]:
     """Caras de voxeles sólidos que dan a un voxel vacío, por dirección.
 
@@ -232,6 +235,7 @@ def caras_expuestas(solido: np.ndarray) -> dict[str, np.ndarray]:
     return expuestas
 
 
+# [MAPA:correccion-area] área real vs. escalera en caras inclinadas
 def pesos_area(solidos: Sequence[SolidoVertida], grilla: GrillaBIM) -> dict[str, np.ndarray]:
     """Peso w = A_real/A_staircase de cada cara de voxel, desde las normales de la malla.
 

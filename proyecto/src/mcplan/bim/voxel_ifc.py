@@ -1,3 +1,5 @@
+# [LEGADO] LEGADO E07 inicial: voxelizador por contención de puntos. El caso base usa bim/voxelizador.py + bim/mallas_ifc.py.
+# Ver proyecto/MAPA_DEL_CODIGO.md. No editar aquí para cambiar el caso.
 """IFC -> grilla en metros, usando centros y ángulo sólido de malla cerrada."""
 from dataclasses import dataclass
 from pathlib import Path

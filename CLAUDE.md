@@ -1,7 +1,12 @@
 # Instrucciones para Claude — P02-MCOC (Grupo 1)
 
 Proyecto `mcplan`: planificación y análisis térmico de vertidas de hormigón
-masivo. Código en `src/mcplan/`, pruebas en `tests/`, entregas en `proyecto/`.
+masivo. El código que cuenta para las entregas está en `proyecto/` (su índice es
+`proyecto/MAPA_DEL_CODIGO.md`); la raíz (`src/mcplan/`, `tests/`) es solo la CLI E00.
+
+- Si agregas o mueves un concepto que el profesor puede preguntar, marca la línea con
+  `# [MAPA:etiqueta]` y regístrala en `proyecto/MAPA_DEL_CODIGO.md`
+  (`tests/test_mapa_codigo.py` verifica que coincidan).
 Ver también `README.md` y `CONTRIBUTING.md`.
 
 ## Commits

@@ -1,3 +1,5 @@
+# [LEGADO] LEGADO E01: solver 1D nodal, solo para la verificación 1D. El caso base usa thermal/voxel.py + thermal/etapas.py.
+# Ver proyecto/MAPA_DEL_CODIGO.md. No editar aquí para cambiar el caso.
 """Solver explícito FTCS para difusión térmica 1D.
 
 Ecuación resuelta (propiedades constantes, fuente volumétrica uniforme):

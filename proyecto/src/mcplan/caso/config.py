@@ -147,6 +147,7 @@ def leer_config(fuente: str | Path | Mapping[str, Any], base_rutas: Path | None 
     return validar_config(datos, carpeta)
 
 
+# [MAPA:sobrescrituras] --set / --variante: cambia una clave del YAML sin editar el archivo
 def aplicar_sobrescrituras(datos: Mapping[str, Any], asignaciones: Sequence[str]) -> dict[str, Any]:
     """Aplica ``clave.subclave=valor`` (p. ej. ``vertidas.2.inicio_h=12``).
 
@@ -206,6 +207,7 @@ def _requerir(seccion: Mapping[str, Any], clave: str, donde: str) -> Any:
     return seccion[clave]
 
 
+# [MAPA:config-hormigon] lee k, rho, cp e hidratación del YAML
 def _hormigon(nombre: str, d: Any) -> Hormigon:
     donde = f"hormigones.{nombre}"
     d = _claves(d, _HORMIGON, donde)
@@ -396,6 +398,7 @@ def validar_config(datos: Mapping[str, Any], carpeta: Path) -> ConfigCaso:
 
     suelo = None
     T_suelo = None
+    # [MAPA:config-suelo] suelo bajo la fundación (espesor, k, rho, cp, T inicial)
     if espesor > 0.0:
         suelo = Material(
             _numero(_requerir(su, "k_W_mK", "suelo"), "suelo.k_W_mK", positivo=True),
@@ -438,6 +441,7 @@ def validar_config(datos: Mapping[str, Any], carpeta: Path) -> ConfigCaso:
 
 # --- combinación con el IFC ----------------------------------------------------------
 
+# [MAPA:prioridad-ifc-yaml] vertidas.<id> > vertidas.defecto > pset del IFC
 def resolver_plan(config: ConfigCaso, vertidas_ifc: Sequence[tuple[int, str, Mapping[str, Any]]]) -> list[PlanVertida]:
     """Combina config e IFC en un ``PlanVertida`` por vertida del modelo.
 

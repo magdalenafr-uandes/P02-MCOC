@@ -1,3 +1,5 @@
+# [LEGADO] LEGADO E07 inicial: lee configs/hormigon_M1.json. El material del caso base está en configs/e07_caso_base.yaml (hormigones).
+# Ver proyecto/MAPA_DEL_CODIGO.md. No editar aquí para cambiar el caso.
 """Carga trazable de propiedades e hidratación de un material homogéneo."""
 import json
 from pathlib import Path

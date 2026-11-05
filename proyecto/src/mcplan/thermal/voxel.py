@@ -268,6 +268,7 @@ class SolverVoxel:
             d = m.paso[eje]
             k_a = m.k[_rebanada(m.dim, eje, slice(None, -1))]
             k_b = m.k[_rebanada(m.dim, eje, slice(1, None))]
+            # [MAPA:media-armonica] interfaz entre dos materiales: resistencias en serie
             k_cara = 2.0 * k_a * k_b / (k_a + k_b)  # media armónica
             G = k_cara * A / d
             self.G_int.append(G)
@@ -282,8 +283,10 @@ class SolverVoxel:
             A = m.area_cara(eje)
             media = m.paso[eje] / 2.0
             k_b = m.k[_rebanada(m.dim, eje, idx)]
+            # [MAPA:dirichlet] T impuesta en la cara: G = kA/(Δ/2)
             if borde.tipo == "dirichlet":
                 G = k_b * A / media
+            # [MAPA:robin] convección: G = 1/((Δ/2)/(kA) + R''/A + 1/(hA))
             elif borde.tipo == "robin":
                 G = 1.0 / (
                     media / (k_b * A) + borde.R_extra / A + 1.0 / (borde.h * A)
@@ -295,6 +298,7 @@ class SolverVoxel:
                 suma_G[_rebanada(m.dim, eje, idx)] += G
         self.suma_G = suma_G
 
+    # [MAPA:estabilidad] dt <= min_i C_i / ΣG_i (coeficiente de T_i^n >= 0)
     def dt_max(self) -> float:
         """Límite suficiente de monotonía: min_i C_i / sum G_i [s].
 
@@ -348,12 +352,14 @@ class SolverVoxel:
             idx = 0 if cara[1] == "-" else -1
             borde = self.bordes[cara]
             T_b = T[_rebanada(m.dim, eje, idx)]
+            # [MAPA:neumann] flujo impuesto q''·A (q''=0 adiabático); positivo entra
             if borde.tipo == "neumann":
                 salida[cara] = np.full(T_b.shape, borde.q * m.area_cara(eje))
             else:
                 salida[cara] = self.G_borde[cara] * (borde.T - T_b)
         return salida
 
+    # [MAPA:balance-voxel] C_i dT_i/dt = Σ G_ij (T_j - T_i) + q'''V + Q_borde
     def tasa_calor(self, T: np.ndarray, t: float = 0.0) -> np.ndarray:
         """Lado derecho del balance de cada voxel: C_i dT_i/dt [W]."""
         T = np.broadcast_to(np.asarray(T, dtype=float), self.malla.forma)
@@ -370,6 +376,7 @@ class SolverVoxel:
                 continue
             a = _rebanada(m.dim, eje, slice(None, -1))
             b = _rebanada(m.dim, eje, slice(1, None))
+            # [MAPA:flujo-signos] positivo = calor que ENTRA a la celda; va de caliente a frío
             flujo = G * (T[b] - T[a])  # calor que va de la celda b a la a
             Q[a] += flujo
             Q[b] -= flujo
@@ -377,6 +384,7 @@ class SolverVoxel:
             eje = _EJE[cara[0]]
             idx = 0 if cara[1] == "-" else -1
             Q[_rebanada(m.dim, eje, idx)] += q
+        # [MAPA:fuente-volumetrica] q''' [W/m³] · V; distinta de un flujo superficial
         Q += fuente * m.volumen_celda
         return Q
 
@@ -433,6 +441,7 @@ class SolverVoxel:
             for c, q in flujos_b.items():
                 acumulado[c] += dt * float(np.sum(q))
             fuente_acum += dt * float(np.sum(fuente)) * m.volumen_celda
+            # [MAPA:euler-explicito] T^{n+1} = T^n + dt·Q/C
             T = T + dt * Q / C
             t = t0 + paso * dt
             tiempos.append(t)

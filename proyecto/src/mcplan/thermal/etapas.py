@@ -38,6 +38,7 @@ from ..bim.voxelizador import area_cara, caras_expuestas, pasos
 from .hidratacion import CERO_ABSOLUTO_C, ModeloHidratacion
 from .voxel import MallaVoxel, SolverVoxel, adiabatico
 
+# [MAPA:vacio] voxel aún no vertido: k despreciable, T del aire
 _K_VACIO_RELATIVO = 1e-9  # k del vacío / k mínima del sólido (aislamiento numérico)
 
 
@@ -160,6 +161,7 @@ class Ambiente:
         a, b = self.h_viento
         return a + b * self._serie(t, self.serie_viento_m_s)
 
+    # [MAPA:sol-aire] convección + radiación de onda larga + sol -> (h_tot, T_eq) por orientación
     def condiciones(self, t: float) -> tuple[float, dict[str, float]]:
         """(h_tot, T_eq por orientación 'superior' | 'lateral' | 'inferior')."""
         T_a = self.temperatura(t)
@@ -257,6 +259,7 @@ class ResultadoEtapas:
     campos: dict[float, np.ndarray] = field(default_factory=dict)
 
     @property
+    # [MAPA:criterio-deltaT] diferencial núcleo - superficie (criterio 20 °C)
     def delta_T_C(self) -> np.ndarray:
         """T_max - T_sup_min: diferencial núcleo-superficie.
 
@@ -311,6 +314,7 @@ class _CaraExpuesta:
     R: np.ndarray  # moldaje o aislación [m²K/W]
     hormigon: np.ndarray  # bool: la celda es hormigón activo (no suelo)
 
+    # [MAPA:robin-caso] cara expuesta: media celda + moldaje/aislación + película 1/h
     def conductancia(self, h_tot: float) -> np.ndarray:
         """G = A/(r_media + R + 1/h) [W/K]: resistencias en serie."""
         if h_tot <= 0.0:
@@ -411,6 +415,7 @@ class SimuladorEtapas:
         return sorted(cortes)
 
     # --- propiedades por etapa ----------------------------------------------
+    # [MAPA:propiedades-por-voxel] k, rho, cp de hormigón, suelo y vacío en cada etapa
     def _propiedades(self, activo: np.ndarray, solido: np.ndarray):
         forma = activo.shape
         k = np.empty(forma)
@@ -448,6 +453,7 @@ class SimuladorEtapas:
         for vid, p in self.plan.items():
             m = activo & (ids == vid)
             if m.any():
+                # [MAPA:moldaje-retiro] R lateral hasta el retiro del moldaje; R superior = aislación
                 R_lat[m] = p.R_lateral if t < p.inicio_s + p.retiro_moldaje_s else 0.0
                 R_sup[m] = p.R_superior
         caras = []
@@ -482,6 +488,7 @@ class SimuladorEtapas:
             for c in self._caras_etapa(t, activo, solido, k):
                 G_amb[c.idx] += c.conductancia(h_tot)
         G_base = np.zeros(activo.shape)
+        # [MAPA:base-suelo] cara inferior de la caja: Dirichlet T_base o adiabática
         if self.base.tipo == "dirichlet":
             capa = solido[:, :, 0]
             G_base[:, :, 0] = np.where(capa, k[:, :, 0] * area_cara(d, 2) / (d[2] / 2.0), 0.0)
@@ -504,6 +511,7 @@ class SimuladorEtapas:
         te = np.zeros(forma)
         activadas: set[int] = set()
 
+        # [MAPA:balance-energia] contabilidad de energía: colocación, hidratación, ambiente, base
         E = dict.fromkeys(("colocacion", "hidratacion", "ambiente", "base", "fuga_vacio"), 0.0)
         E_inicial = None
         proximo_guardado = 0.0
@@ -511,6 +519,7 @@ class SimuladorEtapas:
         t = 0.0
 
         for t0, t1 in zip(cortes[:-1], cortes[1:]):
+            # [MAPA:activacion-vertidas] vacío -> hormigón a T_colocacion, edad 0
             # activar vertidas que comienzan en esta etapa
             nuevas = [
                 vid for vid, p in self.plan.items()
@@ -554,6 +563,7 @@ class SimuladorEtapas:
                 limite = float(np.min((C / (solver.suma_G + G_ext))[solido]))
             else:
                 limite = math.inf
+            # [MAPA:estabilidad-caso] dt = fraccion_dt · C/ΣG con el h máximo de la etapa
             dt_obj = min(self.tiempo.fraccion_dt * limite, self.tiempo.dt_max_s, t1 - t0)
             n_pasos = max(1, int(math.ceil((t1 - t0) / dt_obj - 1e-9)))
             dt = (t1 - t0) / n_pasos
@@ -581,12 +591,14 @@ class SimuladorEtapas:
                     raise ValueError('Paso temporal demasiado pequeño para avanzar.')
                 q_h = np.zeros(forma)
                 for m, modelo in grupos:
+                    # [MAPA:hidratacion-fuente] q''' de hidratación en cada voxel activo
                     q_h[m] = modelo.potencia(te[m], T[m])
                 P_amb = np.zeros(T.size)
                 h_tot, T_eq = self.ambiente.condiciones(t) if caras else (0.0, {})
                 if h_tot > 0.0:
                     T_plano = T.ravel()
                     for c in caras:  # idx único dentro de cada dirección
+                        # [MAPA:flujo-ambiente] Q = G (T_eq - T_cara) en caras expuestas
                         P_amb[c.idx] += c.conductancia(h_tot) * (T_eq[c.orientacion] - T_plano[c.idx])
                 P_amb = P_amb.reshape(forma)
                 P_base = G_base * (T_base - T)
@@ -597,6 +609,7 @@ class SimuladorEtapas:
                 E["base"] += dt * float(np.sum(P_base))
                 E["fuga_vacio"] += float(np.sum((C * (T_nuevo - T))[vacio]))
                 for m, modelo in grupos:
+                    # [MAPA:edad-equivalente] madurez: la hidratación se acelera con T (Arrhenius)
                     te[m] += dt * modelo.factor_arrhenius(T[m])
                 T = T_nuevo
                 T[vacio] = self.ambiente.temperatura(t + dt)
@@ -650,6 +663,7 @@ class SimuladorEtapas:
             res.T_min_C.append(float(Ta.min()))
             # Cara del sólido: el mismo flujo cruza la media celda y el exterior en
             # serie, así que Ts = Ti + phi·(T_eq - Ti), phi = r_media/(r_media + R + 1/h).
+            # [MAPA:superficie-25mm] T 'superficial' a profundidad_superficie_m bajo la cara
             # A la profundidad p del criterio, el perfil entre la cara y el centro
             # (a Δ/2) es lineal: T(p) = Ts + (Ti - Ts)·min(p/(Δ/2), 1).
             h_tot, T_eq = self.ambiente.condiciones(t)

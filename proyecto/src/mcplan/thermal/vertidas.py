@@ -1,3 +1,5 @@
+# [LEGADO] LEGADO E07 inicial: SimuladorVertidas, solo lo usa scripts/demo_e07.py. El caso base y E08 usan thermal/etapas.py (SimuladorEtapas).
+# Ver proyecto/MAPA_DEL_CODIGO.md. No editar aquí para cambiar el caso.
 """Balance 3D con dominio activo y eventos de colocación.
 
 Mismo balance por caras que SolverVoxel, especializado en grillas IFC con

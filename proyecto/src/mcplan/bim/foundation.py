@@ -26,6 +26,7 @@ import numpy as np
 
 from .ifc_io import productos_vertida
 
+# [MAPA:geometria-planta] tamaño en planta: octágono 18 m entre caras, pedestal Ø7 m
 RADIO_EXTERIOR = 9.74153  # m, radio al vértice del octágono (18 m entre caras)
 RADIO_INTERIOR = 3.78837  # m, radio al vértice del octágono de 7 m entre caras
 RADIO_MEDIO = 6.76495  # m, (RADIO_EXTERIOR + RADIO_INTERIOR) / 2
@@ -71,6 +72,7 @@ class VertidaFoundation:
     rotacion_grados: float
 
 
+# [MAPA:geometria-espesores] z_base y altura (espesor) de cada vertida; regenerar el IFC tras editar
 VERTIDAS_FOUNDATION: tuple[VertidaFoundation, ...] = (
     VertidaFoundation("Vertida_01", 1, 0.0, 18.0, "M1", 0.00, 0.55, 8, RADIO_EXTERIOR, None, ROTACION_OCTAGONO_GRADOS),
     VertidaFoundation("Vertida_02", 2, 6.0, 18.0, "M1", 0.55, 0.55, 8, RADIO_EXTERIOR, None, ROTACION_OCTAGONO_GRADOS),

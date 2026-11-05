@@ -65,6 +65,7 @@ def solido_desde_malla(
     )
 
 
+# [MAPA:lectura-ifc] IFC -> mallas trianguladas + pset por vertida
 def extraer_vertidas(ruta_ifc: str | Path) -> list[SolidoVertida]:
     """Lee el IFC y devuelve las vertidas ordenadas por ``VertidaID``."""
     import ifcopenshell
