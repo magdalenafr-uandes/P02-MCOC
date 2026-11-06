@@ -38,7 +38,7 @@ def main():
     ax.set_xlim(lo[0],hi[0]); ax.set_ylim(lo[1],hi[1]); ax.set_zlim(lo[2],hi[2])
     ax.set_box_aspect(hi-lo)
     ax.set_xlabel('x [m]'); ax.set_ylabel('y [m]'); ax.set_zlabel('z [m]')
-    ax.set_title('Fundación IFC existente — cinco vertidas\nGeometría docente; sin acoplamiento automático al solver')
+    ax.set_title('Fundación IFC docente — cinco vertidas')
     ax.legend(loc='upper left')
     ax.view_init(elev=22,azim=-55)
     a.salida.parent.mkdir(parents=True,exist_ok=True)
