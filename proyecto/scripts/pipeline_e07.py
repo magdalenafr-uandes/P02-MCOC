@@ -51,7 +51,11 @@ def _imprimir(r) -> None:
               f"inicio={p.inicio_s / HORA:g} h [{o.get('inicio_h')}]  "
               f"T_col={p.T_colocacion_C:g} °C [{o.get('T_colocacion_C')}]  "
               f"{p.hormigon} [{o.get('hormigon')}]  retiro={retiro}  "
-              f"R_lat={p.R_lateral:g} R_sup={p.R_superior:g}")
+              f"moldaje R={p.R_lateral:g} [{o.get('R_lateral_m2K_W', 'sin moldaje')}] R_sup={p.R_superior:g}")
+        for c in p.capas:
+            hasta = "fin" if np.isinf(c.hasta_s) else f"{c.hasta_s / HORA:g} h"
+            print(f"      + {c.nombre}: R={c.R:.2f} m²K/W en {sorted(c.caras)}, "
+                  f"desde {c.desde_s / HORA:g} h hasta {hasta} (desde el inicio de la vertida)")
     ocultas = {p.vertida_id for p in r.plan if not p.visible}
     print("\nVolumen (G04):  vertida   V_malla [m³]   V_h [m³]   e_V")
     for f in r.volumetria:

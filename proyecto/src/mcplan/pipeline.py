@@ -136,6 +136,8 @@ def cargar_plan(ruta):
     datos['ifc'] = str((fuente.parent/datos['ifc']).resolve())
     if datos.get('clima'):
         datos['clima']['snapshot'] = str((fuente.parent/datos['clima']['snapshot']).resolve())
+        if (datos['clima'].get('respaldo') or {}).get('snapshot'):
+            datos['clima']['respaldo']['snapshot'] = str((fuente.parent/datos['clima']['respaldo']['snapshot']).resolve())
     config = leer_config(datos, fuente.parent)
     solidos = extraer_vertidas(config.ruta_ifc)
     planes = resolver_plan(config, [(s.vertida_id,s.nombre,s.propiedades) for s in solidos])

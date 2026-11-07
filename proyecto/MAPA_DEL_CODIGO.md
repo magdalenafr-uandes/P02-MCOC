@@ -22,6 +22,8 @@ bim/voxelizador.py           IFC -> voxeles con vertida_id, suelo y caras       
         ▼
 thermal/etapas.py            simulación por etapas: activación, hidratación,     [MAPA:activacion-vertidas]
                              moldaje, clima y criterios
+        │  thermal/bordes.py     qué ve cada cara: sol-aire, moldaje/aislación    [MAPA:sol-aire]
+        │  caso/clima.py         snapshots de pronóstico y su respaldo           [MAPA:completar-pronostico]
         ▼
 thermal/voxel.py             motor: balance de voxel, bordes, estabilidad        [MAPA:balance-voxel]
 ```
@@ -55,8 +57,6 @@ mismo motor (`SimuladorEtapas`).
 | Robin (convección) en el motor | `thermal/voxel.py` | `MAPA:robin` |
 | Robin en el caso: media celda + moldaje + película | `thermal/etapas.py` | `MAPA:robin-caso` |
 | Flujo hacia el ambiente en cada paso | `thermal/etapas.py` | `MAPA:flujo-ambiente` |
-| Sol, radiación nocturna y viento (T sol-aire) | `thermal/etapas.py` | `MAPA:sol-aire` |
-| Moldaje y su retiro en el tiempo | `thermal/etapas.py` | `MAPA:moldaje-retiro` |
 | Base de la caja (suelo profundo) | `thermal/etapas.py` | `MAPA:base-suelo` |
 | ¿Qué cara es superficie exterior? | `bim/voxelizador.py` | `MAPA:caras-expuestas` |
 | Corrección del área en caras inclinadas | `bim/voxelizador.py` | `MAPA:correccion-area` |
@@ -64,6 +64,31 @@ mismo motor (`SimuladorEtapas`).
 En el caso real, todas las caras de la caja son adiabáticas en el motor. El
 intercambio con el aire entra por las caras expuestas del sólido (`robin-caso`)
 y el suelo profundo por la base (`base-suelo`).
+
+### Ambiente, moldaje y clima (E10) — módulo `thermal/bordes.py`
+
+| Pregunta | Archivo | Etiqueta |
+|---|---|---|
+| ¿Qué término usa la temperatura ambiente? | `thermal/bordes.py` | `MAPA:temperatura-ambiente` |
+| T sol-aire: convección + onda larga + sol | `thermal/bordes.py` | `MAPA:sol-aire` |
+| ¿Cómo entra el viento? h_c = a + b·v | `thermal/bordes.py` | `MAPA:viento-conveccion` |
+| Viento de 10 m a la superficie (perfil logarítmico) | `thermal/bordes.py` | `MAPA:viento-perfil` |
+| ¿Qué es un flujo solar? α·G [W/m²] | `thermal/bordes.py` | `MAPA:flujo-solar` |
+| Evitar doble conteo radiación/convección | `caso/config.py` | `MAPA:doble-conteo` |
+| Resistencia de moldaje/aislación R = e/k | `thermal/bordes.py` | `MAPA:capas-proteccion` |
+| ¿Qué cambia al desmoldar? | `thermal/bordes.py` | `MAPA:moldaje-retiro` |
+| Aislación después del desmolde | `caso/config.py` | `MAPA:aislacion-desmolde` |
+| Metadata del snapshot (forecast/reanálisis/observación) | `caso/clima.py` | `MAPA:snapshot-metadata` |
+| Huella del snapshot usado (trazabilidad) | `caso/clima.py` | `MAPA:snapshot-huella` |
+| Pronóstico que no cubre los 14 días: respaldo | `caso/clima.py` | `MAPA:completar-pronostico` |
+
+Scripts: `descargar_clima.py` (cliente Open-Meteo, nunca sobrescribe) y
+`listar_clima.py` (qué cubre cada snapshot de la ventana de la obra y con qué
+anticipación). Respuestas completas: `docs/e10.md`.
+
+No confundir con `thermal/boundaries.py`: ese archivo (E01) guarda
+`PropiedadesTermicas` (k, ρ, cp; la usa `voxel.py`) y la `CondicionBorde` del
+solver 1D legado. Los bordes del caso real están en `thermal/bordes.py`.
 
 ### Fuentes, hidratación y criterios
 
@@ -123,8 +148,12 @@ Desde `proyecto/`:
 | Hora de inicio de una vertida | `vertidas.3.inicio_h=20` |
 | Ocultar una vertida | `vertidas.5.visible=false` |
 | Espesor de la aislación superior | `vertidas.defecto.R_superior_m2K_W=1.25` (R = e/k: 50 mm con k = 0,04 → 1,25; 100 mm → 2,5) |
-| Moldaje lateral | `vertidas.defecto.R_lateral_m2K_W=0.12` (18 mm de madera, k ≈ 0,15) |
+| Moldaje lateral | `vertidas.defecto.moldaje=madera_18mm` (catálogo `protecciones`) o `vertidas.defecto.R_lateral_m2K_W=0.12` |
 | Retiro del moldaje | `vertidas.defecto.retiro_moldaje_h=48` |
+| Aislación al desmoldar | `vertidas.defecto.aislacion=manta_50mm`, `"vertidas.defecto.aislacion_caras=[superior, lateral]"`, `vertidas.defecto.aislacion_desde_h=desmolde` |
+| Viento / convección | `ambiente.conveccion_viento.altura_superficie_m=2`, `...a_W_m2K=2.8`, `...b_J_m3K=3.0` |
+| Sol y cielo | `ambiente.absortividad_solar=0.65`, `ambiente.emisividad=0.9`, `ambiente.factor_solar_lateral=0.3` |
+| Otro pronóstico | `clima.snapshot=../data/weather/<carpeta>` (ver `scripts/listar_clima.py`) |
 | Material del suelo | `suelo.k_W_mK=1.8`, `suelo.rho_kg_m3`, `suelo.cp_J_kgK` |
 | Espesor de suelo modelado | `suelo.espesor_m=4.0` (0 = sin suelo) |
 | T del suelo profundo / inicial | `base.T_C=18`, `suelo.T_inicial_C=18` (o `base.tipo=adiabatico`) |

@@ -50,7 +50,7 @@ malla:
   corregir_area: true     # convección con el área real: la escalera la sobrestima ~30 % y no converge
 
 simulacion:
-  inicio: "2026-11-27T04:00"   # [SUPUESTO] fecha final TBD (G07); es la fecha de ejemplo de la guía G08
+  inicio: "2026-11-27T04:00"   # [repo] 27-nov (rúbrica E10); la hora 04:00 es [SUPUESTO] (ejemplo de G08)
   duracion_h: 336         # [repo] 14 días: los criterios se evalúan sobre los máximos de 14 días
   fraccion_dt: 0.8        # dt = 0.8 · límite monótono C/ΣG
   dt_max_h: 0.5           # tope por precisión de la cinética de hidratación
@@ -61,19 +61,33 @@ criterios:                # [repo] docs/hoja_de_ruta.md (docentes, no normativos
   delta_T_C: 20.0
   profundidad_superficie_m: 0.025   # "superficie" a ~25 mm bajo la cara exterior
 
-clima:                    # [repo] snapshot de Open-Meteo del sitio oficial (G07)
-  # ERA5 (reanálisis) 26-nov a 12-dic de 2025, usado como ANÁLOGO de las mismas
-  # fechas de 2026 [SUPUESTO]: el pronóstico real solo existirá ~16 días antes.
-  snapshot: ../data/weather/2026-10-31T1807_historico
-  desplazar_anios: 1
-  completar: error        # error | repetir_ultimo_dia (cola no cubierta por el pronóstico)
+clima:                    # [repo] snapshots de Open-Meteo del sitio oficial (G07); ver scripts/listar_clima.py
+  # Pronóstico más reciente. Se reemplaza por uno nuevo (nunca se sobrescribe) a medida
+  # que se acerca el 27-nov; a menos de ~16 días empieza a cubrir la ventana de la obra.
+  snapshot: ../data/weather/2026-11-07T2001_pronostico
+  completar: respaldo     # error | repetir_ultimo_dia | respaldo (cola que el pronóstico no cubre)
+  respaldo:               # [SUPUESTO] decisión del equipo (G07): reanálisis ERA5 de las mismas fechas de 2025
+    snapshot: ../data/weather/2026-10-31T1807_historico
+    desplazar_anios: 1
 
 ambiente:
-  conveccion_viento: {a_W_m2K: 5.7, b_J_m3K: 3.8}   # h = a + b·v (McAdams), v a 10 m
+  # Cada mecanismo una sola vez: convección (h_c), onda larga (h_r, emisividad) y sol (α·G).
+  conveccion_viento:
+    a_W_m2K: 2.8           # Watmuff et al. (1977): h_c = 2,8 + 3,0·v, SOLO convección.
+    b_J_m3K: 3.0           #   (McAdams 5,7 + 3,8·v ya incluye radiación: con emisividad > 0 la contaría dos veces)
+    incluye_radiacion: false
+    altura_medicion_m: 10.0     # Open-Meteo: wind_speed_10m
+    altura_superficie_m: 2.0    # viento junto a la fundación (perfil logarítmico: ×0,72)
+    rugosidad_m: 0.03           # [SUPUESTO] terreno abierto / desierto
   absortividad_solar: 0.65     # [SUPUESTO] hormigón gris / moldaje de madera
   emisividad: 0.9              # [SUPUESTO] hormigón
   factor_solar_lateral: 0.0    # [SUPUESTO] sin sol en caras verticales: conservador para ΔT
   # Sin 'clima': T_C y h_W_m2K constantes, o 'serie' [[t_h, T_C], ...].
+
+protecciones:             # catálogo: R = espesor / k [m²K/W] (moldaje, aislación)
+  madera_18mm: {espesor_m: 0.018, k_W_mK: 0.15}         # [SUPUESTO] R = 0,12
+  manta_50mm: {espesor_m: 0.050, k_W_mK: 0.04}          # [SUPUESTO] R = 1,25
+  poliestireno_100mm: {espesor_m: 0.100, k_W_mK: 0.035} # [SUPUESTO] R = 2,86
 
 base:                     # cara inferior de la caja (bajo el suelo)
   tipo: dirichlet         # dirichlet | adiabatico
@@ -105,8 +119,13 @@ vertidas:
   # [repo] inicio (0, 6, 12, 18, 24 h), T_colocación (18 °C) y retiro de moldaje (72 h) salen del IFC.
   defecto:
     visible: true              # false = la vertida no se incluye en la grilla
-    R_lateral_m2K_W: 0.12      # [SUPUESTO] moldaje ≈ 18 mm de madera (k ≈ 0.15)
+    moldaje: madera_18mm       # [SUPUESTO] caras laterales e inferiores hasta retiro_moldaje_h (IFC: 72 h)
     R_superior_m2K_W: 0.0      # [SUPUESTO] cara superior descubierta (sin aislación)
+    # Aislación (opcional), con su propio período; "desmolde" = empieza al retirar el moldaje:
+    # aislacion: manta_50mm
+    # aislacion_caras: [superior, lateral]
+    # aislacion_desde_h: desmolde      # o un número de horas desde el inicio de la vertida
+    # aislacion_hasta_h: 336
   # 2:
   #   inicio_h: 12             # sobrescribe Inicio_h del IFC
   #   inicio: "2026-11-27T16:00"   # o con fecha-hora (requiere simulacion.inicio)

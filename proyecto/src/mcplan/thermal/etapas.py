@@ -35,7 +35,15 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from ..bim.voxelizador import area_cara, caras_expuestas, pasos
-from .hidratacion import CERO_ABSOLUTO_C, ModeloHidratacion
+from .bordes import (  # noqa: F401  (Ambiente, CondicionBase y SIGMA se reexportan)
+    SIGMA,
+    Ambiente,
+    CapaProteccion,
+    CondicionBase,
+    orientacion,
+    resistencia_proteccion,
+)
+from .hidratacion import ModeloHidratacion
 from .voxel import MallaVoxel, SolverVoxel, adiabatico
 
 # [MAPA:vacio] voxel aún no vertido: k despreciable, T del aire
@@ -70,11 +78,12 @@ class PlanVertida:
     T_colocacion_C: float
     hormigon: str
     visible: bool = True
-    R_lateral: float = 0.0  # m²K/W, moldaje/aislación en caras laterales e inferiores
-    R_superior: float = 0.0  # m²K/W, aislación de la cara superior
+    R_lateral: float = 0.0  # m²K/W, moldaje en caras laterales e inferiores hasta el retiro
+    R_superior: float = 0.0  # m²K/W, protección permanente de la cara superior
     retiro_moldaje_s: float = math.inf  # tras inicio + retiro, R_lateral -> 0
     nombre: str = ""
     origen: Mapping[str, str] = field(default_factory=dict, compare=False)  # trazabilidad
+    capas: tuple[CapaProteccion, ...] = ()  # aislación u otras capas con su propio período
 
     def __post_init__(self) -> None:
         if not math.isfinite(self.inicio_s) or self.inicio_s < 0.0:
@@ -86,129 +95,19 @@ class PlanVertida:
         if not self.retiro_moldaje_s > 0.0:
             raise ValueError(f"Vertida {self.vertida_id}: retiro de moldaje positivo.")
 
+    def capas_efectivas(self) -> tuple[CapaProteccion, ...]:
+        """Moldaje (R_lateral hasta el retiro), protección superior permanente y capas extra."""
+        base = []
+        if self.R_lateral > 0.0:
+            base.append(CapaProteccion("moldaje", self.R_lateral, frozenset({"lateral", "inferior"}),
+                                       0.0, self.retiro_moldaje_s))
+        if self.R_superior > 0.0:
+            base.append(CapaProteccion("superior", self.R_superior, frozenset({"superior"})))
+        return (*base, *self.capas)
 
-SIGMA = 5.670374419e-8  # Stefan-Boltzmann [W/(m²·K⁴)]
-
-
-@dataclass(frozen=True)
-class Ambiente:
-    """Intercambio de las caras expuestas con el exterior.
-
-    Temperatura **sol-aire**: cada cara ve un ambiente equivalente
-
-        h_tot = h_c + h_r
-        T_eq  = (h_c·T_aire + h_r·T_rad + α·G·f) / h_tot
-
-    - h_c: convección, constante (``h``) o ``a + b·v`` con el viento v [m/s].
-    - h_r = 4·ε·σ·T_m³: onda larga linealizada hacia T_rad. La cara superior ve
-      el cielo, T_cielo = 0,0552·T_aire^1,5 [K] (Swinbank); las laterales ven
-      mitad cielo y mitad entorno: T_rad = (T_cielo + T_aire)/2.
-    - α·G·f: radiación solar absorbida; f = 1 en la cara superior,
-      ``factor_solar_lateral`` en las laterales y 0 en las inferiores.
-
-    La radiación se absorbe y emite en la cara exterior (moldaje o aislación);
-    después atraviesa R y la media celda como el resto del flujo. Series en
-    segundos desde el inicio de la simulación, interpoladas linealmente.
-    """
-
-    T_C: float
-    h: float  # W/(m²·K) si no hay modelo de viento; 0 y sin radiación = adiabático
-    serie_t_s: tuple[float, ...] = ()
-    serie_T_C: tuple[float, ...] = ()
-    serie_viento_m_s: tuple[float, ...] = ()
-    serie_G_W_m2: tuple[float, ...] = ()
-    h_viento: tuple[float, float] | None = None  # (a, b): h_c = a + b·v
-    absortividad: float = 0.0
-    emisividad: float = 0.0
-    factor_solar_lateral: float = 0.0
-
-    def __post_init__(self) -> None:
-        if not math.isfinite(self.T_C) or not math.isfinite(self.h) or self.h < 0.0:
-            raise ValueError("Ambiente: T finita y h >= 0.")
-        n = len(self.serie_t_s)
-        if len(self.serie_T_C) != n:
-            raise ValueError("Ambiente: la serie necesita igual número de tiempos y temperaturas.")
-        for nombre in ("serie_viento_m_s", "serie_G_W_m2"):
-            serie = getattr(self, nombre)
-            if serie and len(serie) != n:
-                raise ValueError(f"Ambiente: {nombre} debe tener un valor por tiempo de la serie.")
-            if serie and (not np.all(np.isfinite(serie)) or min(serie) < 0.0):
-                raise ValueError(f"Ambiente: {nombre} finita y no negativa.")
-        if self.serie_t_s and np.any(np.diff(self.serie_t_s) <= 0.0):
-            raise ValueError("Ambiente: tiempos de la serie estrictamente crecientes.")
-        if self.h_viento is not None:
-            if not self.serie_viento_m_s:
-                raise ValueError("Ambiente: h dependiente del viento requiere la serie de viento.")
-            if min(self.h_viento) < 0.0 or not all(map(math.isfinite, self.h_viento)):
-                raise ValueError("Ambiente: coeficientes de viento finitos y no negativos.")
-        if self.absortividad > 0.0 and not self.serie_G_W_m2:
-            raise ValueError("Ambiente: absortividad > 0 requiere la serie de radiación solar.")
-        for nombre in ("absortividad", "emisividad", "factor_solar_lateral"):
-            if not 0.0 <= getattr(self, nombre) <= 1.0:
-                raise ValueError(f"Ambiente: {nombre} en [0, 1].")
-
-    def _serie(self, t: float, serie: tuple[float, ...]) -> float:
-        return float(np.interp(t, self.serie_t_s, serie))
-
-    def temperatura(self, t: float) -> float:
-        if not self.serie_t_s:
-            return self.T_C
-        return self._serie(t, self.serie_T_C)
-
-    def h_conveccion(self, t: float) -> float:
-        if self.h_viento is None:
-            return self.h
-        a, b = self.h_viento
-        return a + b * self._serie(t, self.serie_viento_m_s)
-
-    # [MAPA:sol-aire] convección + radiación de onda larga + sol -> (h_tot, T_eq) por orientación
-    def condiciones(self, t: float) -> tuple[float, dict[str, float]]:
-        """(h_tot, T_eq por orientación 'superior' | 'lateral' | 'inferior')."""
-        T_a = self.temperatura(t)
-        h_c = self.h_conveccion(t)
-        G = self._serie(t, self.serie_G_W_m2) if self.serie_G_W_m2 else 0.0
-        h_r = 0.0
-        T_cielo = T_a
-        if self.emisividad > 0.0:
-            T_a_K = T_a - CERO_ABSOLUTO_C
-            T_cielo = 0.0552 * T_a_K**1.5 + CERO_ABSOLUTO_C
-            T_m_K = 0.5 * (T_a + T_cielo) - CERO_ABSOLUTO_C
-            h_r = 4.0 * self.emisividad * SIGMA * T_m_K**3
-        h_tot = h_c + h_r
-        if h_tot <= 0.0:
-            return 0.0, {"superior": T_a, "lateral": T_a, "inferior": T_a}
-        solar = self.absortividad * G
-        T_rad = {"superior": T_cielo, "lateral": 0.5 * (T_cielo + T_a), "inferior": T_a}
-        f = {"superior": 1.0, "lateral": self.factor_solar_lateral, "inferior": 0.0}
-        return h_tot, {o: (h_c * T_a + h_r * T_rad[o] + solar * f[o]) / h_tot for o in T_rad}
-
-    @property
-    def sin_intercambio(self) -> bool:
-        """Caras expuestas adiabáticas: sin convección ni radiación."""
-        return self.h == 0.0 and self.h_viento is None and self.emisividad == 0.0 and self.absortividad == 0.0
-
-    def h_max(self, t0: float, t1: float) -> float:
-        """Máximo de h_tot en [t0, t1] (para el paso estable)."""
-        instantes = [t0, t1] + [t for t in self.serie_t_s if t0 < t < t1]
-        return max(self.condiciones(t)[0] for t in instantes)
-
-
-def orientacion(cara: str) -> str:
-    return {"z+": "superior", "z-": "inferior"}.get(cara, "lateral")
-
-
-@dataclass(frozen=True)
-class CondicionBase:
-    """Cara inferior de la caja (bajo el suelo, o bajo el hormigón si no hay suelo)."""
-
-    tipo: str  # "dirichlet" | "adiabatico"
-    T_C: float = math.nan
-
-    def __post_init__(self) -> None:
-        if self.tipo not in ("dirichlet", "adiabatico"):
-            raise ValueError("Base: tipo 'dirichlet' o 'adiabatico'.")
-        if self.tipo == "dirichlet" and not math.isfinite(self.T_C):
-            raise ValueError("Base Dirichlet necesita T_C finita.")
+    def resistencia(self, t_s: float, orientacion_cara: str) -> float:
+        """R de protección [m²K/W] de esta vertida en el instante absoluto ``t_s``."""
+        return resistencia_proteccion(self.capas_efectivas(), t_s - self.inicio_s, orientacion_cara)
 
 
 @dataclass(frozen=True)
@@ -401,7 +300,7 @@ class SimuladorEtapas:
 
     # --- eventos -----------------------------------------------------------
     def eventos(self) -> list[float]:
-        """Cortes de etapa: 0, inicios, retiros de moldaje y fin."""
+        """Cortes de etapa: 0, inicios, colocación y retiro de cada capa (desmolde) y fin."""
         T = self.tiempo.duracion_s
         cortes = {0.0, T}
         for p in self.plan.values():
@@ -409,9 +308,11 @@ class SimuladorEtapas:
                 continue
             if p.inicio_s < T:
                 cortes.add(p.inicio_s)
-            fin_moldaje = p.inicio_s + p.retiro_moldaje_s
-            if fin_moldaje < T:
-                cortes.add(fin_moldaje)
+            for capa in p.capas_efectivas():
+                for borde in (capa.desde_s, capa.hasta_s):
+                    t = p.inicio_s + borde
+                    if 0.0 < t < T:
+                        cortes.add(t)
         return sorted(cortes)
 
     # --- propiedades por etapa ----------------------------------------------
@@ -448,14 +349,12 @@ class SimuladorEtapas:
             return []
         d = self.dominio.pasos
         ids = self.dominio.vertida_id
-        R_lat = np.zeros(activo.shape)
-        R_sup = np.zeros(activo.shape)
+        R_por_orientacion = {o: np.zeros(activo.shape) for o in ("superior", "lateral", "inferior")}
         for vid, p in self.plan.items():
             m = activo & (ids == vid)
             if m.any():
-                # [MAPA:moldaje-retiro] R lateral hasta el retiro del moldaje; R superior = aislación
-                R_lat[m] = p.R_lateral if t < p.inicio_s + p.retiro_moldaje_s else 0.0
-                R_sup[m] = p.R_superior
+                for o, R in R_por_orientacion.items():
+                    R[m] = p.resistencia(t, o)  # moldaje/aislación activos en esta etapa
         caras = []
         for cara, mascara in caras_expuestas(solido).items():
             idx = np.flatnonzero(mascara)
@@ -472,7 +371,7 @@ class SimuladorEtapas:
                 area=np.broadcast_to(A, idx.shape),
                 media_m=d[eje] / 2.0,
                 r_media=(d[eje] / 2.0) / k.ravel()[idx],
-                R=(R_sup if cara == "z+" else R_lat).ravel()[idx],
+                R=R_por_orientacion[orientacion(cara)].ravel()[idx],
                 hormigon=activo.ravel()[idx],
             ))
         return caras

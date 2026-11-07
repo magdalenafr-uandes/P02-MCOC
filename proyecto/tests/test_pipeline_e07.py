@@ -430,7 +430,10 @@ def test_correccion_de_area_reduce_perdidas_por_conveccion():
     base = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))
     perdidas = {}
     for corregir in (False, True):
+        # Aire constante: con clima real el sol puede volver neta la ganancia y la prueba
+        # dejaría de aislar el efecto del área.
         datos = aplicar_sobrescrituras(base, ["malla.paso_m=0.5", "simulacion.duracion_h=30",
+                                              "clima=null", "ambiente={T_C: 15, h_W_m2K: 10}",
                                               f"malla.corregir_area={str(corregir).lower()}"])
         r = ejecutar_pipeline(leer_config(datos, base_rutas=CONFIG.parent))
         perdidas[corregir] = -r.simulacion.balance["ambiente_J"]
@@ -535,7 +538,7 @@ def snapshot_sintetico(carpeta: Path, inicio="2026-11-27T00:00", horas=48, vient
         },
     }), encoding="utf-8")
     (carpeta / "metadata.json").write_text(json.dumps({
-        "source": "sintético", "model": "prueba", "retrieved_at": "2026-11-20T12:00:00+00:00",
+        "source": "sintético", "kind": "prueba sintética", "model": "prueba", "retrieved_at": "2026-11-20T12:00:00+00:00",
         "latitude": -33.4, "longitude": -70.6, "timezone": "America/Santiago",
         "variables": ["temperature_2m", "wind_speed_10m", "shortwave_radiation"], "units": {},
     }), encoding="utf-8")
@@ -601,6 +604,7 @@ def test_config_con_clima_y_fechas(tmp_path):
     datos = aplicar_sobrescrituras(yaml.safe_load(CONFIG.read_text(encoding="utf-8")), [
         "simulacion.inicio=2026-11-27T04:00", "simulacion.duracion_h=24",
         f"clima.snapshot={carpeta.as_posix()}", "clima.desplazar_anios=0",
+        "clima.completar=error", "clima.respaldo=null",
         "ambiente.conveccion_viento={a_W_m2K: 5.7, b_J_m3K: 3.8}",
         "ambiente.absortividad_solar=0.6", "ambiente.emisividad=0.9",
         "vertidas.2.inicio=2026-11-27T10:30",

@@ -26,14 +26,8 @@ from typing import Any
 
 import yaml
 
-from ..thermal.etapas import (
-    Ambiente,
-    CondicionBase,
-    Hormigon,
-    Material,
-    ParametrosTiempo,
-    PlanVertida,
-)
+from ..thermal.bordes import Ambiente, CapaProteccion, CondicionBase, factor_viento_log
+from ..thermal.etapas import Hormigon, Material, ParametrosTiempo, PlanVertida
 from ..thermal.hidratacion import HORA, ModeloHidratacion, theta_inf_desde_dosificacion
 from .clima import VAR_G, VAR_VIENTO, leer_snapshot, series_para_simulacion
 
@@ -51,12 +45,13 @@ _ESQUEMA: dict[str, Any] = {
         "T_C": float, "h_W_m2K": float, "serie": list, "conveccion_viento": dict,
         "absortividad_solar": float, "emisividad": float, "factor_solar_lateral": float,
     },
-    "clima": {"snapshot": str, "completar": str, "desplazar_anios": int},
+    "clima": {"snapshot": str, "completar": str, "desplazar_anios": int, "respaldo": dict},
     "criterios": {"T_max_C": float, "delta_T_C": float, "profundidad_superficie_m": float},
     "base": {"tipo": str, "T_C": float},
     "suelo": {"espesor_m": float, "k_W_mK": float, "rho_kg_m3": float, "cp_J_kgK": float, "T_inicial_C": float},
     "hormigones": dict,
     "vertidas": dict,
+    "protecciones": dict,
 }
 _HORMIGON = {"k_W_mK": float, "rho_kg_m3": float, "cp_J_kgK": float, "hidratacion": dict}
 _HIDRATACION = {
@@ -64,10 +59,17 @@ _HIDRATACION = {
     "tabla": list, "cemento_kg_m3": float, "calor_cemento_J_kg": float, "grado_hidratacion_ultimo": float,
 }
 _DOSIFICACION = ("cemento_kg_m3", "calor_cemento_J_kg")
+_CONVECCION_VIENTO = {
+    "a_W_m2K": float, "b_J_m3K": float, "incluye_radiacion": bool,
+    "altura_medicion_m": float, "altura_superficie_m": float, "rugosidad_m": float,
+}
 _VERTIDA = {
     "inicio_h": float, "inicio": str, "T_colocacion_C": float, "hormigon": str, "visible": bool,
     "R_lateral_m2K_W": float, "R_superior_m2K_W": float, "retiro_moldaje_h": float,
+    "moldaje": str, "aislacion": str, "aislacion_caras": list, "aislacion_desde_h": float,
+    "aislacion_hasta_h": float,
 }
+_PROTECCION = {"espesor_m": float, "k_W_mK": float}
 _REQUERIDAS = ("ifc", "malla", "simulacion", "ambiente", "base", "hormigones")
 
 # pset del IFC -> campo del plan (solo los que el IFC puede aportar)
@@ -76,6 +78,8 @@ _DESDE_IFC = {
     "T_colocacion_C": "TemperaturaColocacion_C",
     "hormigon": "TipoHormigon",
     "retiro_moldaje_h": "RetiroMoldaje_h",
+    "moldaje": "Moldaje",  # nombre en el catálogo 'protecciones' (TBD en el IFC actual)
+    "aislacion": "Aislacion",
 }
 
 
@@ -293,20 +297,38 @@ def _ambiente(a: Mapping[str, Any], clima: Any, inicio: datetime | None, duracio
               carpeta: Path) -> tuple[Ambiente, str]:
     """Ambiente constante, con serie manual o con un snapshot de clima (G07)."""
     viento = None
-    if a.get("conveccion_viento") is not None:
-        cv = _claves(a["conveccion_viento"], {"a_W_m2K": float, "b_J_m3K": float}, "ambiente.conveccion_viento")
-        viento = (
-            _numero(_requerir(cv, "a_W_m2K", "ambiente.conveccion_viento"), "conveccion_viento.a_W_m2K", no_negativo=True),
-            _numero(_requerir(cv, "b_J_m3K", "ambiente.conveccion_viento"), "conveccion_viento.b_J_m3K", no_negativo=True),
-        )
-        if "h_W_m2K" in a:
-            raise ErrorConfiguracion("ambiente: usar h_W_m2K o conveccion_viento, no ambos.")
+    factor_viento = 1.0
     radiacion = {
         "absortividad": _numero(a.get("absortividad_solar", 0.0), "ambiente.absortividad_solar", no_negativo=True),
         "emisividad": _numero(a.get("emisividad", 0.0), "ambiente.emisividad", no_negativo=True),
         "factor_solar_lateral": _numero(a.get("factor_solar_lateral", 0.0), "ambiente.factor_solar_lateral",
                                         no_negativo=True),
     }
+    if a.get("conveccion_viento") is not None:
+        donde = "ambiente.conveccion_viento"
+        cv = _claves(a["conveccion_viento"], _CONVECCION_VIENTO, donde)
+        viento = (
+            _numero(_requerir(cv, "a_W_m2K", donde), f"{donde}.a_W_m2K", no_negativo=True),
+            _numero(_requerir(cv, "b_J_m3K", donde), f"{donde}.b_J_m3K", no_negativo=True),
+        )
+        if "h_W_m2K" in a:
+            raise ErrorConfiguracion("ambiente: usar h_W_m2K o conveccion_viento, no ambos.")
+        # [MAPA:doble-conteo] una correlación que ya incluye radiación no se combina con emisividad > 0
+        if _booleano(cv.get("incluye_radiacion", False), f"{donde}.incluye_radiacion") and radiacion["emisividad"] > 0:
+            raise ErrorConfiguracion(
+                f"{donde}: la correlación incluye radiación (p. ej. McAdams 5,7 + 3,8·v) y además "
+                "ambiente.emisividad > 0 cuenta la onda larga otra vez. Usar una correlación solo "
+                "convectiva (Watmuff 2,8 + 3,0·v) o emisividad: 0."
+            )
+        if "altura_superficie_m" in cv:
+            try:
+                factor_viento = factor_viento_log(
+                    _numero(cv.get("altura_medicion_m", 10.0), f"{donde}.altura_medicion_m", positivo=True),
+                    _numero(cv["altura_superficie_m"], f"{donde}.altura_superficie_m", positivo=True),
+                    _numero(cv.get("rugosidad_m", 0.03), f"{donde}.rugosidad_m", positivo=True),
+                )
+            except ValueError as exc:
+                raise ErrorConfiguracion(f"{donde}: {exc}") from exc
     h = 0.0 if viento else _numero(_requerir(a, "h_W_m2K", "ambiente"), "ambiente.h_W_m2K", no_negativo=True)
 
     if clima is None:
@@ -332,13 +354,19 @@ def _ambiente(a: Mapping[str, Any], clima: Any, inicio: datetime | None, duracio
     for clave in ("T_C", "serie"):
         if clave in a:
             raise ErrorConfiguracion(f"ambiente.{clave}: con 'clima' la temperatura viene del snapshot.")
-    ruta = Path(str(_requerir(c, "snapshot", "clima")))
-    if not ruta.is_absolute():
-        ruta = (carpeta / ruta).resolve()
+    def ruta_de(valor: Any) -> Path:
+        ruta = Path(str(valor))
+        return ruta if ruta.is_absolute() else (carpeta / ruta).resolve()
+
     try:
-        snap = leer_snapshot(ruta)
+        snap = leer_snapshot(ruta_de(_requerir(c, "snapshot", "clima")))
+        respaldo, desplazar_respaldo = None, 0
+        if c.get("respaldo") is not None:
+            r = _claves(c["respaldo"], {"snapshot": str, "desplazar_anios": int}, "clima.respaldo")
+            respaldo = leer_snapshot(ruta_de(_requerir(r, "snapshot", "clima.respaldo")))
+            desplazar_respaldo = r.get("desplazar_anios", 0)
         s = series_para_simulacion(snap, inicio, duracion_s, str(c.get("completar", "error")),
-                                   c.get("desplazar_anios", 0))
+                                   c.get("desplazar_anios", 0), respaldo, desplazar_respaldo)
         if viento and not s.viento_m_s:
             raise ErrorConfiguracion(f"clima: el snapshot no trae {VAR_VIENTO} y conveccion_viento lo necesita.")
         if radiacion["absortividad"] > 0.0 and not s.G_W_m2:
@@ -347,7 +375,7 @@ def _ambiente(a: Mapping[str, Any], clima: Any, inicio: datetime | None, duracio
             T_C=s.T_C[0], h=h, serie_t_s=s.t_s, serie_T_C=s.T_C,
             serie_viento_m_s=s.viento_m_s if viento else (),
             serie_G_W_m2=s.G_W_m2 if radiacion["absortividad"] > 0.0 else (),
-            h_viento=viento, **radiacion,
+            h_viento=viento, factor_viento=factor_viento, **radiacion,
         ), s.nota
     except ErrorConfiguracion:
         raise
@@ -486,6 +514,13 @@ def resolver_plan(config: ConfigCaso, vertidas_ifc: Sequence[tuple[int, str, Map
         if hormigon not in config.hormigones:
             raise ErrorConfiguracion(f"{donde}: hormigón {hormigon!r} no está en 'hormigones'.")
         retiro = valores.get("retiro_moldaje_h")
+        retiro_s = math.inf if retiro is None else _numero(retiro, f"{donde}.retiro_moldaje_h", positivo=True) * HORA
+        R_lateral = _numero(valores.get("R_lateral_m2K_W", 0.0), f"{donde}.R_lateral", no_negativo=True)
+        if "moldaje" in valores and prioridad.get(origen["moldaje"], 2) <= prioridad.get(
+                origen.get("R_lateral_m2K_W", ""), 2):
+            R_lateral = _proteccion(config, valores["moldaje"], f"{donde}.moldaje")[0]
+            origen["R_lateral_m2K_W"] = f"{origen['moldaje']} ({valores['moldaje']})"
+        capas = _capas_aislacion(config, valores, retiro_s, donde)
         try:
             plan = PlanVertida(
                 vertida_id=vid,
@@ -493,12 +528,12 @@ def resolver_plan(config: ConfigCaso, vertidas_ifc: Sequence[tuple[int, str, Map
                 T_colocacion_C=_numero(valores["T_colocacion_C"], f"{donde}.T_colocacion_C"),
                 hormigon=hormigon,
                 visible=_booleano(valores.get("visible", True), f"{donde}.visible"),
-                R_lateral=_numero(valores.get("R_lateral_m2K_W", 0.0), f"{donde}.R_lateral", no_negativo=True),
+                R_lateral=R_lateral,
                 R_superior=_numero(valores.get("R_superior_m2K_W", 0.0), f"{donde}.R_superior", no_negativo=True),
-                retiro_moldaje_s=math.inf if retiro is None
-                else _numero(retiro, f"{donde}.retiro_moldaje_h", positivo=True) * HORA,
+                retiro_moldaje_s=retiro_s,
                 nombre=nombre,
                 origen=origen,
+                capas=capas,
             )
         except ErrorConfiguracion:
             raise
@@ -506,6 +541,46 @@ def resolver_plan(config: ConfigCaso, vertidas_ifc: Sequence[tuple[int, str, Map
             raise ErrorConfiguracion(f"{donde}: {exc}") from exc
         planes.append(plan)
     return planes
+
+
+def _proteccion(config: ConfigCaso, nombre: Any, donde: str) -> tuple[float, float, float]:
+    """(R, espesor, k) de un material del catálogo 'protecciones': R = e/k."""
+    catalogo = config.datos.get("protecciones") or {}
+    if str(nombre) not in catalogo:
+        raise ErrorConfiguracion(f"{donde}: {nombre!r} no está en 'protecciones' ({sorted(catalogo)}).")
+    d = _claves(catalogo[str(nombre)], _PROTECCION, f"protecciones.{nombre}")
+    e = _numero(_requerir(d, "espesor_m", f"protecciones.{nombre}"), f"protecciones.{nombre}.espesor_m", positivo=True)
+    k = _numero(_requerir(d, "k_W_mK", f"protecciones.{nombre}"), f"protecciones.{nombre}.k_W_mK", positivo=True)
+    return e / k, e, k
+
+
+# [MAPA:aislacion-desmolde] aislación con su propio período; "desmolde" = empieza al retirar el moldaje
+def _capas_aislacion(config: ConfigCaso, valores: Mapping[str, Any], retiro_s: float,
+                     donde: str) -> tuple[CapaProteccion, ...]:
+    """Capa de aislación de una vertida: caras, desde y hasta (horas desde su inicio)."""
+    extra = [c for c in ("aislacion_caras", "aislacion_desde_h", "aislacion_hasta_h") if c in valores]
+    if "aislacion" not in valores:
+        if extra:
+            raise ErrorConfiguracion(f"{donde}: {extra} sin 'aislacion'.")
+        return ()
+    R, e, k = _proteccion(config, valores["aislacion"], f"{donde}.aislacion")
+    caras = valores.get("aislacion_caras", ["superior"])
+    if not isinstance(caras, list) or not caras or not set(caras) <= {"superior", "lateral", "inferior"}:
+        raise ErrorConfiguracion(f"{donde}.aislacion_caras: lista con 'superior', 'lateral' o 'inferior'.")
+    desde = valores.get("aislacion_desde_h", 0.0)
+    if desde == "desmolde":
+        if not math.isfinite(retiro_s):
+            raise ErrorConfiguracion(f"{donde}: aislacion_desde_h 'desmolde' sin retiro_moldaje_h.")
+        desde_s = retiro_s
+    else:
+        desde_s = _numero(desde, f"{donde}.aislacion_desde_h", no_negativo=True) * HORA
+    hasta = valores.get("aislacion_hasta_h")
+    hasta_s = math.inf if hasta is None else _numero(hasta, f"{donde}.aislacion_hasta_h", positivo=True) * HORA
+    try:
+        return (CapaProteccion(f"aislación {valores['aislacion']} ({e * 1000:g} mm, k = {k:g})", R,
+                               frozenset(caras), desde_s, hasta_s),)
+    except ValueError as exc:
+        raise ErrorConfiguracion(f"{donde}: {exc}") from exc
 
 
 def _es_valido(valor: Any) -> bool:
