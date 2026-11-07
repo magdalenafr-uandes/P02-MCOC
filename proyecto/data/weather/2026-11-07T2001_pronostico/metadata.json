@@ -1,0 +1,22 @@
+{
+  "source": "Open-Meteo pronostico",
+  "kind": "forecast determinista",
+  "model": "best_match",
+  "retrieved_at": "2026-11-07T20:01:53+00:00",
+  "latitude": -24.95283,
+  "longitude": -70.004838,
+  "latitude_grid": -24.920914,
+  "longitude_grid": -69.96774,
+  "timezone": "America/Santiago",
+  "variables": [
+    "temperature_2m",
+    "wind_speed_10m",
+    "shortwave_radiation"
+  ],
+  "units": {
+    "temperature_2m": "°C",
+    "wind_speed_10m": "m/s",
+    "shortwave_radiation": "W/m²"
+  },
+  "url": "https://api.open-meteo.com/v1/forecast?latitude=-24.95283&longitude=-70.00484&hourly=temperature_2m%2Cwind_speed_10m%2Cshortwave_radiation&wind_speed_unit=ms&timezone=auto&start_date=2026-11-07&end_date=2026-11-22"
+}
