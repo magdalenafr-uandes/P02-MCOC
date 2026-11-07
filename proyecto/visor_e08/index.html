@@ -14,13 +14,23 @@
 <label>Convección h [W/m²K]<input id="h" type="number" min="0" step="any" required></label>
 <label>Paso máximo [s]<input id="dt" type="number" min="0.001" step="any" required></label>
 <label>Guardar cada [h]<input id="guardar" type="number" min="0.001" step="any" required></label>
-</div><label style="margin-top:12px"><input id="clima" type="checkbox"> Usar clima histórico y radiación del caso</label><p class="hint">Al desmarcarlo se usan ambiente y convección constantes.</p><p class="hint">Se reduce el paso automáticamente para respetar estabilidad y eventos.</p>
+</div><label style="margin-top:12px"><input id="clima" type="checkbox"> Usar clima, viento y radiación del caso</label><p class="hint">Al desmarcarlo se usan ambiente y convección constantes.</p><p class="hint">Se reduce el paso automáticamente para respetar estabilidad y eventos.</p>
+<div id="e10" hidden><h2 style="margin-top:22px">Moldaje, aislación y clima</h2><div class="fields">
+<label>Moldaje (caras laterales)<select id="moldaje" style="width:100%;margin-top:4px"></select></label>
+<label>Desmolde [h]<input id="retiro" type="number" min="0.01" step="any" placeholder="nunca"></label>
+<label>Aislación<select id="aislacion" style="width:100%;margin-top:4px"></select></label>
+<label>Aislación desde<select id="aisldesde" style="width:100%;margin-top:4px"><option value="colocacion">la colocación</option><option value="desmolde">el desmolde</option><option value="horas">otra hora…</option></select></label>
+<label>Desde [h]<input id="aisldesdeh" type="number" min="0" step="any" value="0"></label>
+<label>Hasta [h]<input id="aislhasta" type="number" min="0.01" step="any" placeholder="fin"></label>
+</div><div class="row" style="margin-top:8px"><span class="hint">Caras aisladas:</span><label><input type="checkbox" id="carasup"> superior</label><label><input type="checkbox" id="caralat"> lateral</label></div>
+<label style="margin-top:12px">Snapshot de clima<select id="snapshot" style="width:100%;margin-top:4px"></select></label><p id="snapinfo" class="hint"></p>
+<p class="hint">R = espesor/k, en serie con la película exterior. Al desmoldar, las caras laterales pasan a ver el aire, o la aislación si empieza en el desmolde. Las horas se cuentan desde el inicio de cada vertida. Lo que el pronóstico no cubre se completa con el respaldo declarado en el YAML.</p></div>
 <h2 style="margin-top:22px">Plan de vertidas</h2><div class="scroll"><table><thead><tr><th>Ver</th><th>Inicio [h]</th><th>Colocación [°C]</th></tr></thead><tbody id="vertidas"></tbody></table></div>
 <p class="hint">Ocultar cambia solo la vista. Los horarios y temperaturas modifican el cálculo al ejecutar.</p>
 <label><input id="convergencia" type="checkbox"> Incluir convergencia geométrica</label><label style="margin-top:8px">Resoluciones [m], separadas por coma<input id="pasos" type="text" style="width:100%;margin:4px 0 12px"></label>
 <div class="row"><button class="primary" type="submit" id="ejecutar">Ejecutar simulación</button><button type="button" id="exportar">Guardar inputs JSON</button></div></form>
 <p id="pendiente">Ejecuta para generar resultados.</p><div id="estado" role="status" aria-live="polite">Conectando con Python…</div></section>
-<section class="panel"><h2>Material y alcance</h2><p id="material">M1 · referencia docente</p><p id="contexto" class="hint"></p><p class="hint">Balance térmico por voxeles, activación temporal y contacto perfecto entre vertidas. Suelo, moldaje, aislación y dependencia térmica de hidratación según el caso YAML compartido. El clima de 2025 es un análogo, no un pronóstico de obra.</p></section></aside>
+<section class="panel"><h2>Material y alcance</h2><p id="material">M1 · referencia docente</p><p id="contexto" class="hint"></p><p class="hint">Balance térmico por voxeles, activación temporal y contacto perfecto entre vertidas. Suelo, moldaje, aislación y dependencia térmica de hidratación según el caso YAML compartido. El clima sale de snapshots de Open-Meteo; un reanálisis de otro año entra como análogo, no como pronóstico de obra. La nota de clima de cada ejecución dice qué horas vienen de cada fuente.</p></section></aside>
 <div><section class="panel"><div class="row" style="justify-content:space-between"><h2>Vista 3D</h2><div class="row"><label>Mostrar <select id="modo"><option value="temperatura">Voxeles · temperatura</option><option value="vertida">Voxeles · vertida</option><option value="ifc">Mallas IFC completas</option></select></label><button id="camara">Restablecer cámara</button></div></div>
 <div class="row"><label>Corte horizontal [m] <input id="corte" type="range" step="any" min="0" max="5" value="5"></label><output id="cortevalor">Sin corte</output></div>
 <canvas id="vista" aria-label="Visualización 3D de la fundación" role="img"></canvas><p class="hint">Arrastra para girar · rueda para acercar · el corte muestra caras de los voxeles. En modo IFC se ocultan triángulos completos.</p>
@@ -44,12 +54,32 @@ function crearFila(v,i){const tr=document.createElement('tr');tr.dataset.id=v.id
  for(const [campo,clase] of [['inicio_h','inicio'],['temperatura_C','temperatura']]){const td=document.createElement('td'),input=document.createElement('input');input.type='number';input.step='any';input.required=true;input.value=v[campo];input.className=clase;input.setAttribute('aria-label',`${campo} vertida ${v.id}`);if(campo==='inicio_h')input.min='0';td.append(input);tr.append(td);} $('vertidas').append(tr);}
 function leerPlan(){const p=structuredClone(base);for(const [id,campo] of [['dx','paso_m'],['final','final_h'],['ambiente','ambiente_C'],['h','h_W_m2_K'],['dt','dt_s'],['guardar','guardar_cada_h']])p[campo]=Number($(id).value);
  if('caso' in p){p.paso_z_m=Number($('dz').value);p.usar_clima=$('clima').checked;}
+ if(p.proteccion){const opc=v=>v===''?null:v,num=id=>$(id).value===''?null:Number($(id).value),desde=$('aisldesde').value;
+  p.proteccion={...p.proteccion,moldaje:opc($('moldaje').value),retiro_moldaje_h:num('retiro'),aislacion:opc($('aislacion').value),
+   aislacion_caras:[...($('carasup').checked?['superior']:[]),...($('caralat').checked?['lateral']:[])],
+   aislacion_desde:desde==='desmolde'?'desmolde':desde==='colocacion'?0:Number($('aisldesdeh').value),aislacion_hasta_h:num('aislhasta')};
+  p.clima_snapshot=$('snapshot').value||null;}
  p.pasos_convergencia_m=$('pasos').value.split(',').map(x=>Number(x.trim()));p.vertidas=[...$('vertidas').rows].map(tr=>({id:Number(tr.dataset.id),inicio_h:Number(tr.querySelector('.inicio').value),temperatura_C:Number(tr.querySelector('.temperatura').value)}));return p;}
-function actualizarClima(){$('ambiente').disabled=$('clima').checked;$('h').disabled=$('clima').checked;}
+function actualizarClima(){$('ambiente').disabled=$('clima').checked;$('h').disabled=$('clima').checked;$('snapshot').disabled=!$('clima').checked||!$('snapshot').options.length;infoSnapshot();}
+function opcion(sel,valor,texto){const o=document.createElement('option');o.value=valor;o.textContent=texto;sel.append(o);}
+function infoSnapshot(){const s=(base?.opciones?.snapshots||[]).find(s=>s.carpeta===$('snapshot').value);if(!s){$('snapinfo').textContent='';return;}
+ const analogo=s.desplazar_anios_analogo?` Como análogo (+${s.desplazar_anios_analogo} año) cubre ${s.cubre_analogo_h.toFixed(0)} h.`:'';
+ $('snapinfo').textContent=`${s.kind} · ${s.model} · descargado ${s.descargado.replace('T',' ')} · datos ${s.desde.slice(0,10)} a ${s.hasta.slice(0,10)} · cubre ${s.cubre_h.toFixed(0)} h de la simulación.${analogo} Huella ${s.huella}.`;}
+function actualizarAislacion(){const con=$('aislacion').value!=='';for(const id of ['aisldesde','aislhasta','carasup','caralat'])$(id).disabled=!con;$('aisldesdeh').disabled=!con||$('aisldesde').value!=='horas';}
+function iniciarE10(){const pr=base.proteccion,op=base.opciones;if(!pr)return;$('e10').hidden=false;
+ opcion($('moldaje'),'','Sin moldaje');if(pr.moldaje==='yaml')opcion($('moldaje'),'yaml',`Del YAML (R = ${pr.R_moldaje_yaml.toFixed(2)} m²K/W)`);
+ opcion($('aislacion'),'','Sin aislación');
+ for(const [n,d] of Object.entries(op.protecciones)){const t=`${n} · ${(d.espesor_m*1000).toFixed(0)} mm · R = ${d.R.toFixed(2)}`;opcion($('moldaje'),n,t);opcion($('aislacion'),n,t);}
+ $('moldaje').value=pr.moldaje??'';$('aislacion').value=pr.aislacion??'';$('retiro').value=pr.retiro_moldaje_h??'';$('aislhasta').value=pr.aislacion_hasta_h??'';
+ $('carasup').checked=pr.aislacion_caras.includes('superior');$('caralat').checked=pr.aislacion_caras.includes('lateral');
+ if(pr.aislacion_desde==='desmolde')$('aisldesde').value='desmolde';else if(!pr.aislacion_desde)$('aisldesde').value='colocacion';else{$('aisldesde').value='horas';$('aisldesdeh').value=pr.aislacion_desde;}
+ for(const s of op.snapshots.filter(s=>!s.error))opcion($('snapshot'),s.carpeta,`${s.carpeta} · ${s.kind}`);
+ if(base.clima_snapshot)$('snapshot').value=base.clima_snapshot;
+ $('aislacion').addEventListener('change',actualizarAislacion);$('aisldesde').addEventListener('change',actualizarAislacion);$('snapshot').addEventListener('change',infoSnapshot);actualizarAislacion();}
 $('clima').addEventListener('change',actualizarClima);
 function pendiente(){revision++;$('pendiente').textContent='Entradas modificadas: ejecuta para actualizar los resultados.';}
 async function pedir(url,opciones){const r=await fetch(url,opciones);const d=await r.json();if(!r.ok)throw Error(d.error||r.statusText);return d;}
-async function iniciar(){try{base=await pedir('/api/plan');for(const [id,campo] of [['dx','paso_m'],['final','final_h'],['ambiente','ambiente_C'],['h','h_W_m2_K'],['dt','dt_s'],['guardar','guardar_cada_h']])$(id).value=base[campo];$('dz').value=base.paso_z_m||base.paso_m;$('dz').disabled=!('caso' in base);$('clima').checked=!!base.usar_clima;$('clima').disabled=!('caso' in base);actualizarClima();$('pasos').value=base.pasos_convergencia_m.join(', ');base.vertidas.forEach(crearFila);mensaje('Listo. Ajusta los inputs y ejecuta.');dibujar();}catch(e){mensaje('No se pudo conectar: '+e.message);}}
+async function iniciar(){try{base=await pedir('/api/plan');for(const [id,campo] of [['dx','paso_m'],['final','final_h'],['ambiente','ambiente_C'],['h','h_W_m2_K'],['dt','dt_s'],['guardar','guardar_cada_h']])$(id).value=base[campo];$('dz').value=base.paso_z_m||base.paso_m;$('dz').disabled=!('caso' in base);$('clima').checked=!!base.usar_clima;$('clima').disabled=!('caso' in base);iniciarE10();actualizarClima();$('pasos').value=base.pasos_convergencia_m.join(', ');base.vertidas.forEach(crearFila);mensaje('Listo. Ajusta los inputs y ejecuta.');dibujar();}catch(e){mensaje('No se pudo conectar: '+e.message);}}
 $('entradas').addEventListener('input',e=>{if(!e.target.classList.contains('visible')&&e.target.id!=='convergencia')pendiente();});
 $('entradas').addEventListener('submit',async e=>{e.preventDefault();if(ocupado)return;try{const p=leerPlan();ocupado=true;$('ejecutar').disabled=true;const rev=revision;await pedir('/api/ejecutar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({plan:p,convergencia:$('convergencia').checked})});mensaje('Iniciando…');sondear(rev);}catch(error){ocupado=false;$('ejecutar').disabled=false;mensaje('Error: '+error.message);}});
 async function sondear(rev){try{const e=await pedir('/api/estado');mensaje(e.mensaje);if(e.estado==='running'){setTimeout(()=>sondear(rev),700);return;}ocupado=false;$('ejecutar').disabled=false;if(e.estado==='done'){previo=resultado;resultado=await pedir('/api/resultado');revisionEjecutada=rev;mostrar(e.carpeta);}else $('pendiente').textContent='La ejecución falló. Corrige las entradas y vuelve a ejecutar.';}catch(error){ocupado=false;$('ejecutar').disabled=false;mensaje('Error de conexión: '+error.message);}}

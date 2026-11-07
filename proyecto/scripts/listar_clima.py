@@ -16,21 +16,15 @@ from __future__ import annotations
 
 import argparse
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
-from mcplan.caso.clima import leer_snapshot
+from mcplan.caso.clima import resumen_snapshots
 
 RAIZ = Path(__file__).resolve().parents[1]
-
-
-def cobertura(tiempos, inicio: datetime, fin: datetime) -> float:
-    """Horas de [inicio, fin] dentro del rango del snapshot."""
-    a, b = max(tiempos[0], inicio), min(tiempos[-1], fin)
-    return max(0.0, (b - a).total_seconds() / 3600.0)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -40,31 +34,19 @@ def main(argv: list[str] | None = None) -> int:
                    help="Inicio de la obra (local).")
     p.add_argument("--dias", type=float, default=14.0)
     a = p.parse_args(argv)
-    fin = a.inicio + timedelta(days=a.dias)
     total_h = a.dias * 24.0
-    print(f"Ventana de la obra: {a.inicio:%Y-%m-%d %H:%M} -> {fin:%Y-%m-%d %H:%M} ({total_h:.0f} h)\n")
+    print(f"Ventana de la obra: {a.inicio:%Y-%m-%d %H:%M}, {total_h:.0f} h\n")
     print(f"{'snapshot':32s} {'tipo':26s} {'descargado':17s} {'datos':33s} {'cubre':>9s} {'anticip.':>9s}  huella")
-    for carpeta in sorted(c for c in a.carpeta.iterdir() if (c / "metadata.json").is_file()):
-        try:
-            s = leer_snapshot(carpeta)
-        except (ValueError, FileNotFoundError) as exc:
-            print(f"{carpeta.name:32s} INVÁLIDO: {exc}")
+    for f in resumen_snapshots(a.carpeta, a.inicio, total_h * 3600.0):
+        if "error" in f:
+            print(f"{f['carpeta']:32s} INVÁLIDO: {f['error']}")
             continue
-        m = s.metadata
-        descargado = datetime.fromisoformat(m["retrieved_at"])
-        anticipacion = (a.inicio - descargado.replace(tzinfo=None)).total_seconds() / 86400.0
-        h = cobertura(s.tiempos, a.inicio, fin)
         extra = ""
-        desfase = a.inicio.year - s.tiempos[0].year
-        if h == 0.0 and desfase > 0:  # otro año: sirve como análogo de las mismas fechas
-            try:
-                h_analogo = cobertura([t.replace(year=t.year + desfase) for t in s.tiempos], a.inicio, fin)
-                extra = f"  (análogo con desplazar_anios: {desfase} -> {h_analogo:.0f} h)"
-            except ValueError:
-                pass
-        print(f"{carpeta.name:32s} {m['kind']:26s} {descargado:%Y-%m-%d %H:%M} "
-              f"{s.tiempos[0]:%Y-%m-%d %H:%M}..{s.tiempos[-1]:%m-%d %H:%M} "
-              f"{h:4.0f}/{total_h:.0f} h {anticipacion:7.1f} d  {s.huella}{extra}")
+        if f["desplazar_anios_analogo"]:
+            extra = f"  (análogo con desplazar_anios: {f['desplazar_anios_analogo']} -> {f['cubre_analogo_h']:.0f} h)"
+        print(f"{f['carpeta']:32s} {f['kind']:26s} {f['descargado'].replace('T', ' '):17s} "
+              f"{f['desde'].replace('T', ' ')}..{f['hasta'][5:].replace('T', ' ')} "
+              f"{f['cubre_h']:4.0f}/{total_h:.0f} h {f['anticipacion_d']:7.1f} d  {f['huella']}{extra}")
     print("\nUn pronóstico cubre la ventana recién cuando se descarga a menos de ~16 días de la obra.\n"
           "La cola que falte se completa con 'clima.completar: respaldo' (p. ej. reanálisis de las\n"
           "mismas fechas) y la salida del pipeline declara cuántas horas vienen de cada fuente.")

@@ -121,6 +121,7 @@ solver 1D legado. Los bordes del caso real están en `thermal/bordes.py`.
 | Orquestación config → IFC → grilla → simulación | `caso/pipeline.py` | `MAPA:pipeline` |
 | Cómo `--set` / `--variante` cambian el YAML | `caso/config.py` | `MAPA:sobrescrituras` |
 | Visor E08 → mismo YAML y motor que la CLI | `pipeline.py` | `MAPA:visor-adaptador` |
+| Visor: moldaje, desmolde, aislación y snapshot de clima | `pipeline.py` | `MAPA:visor-proteccion-clima` |
 
 Las rutas son relativas a `proyecto/src/mcplan/`.
 

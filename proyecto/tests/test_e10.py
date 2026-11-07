@@ -209,6 +209,48 @@ def test_caso_base_declara_fuentes_del_clima():
         assert leer_snapshot(RAIZ / "data" / "weather" / carpeta).huella in c.nota_clima
 
 
+# --- visor: controles de moldaje, aislación y clima ---------------------------------------------
+
+def test_visor_expone_y_aplica_moldaje_aislacion_y_clima():
+    import copy
+    from mcplan.pipeline import cargar_plan, configurar_caso
+    p = cargar_plan(RAIZ / "configs" / "e08_demo.yaml")
+    assert p["proteccion"]["moldaje"] == "madera_18mm" and p["proteccion"]["retiro_moldaje_h"] == 72.0
+    assert set(p["opciones"]["protecciones"]) >= {"madera_18mm", "manta_50mm"}
+    nombres = {s["carpeta"] for s in p["opciones"]["snapshots"]}
+    assert {"2026-11-07T2001_pronostico", "2026-10-31T1807_historico"} <= nombres
+    q = copy.deepcopy(p)
+    q["proteccion"].update(moldaje=None, retiro_moldaje_h=48, aislacion="manta_50mm",
+                           aislacion_caras=["superior", "lateral"], aislacion_desde="desmolde")
+    q["clima_snapshot"] = "2026-10-31T1807_historico"
+    c = configurar_caso(q)
+    d = c.datos["vertidas"]["defecto"]
+    assert d["R_lateral_m2K_W"] == 0.0 and "moldaje" not in d and d["retiro_moldaje_h"] == 48
+    assert d["aislacion"] == "manta_50mm" and d["aislacion_desde_h"] == "desmolde"
+    assert c.datos["clima"]["desplazar_anios"] == 1 and "ANÁLOGO" in c.nota_clima  # reanálisis como análogo
+    planes = resolver_plan(c, [(v, f"V{v}", {"Inicio_h": 0.0, "TemperaturaColocacion_C": 18.0, "TipoHormigon": "M1"})
+                               for v in range(1, 6)])
+    assert planes[0].resistencia(50 * HORA, "lateral") == pytest.approx(1.25)  # desmoldado a 48 h + manta
+
+
+@pytest.mark.parametrize("cambio, mensaje", [
+    ({"clima_snapshot": "../../secreto"}, "no disponible"),
+    ({"proteccion": {"aislacion": "acero"}}, "catálogo"),
+    ({"proteccion": {"aislacion": "manta_50mm", "aislacion_caras": []}}, "al menos una cara"),
+])
+def test_visor_rechaza_controles_invalidos(cambio, mensaje):
+    import copy
+    from mcplan.pipeline import cargar_plan, configurar_caso
+    q = copy.deepcopy(cargar_plan(RAIZ / "configs" / "e08_demo.yaml"))
+    for clave, valor in cambio.items():
+        if isinstance(valor, dict):
+            q[clave].update(valor)
+        else:
+            q[clave] = valor
+    with pytest.raises(ValueError, match=mensaje):
+        configurar_caso(q)
+
+
 def test_cli_listar_clima():
     r = subprocess.run([sys.executable, str(RAIZ / "scripts" / "listar_clima.py")],
                        capture_output=True, text=True, encoding="utf-8")

@@ -98,6 +98,8 @@ def crear_servidor(plan, puerto, salida):
                 # la interfaz modifica parámetros, no las rutas del proceso.
                 entrada['plan']['ifc'] = plan['ifc']
                 entrada['plan']['material'] = plan['material']
+                if 'opciones' in plan:  # catálogos y carpeta de snapshots: los fija el servidor
+                    entrada['plan']['opciones'] = plan['opciones']
                 with candado:
                     if estado['estado'] == 'running':
                         self.responder({'error': 'Ya hay una simulación en ejecución'}, 409)

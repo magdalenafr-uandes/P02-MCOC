@@ -145,14 +145,90 @@ def cargar_plan(ruta):
                 paso_m=config.malla.paso_m, paso_z_m=config.malla.pasos[2],
                 pasos_convergencia_m=pasos_conv, final_h=config.tiempo.duracion_s/3600,
                 dt_s=min(config.tiempo.dt_max_s, 1800.), guardar_cada_h=config.tiempo.guardar_cada_s/3600,
-                ambiente_C=config.ambiente.T_C, h_W_m2_K=config.ambiente.h_conveccion(0),
+                ambiente_C=round(config.ambiente.T_C, 1), h_W_m2_K=round(config.ambiente.h_conveccion(0), 2),
                 usar_clima=bool(datos.get('clima')),
-                vertidas=[dict(id=p.vertida_id,inicio_h=p.inicio_s/3600,temperatura_C=p.T_colocacion_C) for p in planes])
+                vertidas=[dict(id=p.vertida_id,inicio_h=p.inicio_s/3600,temperatura_C=p.T_colocacion_C) for p in planes],
+                **_controles_e10(datos, config, planes))
+
+
+def _controles_e10(datos, config, planes):
+    """Valores actuales de moldaje, aislación y clima del YAML, y las opciones para la página."""
+    from .caso.clima import resumen_snapshots
+    defecto = (datos.get('vertidas') or {}).get('defecto') or {}
+    p0 = planes[0]
+    retiro = None if math.isinf(p0.retiro_moldaje_s) else p0.retiro_moldaje_s/3600
+    if defecto.get('moldaje'):
+        moldaje = defecto['moldaje']
+    else:
+        moldaje = 'yaml' if p0.R_lateral > 0 else None  # R numérico del YAML, sin nombre de catálogo
+    proteccion = dict(moldaje=moldaje, R_moldaje_yaml=p0.R_lateral, retiro_moldaje_h=retiro,
+                      aislacion=defecto.get('aislacion'), aislacion_caras=defecto.get('aislacion_caras', ['superior']),
+                      aislacion_desde=defecto.get('aislacion_desde_h', 0), aislacion_hasta_h=defecto.get('aislacion_hasta_h'))
+    protecciones = {}
+    for nombre, d in (datos.get('protecciones') or {}).items():
+        protecciones[nombre] = dict(espesor_m=d['espesor_m'], k_W_mK=d['k_W_mK'], R=d['espesor_m']/d['k_W_mK'])
+    snapshots, carpeta, actual = [], None, None
+    if datos.get('clima') and config.inicio is not None:
+        actual_ruta = Path(datos['clima']['snapshot'])
+        carpeta, actual = actual_ruta.parent, actual_ruta.name
+        snapshots = resumen_snapshots(carpeta, config.inicio, config.tiempo.duracion_s)
+    return dict(proteccion=proteccion, clima_snapshot=actual,
+                opciones=dict(protecciones=protecciones, snapshots=snapshots,
+                              carpeta_snapshots=None if carpeta is None else str(carpeta),
+                              inicio=None if config.inicio is None else config.inicio.isoformat(timespec='minutes')))
+
+
+# [MAPA:visor-proteccion-clima] controles E10 del visor -> moldaje, aislación y snapshot en el YAML
+def _aplicar_controles_e10(datos, plan):
+    """Escribe en 'vertidas.defecto' y 'clima' lo elegido en la página (mismas claves que --set)."""
+    prot = plan.get('proteccion')
+    if prot is not None:
+        d = datos.setdefault('vertidas', {}).setdefault('defecto', {})
+        catalogo = plan['opciones']['protecciones']
+        if prot['moldaje'] != 'yaml':
+            d.pop('moldaje', None)
+            d.pop('R_lateral_m2K_W', None)
+            if prot['moldaje']:
+                if prot['moldaje'] not in catalogo:
+                    raise ValueError(f"Moldaje {prot['moldaje']!r} no está en el catálogo.")
+                d['moldaje'] = prot['moldaje']
+            else:
+                d['R_lateral_m2K_W'] = 0.0
+        if prot['retiro_moldaje_h'] is not None:
+            d['retiro_moldaje_h'] = _numero(prot['retiro_moldaje_h'], 'retiro_moldaje_h', positivo=True)
+        for clave in ('aislacion', 'aislacion_caras', 'aislacion_desde_h', 'aislacion_hasta_h'):
+            d.pop(clave, None)
+        if prot['aislacion']:
+            if prot['aislacion'] not in catalogo:
+                raise ValueError(f"Aislación {prot['aislacion']!r} no está en el catálogo.")
+            caras = prot['aislacion_caras']
+            if not isinstance(caras, list) or not caras or not set(caras) <= {'superior', 'lateral', 'inferior'}:
+                raise ValueError('Aislación: elegir al menos una cara (superior, lateral).')
+            d.update(aislacion=prot['aislacion'], aislacion_caras=list(caras))
+            desde = prot['aislacion_desde']
+            d['aislacion_desde_h'] = 'desmolde' if desde == 'desmolde' else _numero(desde, 'aislacion_desde', minimo=0)
+            if prot['aislacion_hasta_h'] is not None:
+                d['aislacion_hasta_h'] = _numero(prot['aislacion_hasta_h'], 'aislacion_hasta_h', positivo=True)
+    nombre = plan.get('clima_snapshot')
+    if plan.get('usar_clima') and nombre and datos.get('clima'):
+        opciones = {s['carpeta']: s for s in plan['opciones']['snapshots'] if 'error' not in s}
+        if nombre not in opciones:
+            raise ValueError(f'Snapshot de clima {nombre!r} no disponible.')
+        datos['clima']['snapshot'] = str(Path(plan['opciones']['carpeta_snapshots'])/nombre)
+        # Un snapshot de otro año (reanálisis) entra como análogo de las mismas fechas.
+        datos['clima']['desplazar_anios'] = opciones[nombre]['desplazar_anios_analogo']
 
 
 def validar_plan(plan, solidos):
-    extras = {'caso', 'paso_z_m', 'usar_clima'}
+    extras = {'caso', 'paso_z_m', 'usar_clima', 'proteccion', 'clima_snapshot', 'opciones'}
     _validar_basico({k:v for k,v in plan.items() if k not in extras}, solidos)
+    if 'proteccion' in plan:
+        esperadas = {'moldaje', 'R_moldaje_yaml', 'retiro_moldaje_h', 'aislacion', 'aislacion_caras',
+                     'aislacion_desde', 'aislacion_hasta_h'}
+        if not isinstance(plan['proteccion'], dict) or set(plan['proteccion']) != esperadas:
+            raise ValueError(f'proteccion: campos {sorted(esperadas)}.')
+        if 'opciones' not in plan:
+            raise ValueError('proteccion requiere las opciones del servidor.')
     if 'paso_z_m' in plan:
         _numero(plan['paso_z_m'], 'paso_z_m', positivo=True)
     if 'usar_clima' in plan and type(plan['usar_clima']) is not bool:
@@ -167,6 +243,7 @@ def configurar_caso(plan):
     if 'caso' in plan:
         datos = _normalizar_caso(plan['caso'])
         datos['malla'].update(paso_m=plan['paso_m'], paso_z_m=plan['paso_z_m'])
+        _aplicar_controles_e10(datos, plan)
         if not plan['usar_clima']:
             datos.pop('clima', None)
             datos['ambiente'] = dict(T_C=plan['ambiente_C'], h_W_m2K=plan['h_W_m2_K'])

@@ -24,7 +24,7 @@ import hashlib
 import json
 import math
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -113,6 +113,44 @@ def leer_snapshot(carpeta: str | Path) -> SnapshotClima:
         carpeta, meta, tiempos,
         serie(VAR_T, "°C"), serie(VAR_VIENTO, _A_M_S), serie(VAR_G, "W/m²"), huella,
     )
+
+
+def resumen_snapshots(carpeta: str | Path, inicio: datetime, duracion_s: float) -> list[dict[str, Any]]:
+    """Snapshots válidos de ``carpeta``: tipo, descarga, rango y horas que cubren de la obra.
+
+    Para un snapshot de otro año informa además cuánto cubriría como análogo
+    (``desplazar_anios``). Los inválidos se listan con su error.
+    """
+    fin = inicio + timedelta(seconds=duracion_s)
+    filas = []
+    for sub in sorted(c for c in Path(carpeta).iterdir() if (c / "metadata.json").is_file()):
+        try:
+            s = leer_snapshot(sub)
+        except (ValueError, FileNotFoundError) as exc:
+            filas.append({"carpeta": sub.name, "error": str(exc)})
+            continue
+        descargado = datetime.fromisoformat(s.metadata["retrieved_at"]).replace(tzinfo=None)
+        fila = {
+            "carpeta": sub.name, "kind": s.metadata["kind"], "model": s.metadata["model"],
+            "descargado": descargado.isoformat(timespec="minutes"),
+            "desde": s.tiempos[0].isoformat(timespec="minutes"), "hasta": s.tiempos[-1].isoformat(timespec="minutes"),
+            "cubre_h": _horas_dentro(s.tiempos, inicio, fin), "anticipacion_d": (inicio - descargado).total_seconds() / 86400.0,
+            "huella": s.huella, "desplazar_anios_analogo": 0, "cubre_analogo_h": 0.0,
+        }
+        desfase = inicio.year - s.tiempos[0].year
+        if fila["cubre_h"] == 0.0 and desfase > 0:
+            try:
+                fila["cubre_analogo_h"] = _horas_dentro([t.replace(year=t.year + desfase) for t in s.tiempos], inicio, fin)
+                fila["desplazar_anios_analogo"] = desfase
+            except ValueError:
+                pass
+        filas.append(fila)
+    return filas
+
+
+def _horas_dentro(tiempos, inicio: datetime, fin: datetime) -> float:
+    a, b = max(tiempos[0], inicio), min(tiempos[-1], fin)
+    return max(0.0, (b - a).total_seconds() / 3600.0)
 
 
 def _relativos(snapshot: SnapshotClima, inicio: datetime, desplazar_anios: int) -> tuple[np.ndarray, list[datetime]]:
