@@ -7,6 +7,7 @@ import base64
 from dataclasses import replace
 import hashlib
 import json
+from datetime import datetime, timedelta
 from pathlib import Path
 import subprocess
 import xml.etree.ElementTree as ET
@@ -146,7 +147,7 @@ def cargar_plan(ruta):
                 pasos_convergencia_m=pasos_conv, final_h=config.tiempo.duracion_s/3600,
                 dt_s=min(config.tiempo.dt_max_s, 1800.), guardar_cada_h=config.tiempo.guardar_cada_s/3600,
                 ambiente_C=round(config.ambiente.T_C, 1), h_W_m2_K=round(config.ambiente.h_conveccion(0), 2),
-                usar_clima=bool(datos.get('clima')),
+                usar_clima=bool(datos.get('clima') or datos['ambiente'].get('ciclo_diario')),
                 vertidas=[dict(id=p.vertida_id,inicio_h=p.inicio_s/3600,temperatura_C=p.T_colocacion_C) for p in planes],
                 **_controles_e10(datos, config, planes))
 
@@ -154,6 +155,7 @@ def cargar_plan(ruta):
 def _controles_e10(datos, config, planes):
     """Valores actuales de moldaje, aislación y clima del YAML, y las opciones para la página."""
     from .caso.clima import resumen_snapshots
+    from .caso.ciclo_diario import leer_promedios
     defecto = (datos.get('vertidas') or {}).get('defecto') or {}
     p0 = planes[0]
     retiro = None if math.isinf(p0.retiro_moldaje_s) else p0.retiro_moldaje_s/3600
@@ -172,10 +174,15 @@ def _controles_e10(datos, config, planes):
         actual_ruta = Path(datos['clima']['snapshot'])
         carpeta, actual = actual_ruta.parent, actual_ruta.name
         snapshots = resumen_snapshots(carpeta, config.inicio, config.tiempo.duracion_s)
-    return dict(proteccion=proteccion, clima_snapshot=actual,
+    inicio = None if config.inicio is None else config.inicio.isoformat(timespec='minutes')
+    ciclo = datos['ambiente'].get('ciclo_diario')
+    return dict(proteccion=proteccion, clima_snapshot=actual, inicio_simulacion=inicio,
+                modo_ambiente='ciclo_diario' if ciclo else 'snapshot' if datos.get('clima') else 'constante',
+                ciclo_diario=dict(hora_min=(ciclo or {}).get('hora_min', 6.0), hora_max=(ciclo or {}).get('hora_max', 15.0)),
                 opciones=dict(protecciones=protecciones, snapshots=snapshots,
+                              noviembre=leer_promedios(Path(__file__).resolve().parents[2]/'data/clima_noviembre'),
                               carpeta_snapshots=None if carpeta is None else str(carpeta),
-                              inicio=None if config.inicio is None else config.inicio.isoformat(timespec='minutes')))
+                              inicio=inicio))
 
 
 # [MAPA:visor-proteccion-clima] controles E10 del visor -> moldaje, aislación y snapshot en el YAML
@@ -220,7 +227,8 @@ def _aplicar_controles_e10(datos, plan):
 
 
 def validar_plan(plan, solidos):
-    extras = {'caso', 'paso_z_m', 'usar_clima', 'proteccion', 'clima_snapshot', 'opciones'}
+    extras = {'caso', 'paso_z_m', 'usar_clima', 'proteccion', 'clima_snapshot', 'opciones',
+              'inicio_simulacion', 'modo_ambiente', 'ciclo_diario'}
     _validar_basico({k:v for k,v in plan.items() if k not in extras}, solidos)
     if 'proteccion' in plan:
         esperadas = {'moldaje', 'R_moldaje_yaml', 'retiro_moldaje_h', 'aislacion', 'aislacion_caras',
@@ -243,8 +251,32 @@ def configurar_caso(plan):
     if 'caso' in plan:
         datos = _normalizar_caso(plan['caso'])
         datos['malla'].update(paso_m=plan['paso_m'], paso_z_m=plan['paso_z_m'])
+        if plan.get('inicio_simulacion'):
+            try:
+                inicio = datetime.fromisoformat(plan['inicio_simulacion'])
+            except (TypeError, ValueError) as exc:
+                raise ValueError('Inicio de obra: fecha y hora inválidas.') from exc
+            if inicio.tzinfo is not None:
+                raise ValueError('Inicio de obra: usar hora local sin offset.')
+            datos['simulacion']['inicio'] = inicio.isoformat(timespec='seconds')
         _aplicar_controles_e10(datos, plan)
-        if not plan['usar_clima']:
+        modo = plan.get('modo_ambiente', 'snapshot') if plan['usar_clima'] else 'constante'
+        if modo not in ('snapshot', 'constante', 'ciclo_diario'):
+            raise ValueError('Modo de ambiente desconocido.')
+        if modo == 'ciclo_diario':
+            inicio = datetime.fromisoformat(datos['simulacion']['inicio'])
+            tabla = plan['opciones']['noviembre']
+            valores = tabla['valores'].get(str(inicio.year))
+            if valores is None:
+                raise ValueError(f'No hay promedios de noviembre para {inicio.year}.')
+            c = plan.get('ciclo_diario', {})
+            if not isinstance(c, dict) or set(c) != {'hora_min', 'hora_max'}:
+                raise ValueError('ciclo_diario: definir hora_min y hora_max.')
+            fuente = f"{tabla['fuente']}; año {inicio.year}; SHA-256 {tabla['huellas']}"
+            datos.pop('clima', None)
+            datos['ambiente'] = dict(h_W_m2K=plan['h_W_m2_K'],
+                ciclo_diario=dict(**valores, **c, fuente=fuente))
+        elif modo == 'constante':
             datos.pop('clima', None)
             datos['ambiente'] = dict(T_C=plan['ambiente_C'], h_W_m2K=plan['h_W_m2_K'])
     else:
@@ -338,6 +370,8 @@ class Pipeline:
             temperaturas=np.where(activos,T,np.nan)
             valores=temperaturas[activos]
             fotogramas.append(dict(tiempo_h=t/3600,T_f32=codificar_f32(temperaturas[mascara]),
+                                   fecha_hora=None if config.inicio is None else (config.inicio+timedelta(seconds=t)).isoformat(timespec='minutes'),
+                                   ambiente_C=config.ambiente.temperatura(t),
                                    Tmax_C=float(valores.max()) if valores.size else None,
                                    Tmin_C=float(valores.min()) if valores.size else None,
                                    volumen_activo_m3=float(activos.sum())*g.volumen_voxel))
@@ -364,11 +398,15 @@ class Pipeline:
         if 'caso' in plan:
             plan['caso']=config.datos
         material=dict(material=', '.join(config.hormigones),estado='parámetros docentes y supuestos; sin calibración experimental')
+        # [MAPA:visor-moldaje] horarios resueltos del moldaje para la reproducción 3D
         resultado=dict(plan=plan,caso_ejecutado=config.datos,ifc_sha256=sha_ifc,commit=git('rev-parse','HEAD'),
                         codigo_modificado=bool(git('status','--porcelain')),material=material,
                         origen_m=list(g.definicion.origen),forma=list(g.forma),paso_m=plan['paso_m'],pasos_m=list(g.paso),
                         indices=np.argwhere(mascara).tolist(),vertida_id=g.vertida_id[mascara].tolist(),
                         volumenes=volumenes,balances=balances,fotogramas=fotogramas,mallas=mallas,
+                        moldajes=[dict(vertida_id=p.vertida_id,inicio_h=p.inicio_s/3600,
+                            retiro_h=None if math.isinf(p.retiro_moldaje_s) else (p.inicio_s+p.retiro_moldaje_s)/3600,
+                            R=p.R_lateral) for p in planes if p.visible and p.R_lateral>0],
                         advertencias=simu.advertencias,nota_clima=config.nota_clima,
                         suelo_incluido=bool(g.es_suelo.any()),motor='SimuladorEtapas')
         (salida/'plan_ejecutado.json').write_text(json.dumps(plan,ensure_ascii=False,indent=2,allow_nan=False),encoding='utf-8')

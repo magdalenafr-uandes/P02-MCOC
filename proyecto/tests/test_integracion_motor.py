@@ -104,7 +104,7 @@ def test_geometria_del_renderer_anisotropica_y_filtros_sin_navegador(tmp_path):
 const controls={modo:'temperatura',corte:'10',tiempo:'0'};
 const c={facesCache:null,visibles:()=>new Set([1,2]),
  resultado:{paso_m:.5,pasos_m:[.5,.5,.05],origen_m:[0,0,0],forma:[2,1,1],indices:[[0,0,0],[1,0,0]],vertida_id:[1,2]},
- frames:[new Float32Array([20,25])],$:id=>({value:controls[id]}),
+ frames:[new Float32Array([20,25])],$:id=>({value:controls[id],getAttribute:()=> 'false'}),
  colorT:()=>[255,0,0],rgb:()=>[255,0,0],colores:['#ffffff'],base:{vertidas:[{id:1},{id:2}]}};
 '''+'const source='+json.dumps(fuente)+';\n'+'''
 function render(){c.facesCache=null;vm.runInNewContext(source+';globalThis.f=caras();',c);return c.f;}

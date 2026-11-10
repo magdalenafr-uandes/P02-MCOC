@@ -1,0 +1,2 @@
+# Conservar los bytes originales: metadata.json registra sus huellas SHA-256.
+*.csv -text

@@ -1,0 +1,34 @@
+{
+  "tipo": "promedios_mensuales_de_simulaciones_climaticas",
+  "mes": 11,
+  "latitud": -24.57,
+  "longitud": -69.58,
+  "procedencia": "Archivos aportados por el usuario; coordenadas y mes indicados en los gráficos",
+  "columna_usada": "Valor medio de las simulaciones",
+  "archivos": [
+    {
+      "archivo": "maximas.csv",
+      "nombre_original": "promedio-de-la-temperatuMax.csv",
+      "sha256": "c674f6eaf08884f9ae8164bdcb132394df9b0d3b2d000d936d315802e7d895e4",
+      "bytes": 11096
+    },
+    {
+      "archivo": "minimas.csv",
+      "nombre_original": "promedio-de-la-temperatu.csv",
+      "sha256": "c10099e607a45ce3eee96766d26f55d3ed4d017fd9f29b950468b81eac89ab36",
+      "bytes": 8995
+    },
+    {
+      "archivo": "maximas.png",
+      "nombre_original": "promedio-de-la-temperatuMax.png",
+      "sha256": "069bb330a84b4adf01d6bd71c48755a8fa83a863ef71c8f6ccf9628f0806184d",
+      "bytes": 324557
+    },
+    {
+      "archivo": "minimas.png",
+      "nombre_original": "promedio-de-la-temperatu.png",
+      "sha256": "2217b2f291475d640154c20cee2eeb604f5f09639725072c054e66766255b531",
+      "bytes": 295264
+    }
+  ]
+}

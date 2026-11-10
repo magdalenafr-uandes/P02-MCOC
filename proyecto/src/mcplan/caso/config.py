@@ -44,6 +44,7 @@ _ESQUEMA: dict[str, Any] = {
     "ambiente": {
         "T_C": float, "h_W_m2K": float, "serie": list, "conveccion_viento": dict,
         "absortividad_solar": float, "emisividad": float, "factor_solar_lateral": float,
+        "ciclo_diario": dict,
     },
     "clima": {"snapshot": str, "completar": str, "desplazar_anios": int, "respaldo": dict},
     "criterios": {"T_max_C": float, "delta_T_C": float, "profundidad_superficie_m": float},
@@ -296,6 +297,28 @@ def _fecha(valor: Any, donde: str) -> datetime:
 def _ambiente(a: Mapping[str, Any], clima: Any, inicio: datetime | None, duracion_s: float,
               carpeta: Path) -> tuple[Ambiente, str]:
     """Ambiente constante, con serie manual o con un snapshot de clima (G07)."""
+    if a.get("ciclo_diario") is not None:
+        from .ciclo_diario import serie_diaria
+        if inicio is None or clima is not None or any(k in a for k in ("T_C", "serie", "conveccion_viento")):
+            raise ErrorConfiguracion("ciclo_diario: requiere simulacion.inicio y no se mezcla con snapshot, T_C, serie o viento.")
+        if any(a.get(k, 0) != 0 for k in ("emisividad", "absortividad_solar")):
+            raise ErrorConfiguracion("ciclo_diario: estos CSV solo aportan temperatura; no radiación.")
+        c = _claves(a["ciclo_diario"], {"minima_C": float, "maxima_C": float,
+                    "hora_min": float, "hora_max": float, "fuente": str}, "ambiente.ciclo_diario")
+        try:
+            ts, temperaturas = serie_diaria(inicio, duracion_s,
+                _numero(_requerir(c, "minima_C", "ciclo_diario"), "minima_C"),
+                _numero(_requerir(c, "maxima_C", "ciclo_diario"), "maxima_C"),
+                c.get("hora_min", 6.0), c.get("hora_max", 15.0))
+            h = _numero(_requerir(a, "h_W_m2K", "ambiente"), "h_W_m2K", no_negativo=True)
+            nota = (f"ESCENARIO ESTIMADO: ciclo diario {c['minima_C']:g}–{c['maxima_C']:g} °C; "
+                    f"mínima a {c.get('hora_min', 6):g} h y máxima a {c.get('hora_max', 15):g} h "
+                    f"(horas supuestas, ajustables). {c.get('fuente', '')}. "
+                    "Mismo ciclo de noviembre repetido durante toda la simulación, incluso fuera de noviembre. "
+                    "Convección constante; sin viento variable ni radiación solar.")
+            return Ambiente(T_C=temperaturas[0], h=h, serie_t_s=ts, serie_T_C=temperaturas), nota
+        except ValueError as exc:
+            raise ErrorConfiguracion(f"ciclo_diario: {exc}") from exc
     viento = None
     factor_viento = 1.0
     radiacion = {

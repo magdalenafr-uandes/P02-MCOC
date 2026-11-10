@@ -11,6 +11,15 @@ Las etiquetas no se desordenan aunque el código cambie. El test
 
 ## 1. El caso base en 5 pasos (lo que corre de verdad)
 
+Ciclo diario estimado desde CSV y horas locales: `caso/ciclo_diario.py`,
+`MAPA:ciclo-diario`. Controles de inicio y fechas de vertida en el visor;
+traducción a `simulacion.inicio` e `inicio_h` en `pipeline.py`.
+Ver `docs/ciclo_diario.md` para la procedencia y las limitaciones del escenario.
+
+Moldaje visible en la reproducción 3D: `pipeline.py`, `MAPA:visor-moldaje`,
+exporta inicio, retiro absoluto y resistencia por vertida. El botón del visor
+colorea las caras laterales expuestas mientras ese moldaje está activo.
+
 ```text
 configs/e07_caso_base.yaml   todos los parámetros del caso (material, T, moldaje, malla, clima)
         │  caso/config.py         valida el YAML y lo combina con el IFC          [MAPA:prioridad-ifc-yaml]

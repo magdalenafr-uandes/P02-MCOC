@@ -1,5 +1,10 @@
 # P02-MCOC — Grupo 1 — Capstone de hormigón masivo
 
+El visor permite elegir fecha y hora de obra y de cada vertida y reproducir
+el ciclo día/noche estimado con los CSV de noviembre aportados por el usuario.
+Para 2026: 5,5–28,6 °C, con horas de extremos ajustables. Es un escenario
+climático representativo, no un pronóstico horario. Ver [uso y supuestos](docs/ciclo_diario.md).
+
 > **¿Dónde está X? ¿Cómo cambio Y?** Ver [`MAPA_DEL_CODIGO.md`](MAPA_DEL_CODIGO.md):
 > condiciones de borde, voxel, estabilidad, hidratación, BIM, y la tabla de
 > cambios en vivo (material, temperaturas, aislación, espesores).
