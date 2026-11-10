@@ -19,11 +19,16 @@ from mcplan.version_demo import version_visualizador
 RAIZ = Path(__file__).resolve().parents[1]
 
 
-def crear_servidor(plan, puerto, salida):
+def crear_servidor(plan, puerto, salida, resultado_inicial=None):
     pipeline = Pipeline()
     executor = ThreadPoolExecutor(max_workers=1)
     candado = threading.Lock()
-    estado = dict(estado='idle', mensaje='Listo para ejecutar', resultado=None, carpeta=None)
+    estado = dict(estado='idle', mensaje='Listo para ejecutar', resultado=None,
+                  carpeta=None, carpeta_resultado=None)
+    if resultado_inicial is not None:
+        estado.update(estado='done',mensaje='Resultado guardado recuperado; sin nueva simulación',
+                      resultado=resultado_inicial,carpeta=resultado_inicial.get('carpeta_origen'),
+                      carpeta_resultado=resultado_inicial.get('carpeta_origen'))
     salida = Path(salida).resolve()
     version = version_visualizador()
 
@@ -34,10 +39,11 @@ def crear_servidor(plan, puerto, salida):
         try:
             resultado = pipeline.ejecutar(entrada, destino, progreso, convergencia)
             with candado:
-                estado.update(estado='done', mensaje='Simulación completada', resultado=resultado)
+                estado.update(estado='done', mensaje='Simulación completada', resultado=resultado,
+                              carpeta_resultado=str(destino))
         except Exception as exc:
             with candado:
-                estado.update(estado='error', mensaje=f'{type(exc).__name__}: {exc}', resultado=None)
+                estado.update(estado='error', mensaje=f'{type(exc).__name__}: {exc}')
 
     class Handler(BaseHTTPRequestHandler):
         def responder(self, datos, codigo=200, tipo='application/json; charset=utf-8'):
@@ -54,6 +60,8 @@ def crear_servidor(plan, puerto, salida):
             ruta = urlparse(self.path).path
             if ruta in ('/', '/index.html'):
                 self.responder((RAIZ/'visor_e08/index.html').read_bytes(), tipo='text/html; charset=utf-8')
+            elif ruta == '/analisis.js':
+                self.responder((RAIZ/'visor_e08/analisis.js').read_bytes(), tipo='text/javascript; charset=utf-8')
             elif ruta == '/api/plan':
                 self.responder(plan)
             elif ruta == '/api/version':
@@ -105,7 +113,7 @@ def crear_servidor(plan, puerto, salida):
                         self.responder({'error': 'Ya hay una simulación en ejecución'}, 409)
                         return
                     destino = salida/uuid.uuid4().hex[:12]
-                    estado.update(estado='running', mensaje='Preparando pipeline', resultado=None, carpeta=str(destino))
+                    estado.update(estado='running', mensaje='Preparando pipeline', carpeta=str(destino))
                 executor.submit(ejecutar, entrada['plan'], entrada['convergencia'], destino)
                 self.responder({'estado': 'running'}, 202)
             except (ValueError, TypeError, KeyError) as exc:
@@ -118,6 +126,20 @@ def crear_servidor(plan, puerto, salida):
     return servidor, executor
 
 
+def recuperar_resultado(archivo, plan_base):
+    from mcplan.indicadores import reconstruir_indicadores
+
+    resultado = json.loads(archivo.read_text(encoding='utf-8-sig'))
+    if not resultado['fotogramas']:
+        raise ValueError('La corrida guardada no contiene fotogramas.')
+    if not resultado.get('indicadores'):
+        resultado['indicadores'] = reconstruir_indicadores(resultado)
+    resultado['carpeta_origen'] = str(archivo.resolve().parent)
+    plan = resultado['plan'].copy()
+    plan['opciones'] = dict(plan_base.get('opciones', {}), restaurado=True)
+    return plan, resultado
+
+
 def main():
     # La consola/redirect de Windows puede usar cp1252; el progreso incluye Δx.
     if hasattr(sys.stdout, 'reconfigure'):
@@ -127,8 +149,24 @@ def main():
     parser.add_argument('--puerto', type=int, default=8765)
     parser.add_argument('--salida', type=Path, default=RAIZ/'results/e08')
     parser.add_argument('--ejecutar', action='store_true', help='Ejecutar por lote sin servidor; incluye convergencia.')
+    parser.add_argument('--resultado',type=Path,help='Abrir una corrida guardada y reconstruir sus indicadores sin simular.')
+    parser.add_argument('--restaurar-ultimo', action='store_true', help='Recuperar la corrida completa más reciente.')
     args = parser.parse_args()
     plan = cargar_plan(args.plan)
+    resultado_inicial = None
+    if args.resultado:
+        if args.ejecutar:
+            parser.error('--resultado no se combina con --ejecutar.')
+        plan, resultado_inicial = recuperar_resultado(args.resultado, plan)
+    elif args.restaurar_ultimo and not args.ejecutar:
+        archivos = sorted(args.salida.glob('*/resultado.json'),
+                          key=lambda archivo: archivo.stat().st_mtime, reverse=True)
+        for archivo in archivos:
+            try:
+                plan, resultado_inicial = recuperar_resultado(archivo, plan)
+                break
+            except (OSError, ValueError, KeyError, TypeError) as exc:
+                print(f'No se pudo recuperar {archivo}: {exc}', file=sys.stderr)
     if args.ejecutar:
         destino = args.salida/'lote'
         resultado = Pipeline().ejecutar(plan, destino, print)
@@ -137,7 +175,7 @@ def main():
             if fila['vertida_id'] == 'total':
                 print(f'Δx={fila["paso_m"]:g} m: error total={fila["error_relativo"]:.3%}')
         return 0
-    servidor, executor = crear_servidor(plan, args.puerto, args.salida)
+    servidor, executor = crear_servidor(plan, args.puerto, args.salida,resultado_inicial)
     print(f'Demo E08: http://127.0.0.1:{servidor.server_port}', flush=True)
     print('Detener con Ctrl+C. Los cálculos se ejecutan en Python; el navegador muestra los resultados.', flush=True)
     try:

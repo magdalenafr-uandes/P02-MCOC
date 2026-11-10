@@ -48,7 +48,7 @@ def iniciar():
     registro = carpeta/'servidor.log'
     python = Path(sys.executable).with_name('python.exe')
     with registro.open('a', encoding='utf-8') as log:
-        proceso = subprocess.Popen([str(python), '-u', str(RAIZ/'scripts/demo_e08.py')],
+        proceso = subprocess.Popen([str(python), '-u', str(RAIZ/'scripts/demo_e08.py'), '--restaurar-ultimo'],
                                    cwd=RAIZ.parent, stdin=subprocess.DEVNULL,
                                    stdout=log, stderr=log,
                                    creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))

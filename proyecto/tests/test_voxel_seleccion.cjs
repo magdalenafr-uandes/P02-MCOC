@@ -12,7 +12,7 @@ const funciones=script.slice(script.indexOf('function puntoEnPoligono'),script.i
 function escenario(){
   const controles={tiempo:{value:'0'},corte:{value:'1'},limpiarvoxel:{},voxeltemperatura:{},voxeldetalle:{},voxelinstante:{}};
   const c={$:id=>controles[id],seleccionVoxel:0,frames:[[21],[22.5],[NaN]],poligonosPantalla:[],
-    visibles:()=>new Set([2]),dibujar:()=>{},resultado:{indices:[[1,2,3]],vertida_id:[2],
+    visibles:()=>new Set([2]),dibujar:()=>{},actualizarAnalisis:()=>{},resultado:{indices:[[1,2,3]],vertida_id:[2],
       origen_m:[-1,-2,0],pasos_m:[.5,.5,.05],fotogramas:[
         {tiempo_h:6,fecha_hora:'2026-11-27T10:00'},
         {tiempo_h:8,fecha_hora:'2026-11-27T12:00'},

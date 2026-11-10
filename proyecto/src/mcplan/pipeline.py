@@ -24,6 +24,7 @@ from .thermal.vertidas import SimuladorVertidas
 
 MAX_CELDAS = 2_000_000
 MAX_FOTOGRAMAS = 512
+MAX_VALORES_CAMPOS = 40_000_000
 
 
 def cargar_plan(ruta):
@@ -180,6 +181,8 @@ def _controles_e10(datos, config, planes):
                 modo_ambiente='ciclo_diario' if ciclo else 'snapshot' if datos.get('clima') else 'constante',
                 ciclo_diario=dict(hora_min=(ciclo or {}).get('hora_min', 6.0), hora_max=(ciclo or {}).get('hora_max', 15.0)),
                 opciones=dict(protecciones=protecciones, snapshots=snapshots,
+                              clima_base=copy.deepcopy(datos.get('clima')),
+                              ambiente_snapshot=copy.deepcopy(datos['ambiente']) if datos.get('clima') else None,
                               noviembre=leer_promedios(Path(__file__).resolve().parents[2]/'data/clima_noviembre'),
                               carpeta_snapshots=None if carpeta is None else str(carpeta),
                               inicio=inicio))
@@ -259,8 +262,11 @@ def configurar_caso(plan):
             if inicio.tzinfo is not None:
                 raise ValueError('Inicio de obra: usar hora local sin offset.')
             datos['simulacion']['inicio'] = inicio.isoformat(timespec='seconds')
-        _aplicar_controles_e10(datos, plan)
         modo = plan.get('modo_ambiente', 'snapshot') if plan['usar_clima'] else 'constante'
+        if modo=='snapshot' and not datos.get('clima') and plan.get('opciones',{}).get('clima_base'):
+            datos['clima']=copy.deepcopy(plan['opciones']['clima_base'])
+            datos['ambiente']=copy.deepcopy(plan['opciones']['ambiente_snapshot'])
+        _aplicar_controles_e10(datos, plan)
         if modo not in ('snapshot', 'constante', 'ciclo_diario'):
             raise ValueError('Modo de ambiente desconocido.')
         if modo == 'ciclo_diario':
@@ -350,15 +356,24 @@ class Pipeline:
             for vid,vref,vh in filas:
                 volumenes.append(dict(paso_m=dx,paso_z_m=g.paso[2],vertida_id=vid,ifc_m3=vref,voxel_m3=vh,error_relativo=abs(vh-vref)/vref))
         g,clave = grilla(plan['paso_m'])
-        if np.prod(g.forma)*(plan['final_h']/plan['guardar_cada_h']+len(planes)+2)>40_000_000:
-            raise ValueError('Demasiados campos 3D en memoria; aumentar guardar_cada_h o el paso de malla.')
         if m.corregir_area and clave not in self._pesos:
             progreso('Corrigiendo el área exterior desde las normales IFC')
             self._pesos[clave] = pesos_area(solidos,g)
-        simu = SimuladorEtapas(DominioVoxel(g.vertida_id,g.es_suelo,g.paso,self._pesos.get(clave) if m.corregir_area else None),
+        simulador = SimuladorEtapas(DominioVoxel(g.vertida_id,g.es_suelo,g.paso,self._pesos.get(clave) if m.corregir_area else None),
                     planes,config.hormigones,config.ambiente,config.base,config.tiempo,config.suelo,
                     config.T_suelo_inicial_C,True,config.criterios.profundidad_superficie_m,config.campos_cada_s,
-                    progreso=lambda t,fin: progreso(f'Simulando {t/3600:g} / {fin/3600:g} h')).ejecutar()
+                    progreso=lambda t,fin: progreso(f'Simulando {t/3600:g} / {fin/3600:g} h'))
+        cupo_campos = min(MAX_FOTOGRAMAS, MAX_VALORES_CAMPOS // math.prod(g.forma))
+        cupo_periodicos = cupo_campos - len(simulador.eventos())
+        if cupo_periodicos < 0:
+            raise ValueError('La malla no permite guardar todos los eventos de la obra. Aumenta Δx o Δz.')
+        intervalo_3d_s = max(config.campos_cada_s, config.tiempo.duracion_s / (cupo_periodicos + 1) + 1e-6)
+        if intervalo_3d_s > config.campos_cada_s:
+            datos = dict(config.datos)
+            datos['simulacion'] = dict(datos['simulacion'], guardar_campos_cada_h=intervalo_3d_s / 3600)
+            config = replace(config, datos=datos, campos_cada_s=intervalo_3d_s)
+            simulador.campos_cada_s = intervalo_3d_s
+        simu = simulador.ejecutar()
         salida.mkdir(parents=True,exist_ok=True)
         mascara = g.vertida_id>0
         fotogramas=[]
@@ -399,7 +414,10 @@ class Pipeline:
             plan['caso']=config.datos
         material=dict(material=', '.join(config.hormigones),estado='parámetros docentes y supuestos; sin calibración experimental')
         # [MAPA:visor-moldaje] horarios resueltos del moldaje para la reproducción 3D
+        from .indicadores import crear_indicadores
         resultado=dict(plan=plan,caso_ejecutado=config.datos,ifc_sha256=sha_ifc,commit=git('rev-parse','HEAD'),
+                        indicadores=crear_indicadores(simu,g,planes,config),
+                        guardar_campos_cada_h=intervalo_3d_s / 3600,
                         codigo_modificado=bool(git('status','--porcelain')),material=material,
                         origen_m=list(g.definicion.origen),forma=list(g.forma),paso_m=plan['paso_m'],pasos_m=list(g.paso),
                         indices=np.argwhere(mascara).tolist(),vertida_id=g.vertida_id[mascara].tolist(),

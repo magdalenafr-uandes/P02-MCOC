@@ -93,6 +93,26 @@ def test_visible_de_config_no_acepta_texto_false_como_booleano():
         resolver_plan(c,[(vid,f'V{vid}',dict(Inicio_h=0,TemperaturaColocacion_C=18,TipoHormigon='M1')) for vid in range(1,6)])
 
 
+def test_limite_de_campos_ajusta_el_visor_sin_perder_registros_ni_eventos(tmp_path, monkeypatch):
+    import mcplan.pipeline as modulo_pipeline
+
+    plan = perfil_corto()
+    plan['guardar_cada_h'] = .0005
+    presupuesto = 1_000_000
+    monkeypatch.setattr(modulo_pipeline, 'MAX_VALORES_CAMPOS', presupuesto)
+    resultado = Pipeline().ejecutar(plan, tmp_path, convergencia=False)
+    tiempos = [campo['tiempo_h'] for campo in resultado['fotogramas']]
+
+    assert resultado['guardar_campos_cada_h'] > plan['guardar_cada_h']
+    assert len(tiempos) * np.prod(resultado['forma']) <= presupuesto
+    assert tiempos[0] == 0
+    assert tiempos[-1] == pytest.approx(plan['final_h'])
+    assert .005 in tiempos
+    registros = resultado['indicadores']['series']['tiempos_h']
+    assert all(any(abs(t - registro) < 1e-10 for registro in registros)
+               for t in np.arange(0, .02, .0005))
+
+
 def test_geometria_del_renderer_anisotropica_y_filtros_sin_navegador(tmp_path):
     node=shutil.which('node')
     if not node:

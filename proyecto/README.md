@@ -5,6 +5,11 @@ el ciclo día/noche estimado con los CSV de noviembre aportados por el usuario.
 Para 2026: 5,5–28,6 °C, con horas de extremos ajustables. Es un escenario
 climático representativo, no un pronóstico horario. Ver [uso y supuestos](docs/ciclo_diario.md).
 
+El [panel de evaluación de escenarios](docs/indicadores_visor.md) muestra
+máximas y diferenciales por vertida, sondas fijas, temperaturas antes de cada
+colocación y comparación con una referencia. El diseño aprovecha el ancho
+de pantalla y encuadra la vista 3D sobre el hormigón.
+
 > **¿Dónde está X? ¿Cómo cambio Y?** Ver [`MAPA_DEL_CODIGO.md`](MAPA_DEL_CODIGO.md):
 > condiciones de borde, voxel, estabilidad, hidratación, BIM, y la tabla de
 > cambios en vivo (material, temperaturas, aislación, espesores).

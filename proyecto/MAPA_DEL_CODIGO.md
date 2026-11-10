@@ -20,6 +20,10 @@ Moldaje visible en la reproducción 3D: `pipeline.py`, `MAPA:visor-moldaje`,
 exporta inicio, retiro absoluto y resistencia por vertida. El botón del visor
 colorea las caras laterales expuestas mientras ese moldaje está activo.
 
+Indicadores de comparación y sondas fijas: `indicadores.py`, `MAPA:indicadores-visor`.
+Se exportan en `resultado.json`: picos, diferencial por vertida a la profundidad
+del criterio, sondas del núcleo/borde y temperaturas de piezas previas en cada colocación.
+
 ```text
 configs/e07_caso_base.yaml   todos los parámetros del caso (material, T, moldaje, malla, clima)
         │  caso/config.py         valida el YAML y lo combina con el IFC          [MAPA:prioridad-ifc-yaml]
