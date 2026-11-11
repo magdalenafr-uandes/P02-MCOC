@@ -17,6 +17,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+visualizacion = ["pyvista>=0.44,<0.47"]
 dev = [
     "pytest>=7.4,<9",
 ]

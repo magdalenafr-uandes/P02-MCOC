@@ -1,0 +1,49 @@
+{
+  "inicio": "2026-11-12T04:00:00",
+  "duracion_h": 48,
+  "fuente": {
+    "source": "Open-Meteo pronostico",
+    "kind": "forecast determinista",
+    "model": "best_match",
+    "retrieved_at": "2026-11-07T20:01:53+00:00",
+    "latitude": -24.95283,
+    "longitude": -70.004838,
+    "latitude_grid": -24.920914,
+    "longitude_grid": -69.96774,
+    "timezone": "America/Santiago",
+    "variables": [
+      "temperature_2m",
+      "wind_speed_10m",
+      "shortwave_radiation"
+    ],
+    "units": {
+      "temperature_2m": "°C",
+      "wind_speed_10m": "m/s",
+      "shortwave_radiation": "W/m²"
+    },
+    "url": "https://api.open-meteo.com/v1/forecast?latitude=-24.95283&longitude=-70.00484&hourly=temperature_2m%2Cwind_speed_10m%2Cshortwave_radiation&wind_speed_unit=ms&timezone=auto&start_date=2026-11-07&end_date=2026-11-22"
+  },
+  "nota_clima": "Open-Meteo pronostico / best_match (forecast determinista), descargado 2026-11-07T20:01:53+00:00, 2026-11-07T2001_pronostico, huella 66c009db8365",
+  "sha256_snapshot": "66c009db83652d32c87dc612fd4a70138f16a550595307bcd1f4ef9e4f4dda5e",
+  "T_max_C": 66.14533163509324,
+  "balance": {
+    "E_inicial_J": 57769058250.00001,
+    "E_final_J": 150154803447.35376,
+    "colocacion_J": 26970462000.0,
+    "hidratacion_J": 67736406246.11589,
+    "ambiente_J": -2321122990.000515,
+    "base_J": 0.0008806285675040465,
+    "fuga_vacio_J": 58.76249234929745,
+    "residuo_J": 0.0
+  },
+  "vista": {
+    "nucleo_xyz_m": [
+      -1.0,
+      -2.0,
+      1.425000011920929
+    ],
+    "celdas_hormigon": 51490,
+    "celdas_corte": 35476
+  },
+  "serie_vtk": "vtk/temperatura.pvd"
+}

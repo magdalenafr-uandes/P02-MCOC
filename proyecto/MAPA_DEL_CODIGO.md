@@ -216,6 +216,9 @@ caso base y el visor E08 no pasan por ellos**:
 
 ## 5. Documentación por entrega
 
+E11: `docs/e11.md` y `scripts/demo_e11.py`: snapshot real, serie de borde,
+simulación de 48 h, exportación VTK y clipping PyVista con núcleo térmico.
+
 `docs/guia_estudio.md` (E01–E02), `docs/guia_e04.md` y `docs/e04_e05.md`
 (solver y bordes), `docs/e06.md`, `docs/e07_e08.md` (pipeline, hidratación,
 clima, preguntas E07), `docs/e08.md` (comandos de la demo).

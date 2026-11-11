@@ -1,5 +1,8 @@
 # P02-MCOC — Grupo 1 — Capstone de hormigón masivo
 
+**E11:** [demo de clima real, BC y clipping PyVista](docs/e11.md).
+Ejecutar desde `proyecto/`: `.venv\Scripts\python.exe scripts\demo_e11.py --abrir`.
+
 El visor permite elegir fecha y hora de obra y de cada vertida y reproducir
 el ciclo día/noche estimado con los CSV de noviembre aportados por el usuario.
 Para 2026: 5,5–28,6 °C, con horas de extremos ajustables. Es un escenario
