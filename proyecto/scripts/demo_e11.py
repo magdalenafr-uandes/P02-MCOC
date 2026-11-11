@@ -67,10 +67,23 @@ def visualizar(vti: Path, destino: Path, abrir: bool = False):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--abrir", action="store_true", help="Abrir ventana 3D interactiva")
+    parser.add_argument("--guardado", action="store_true", help="Abrir VTK existente sin recalcular")
     args = parser.parse_args()
-    c = configurar()
     salida = RAIZ / "results/e11"
     salida.mkdir(parents=True, exist_ok=True)
+    if args.guardado:
+        import xml.etree.ElementTree as ET
+        pvd = salida / "vtk/temperatura.pvd"
+        if pvd.is_file():
+            entradas = ET.parse(pvd).findall(".//DataSet")
+            ultima = max(entradas, key=lambda e: float(e.attrib["timestep"]))
+            ultimo = pvd.parent / ultima.attrib["file"]
+            if ultimo.is_file():
+                print(f"Abriendo resultado guardado: {ultimo}")
+                visualizar(ultimo, salida / "corte_3d.png", args.abrir)
+                return
+        print("No hay resultado guardado: se generara una vez.")
+    c = configurar()
     snapshot = leer_snapshot(RAIZ / "data/weather/2026-11-07T2001_pronostico")
     print(snapshot.descripcion())
     print(json.dumps(snapshot.metadata, ensure_ascii=False, indent=2))
