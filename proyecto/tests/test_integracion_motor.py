@@ -57,7 +57,8 @@ def test_perfil_usa_fuente_compartida_clima_suelo_y_malla_anisotropica():
     assert c.malla.pasos==(.5,.5,.275)
     assert c.suelo is not None
     assert c.ambiente.h_viento is not None
-    assert 'ANÁLOGO' in c.nota_clima
+    # 0,02 h desde el 27-nov 04:00: dentro de las 19 h que cubre el pronóstico del 12-nov (sin análogo)
+    assert '2026-11-12T2259_pronostico' in c.nota_clima and 'ANÁLOGO' not in c.nota_clima
     assert c.hormigones['M1'].hidratacion.Ea_J_mol==40000
     p['usar_clima']=False
     c=configurar_caso(p)

@@ -117,6 +117,8 @@ class ParametrosTiempo:
     fraccion_dt: float = 0.8  # dt = fraccion · límite monótono
     dt_max_s: float = math.inf  # tope por precisión (cinética de hidratación)
     guardar_cada_s: float = 3600.0
+    # tope de elevación adiabática liberada por paso [K]: resuelve la cinética cuando Arrhenius la acelera
+    dtheta_max_K: float = math.inf
 
     def __post_init__(self) -> None:
         if not math.isfinite(self.duracion_s) or self.duracion_s <= 0.0:
@@ -125,6 +127,8 @@ class ParametrosTiempo:
             raise ValueError("fraccion_dt en (0, 1].")
         if not self.dt_max_s > 0.0 or not self.guardar_cada_s > 0.0:
             raise ValueError("dt_max y guardar_cada positivos.")
+        if not self.dtheta_max_K > 0.0:
+            raise ValueError("dtheta_max_K positivo.")
 
 
 @dataclass(frozen=True)
@@ -152,6 +156,10 @@ class ResultadoEtapas:
     potencia_tuberias_W: list[float] = field(default_factory=list)  # extraída por el agua en cada registro
     energia_por_tuberia_J: dict[str, float] = field(default_factory=dict)
     T_sup_min_vertida_C: dict[int, list[float]] = field(default_factory=dict)  # nan sin cara expuesta
+    # [MAPA:ubicacion-maximos] dónde ocurre cada máximo: índice plano de la celda (-1 = no hay) y cara
+    idx_max_vertida: dict[int, list[int]] = field(default_factory=dict)  # celda más caliente de la vertida
+    idx_sup_vertida: dict[int, list[int]] = field(default_factory=dict)  # celda bajo la cara más fría
+    cara_sup_vertida: dict[int, list[str]] = field(default_factory=dict)  # 'x-' ... 'z+' de esa cara
     etapas: list[dict] = field(default_factory=list)
     balance: dict[str, float] = field(default_factory=dict)
     advertencias: list[str] = field(default_factory=list)
@@ -519,6 +527,13 @@ class SimuladorEtapas:
                 dt = min(dt_etapa, t1-t, proximo_guardado-t)
                 if self.guardar_campos and self.campos_cada_s is not None and self._proximo_campo > t+1e-9:
                     dt = min(dt, self._proximo_campo-t)
+                # [MAPA:paso-hidratacion] ningún voxel libera más de dtheta_max_K en un paso: con Arrhenius
+                # (hormigón fresco sobre una vertida caliente) la curva entera podría caber en un solo paso
+                if math.isfinite(self.tiempo.dtheta_max_K) and grupos:
+                    tasa = max(float(np.max(modelo.tasa_elevacion(te[m]) * modelo.factor_arrhenius(T[m])))
+                               for m, modelo in grupos)
+                    if tasa > 0.0:
+                        dt = min(dt, self.tiempo.dtheta_max_K / tasa)
                 if dt <= 0 or t+dt <= t:
                     raise ValueError('Paso temporal demasiado pequeño para avanzar.')
                 q_h = np.zeros(forma)
@@ -611,6 +626,8 @@ class SimuladorEtapas:
             # (a Δ/2) es lineal: T(p) = Ts + (Ti - Ts)·min(p/(Δ/2), 1).
             h_tot, T_eq = self.ambiente.condiciones(t)
             sup_vertida = np.full(int(ids.max()) + 1, np.inf)
+            sup_idx = np.full(sup_vertida.shape, -1, dtype=np.int64)
+            sup_cara = [""] * len(sup_vertida)
             if h_tot > 0.0:
                 T_plano = T.ravel()
                 ids_plano = ids.ravel()
@@ -620,7 +637,13 @@ class SimuladorEtapas:
                         phi = c.r_media[c.hormigon] / (c.r_media[c.hormigon] + c.R[c.hormigon] + 1.0 / h_tot)
                         hacia_cara = 1.0 - min(self.profundidad_superficie_m / c.media_m, 1.0)
                         Ts = Ti + phi * hacia_cara * (T_eq[c.orientacion] - Ti)
-                        np.minimum.at(sup_vertida, ids_plano[c.idx][c.hormigon], Ts)
+                        celdas = c.idx[c.hormigon]
+                        vids = ids_plano[celdas]
+                        for vid in np.unique(vids):  # ubicación del mínimo de esta cara en cada vertida
+                            m = vids == vid
+                            j = int(np.argmin(Ts[m]))
+                            if Ts[m][j] < sup_vertida[vid]:
+                                sup_vertida[vid], sup_idx[vid], sup_cara[vid] = Ts[m][j], celdas[m][j], c.cara
             minimo = float(sup_vertida.min())
             res.T_sup_min_C.append(minimo if math.isfinite(minimo) else math.nan)
         else:
@@ -628,11 +651,23 @@ class SimuladorEtapas:
             res.T_min_C.append(math.nan)
             res.T_sup_min_C.append(math.nan)
             sup_vertida = np.full(int(ids.max()) + 1, np.inf)
+            sup_idx = np.full(sup_vertida.shape, -1, dtype=np.int64)
+            sup_cara = [""] * len(sup_vertida)
         for vid in res.T_max_vertida_C:
             m = activo & (ids == vid)
-            res.T_max_vertida_C[vid].append(float(T[m].max()) if m.any() else math.nan)
-            s = sup_vertida[vid] if vid < len(sup_vertida) else np.inf
+            if m.any():
+                celdas = np.flatnonzero(m)
+                j = int(np.argmax(T.ravel()[celdas]))
+                res.T_max_vertida_C[vid].append(float(T.ravel()[celdas[j]]))
+                res.idx_max_vertida.setdefault(vid, []).append(int(celdas[j]))
+            else:
+                res.T_max_vertida_C[vid].append(math.nan)
+                res.idx_max_vertida.setdefault(vid, []).append(-1)
+            dentro = vid < len(sup_vertida)
+            s = sup_vertida[vid] if dentro else np.inf
             res.T_sup_min_vertida_C.setdefault(vid, []).append(float(s) if math.isfinite(s) else math.nan)
+            res.idx_sup_vertida.setdefault(vid, []).append(int(sup_idx[vid]) if dentro and math.isfinite(s) else -1)
+            res.cara_sup_vertida.setdefault(vid, []).append(sup_cara[vid] if dentro and math.isfinite(s) else "")
         if self.guardar_campos:
             final = t >= self.tiempo.duracion_s - 1e-9
             if self.campos_cada_s is None or t >= self._proximo_campo - 1e-9 or final or forzar_campo:

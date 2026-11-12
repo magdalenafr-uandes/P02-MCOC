@@ -204,8 +204,10 @@ def test_pronostico_que_no_llega_a_la_fecha(tmp_path):
 
 def test_caso_base_declara_fuentes_del_clima():
     c = leer_config(base_yaml(), base_rutas=CONFIG.parent)
-    assert "pronostico" in c.nota_clima and "COLA de 336 h" in c.nota_clima and "ANÁLOGO" in c.nota_clima
-    for carpeta in ("2026-11-07T2001_pronostico", "2026-10-31T1807_historico"):
+    # pronóstico del 12-nov: cubre las primeras 19 h de la obra; el resto viene del reanálisis análogo
+    assert "pronostico" in c.nota_clima and "cubre 19 h de 336" in c.nota_clima
+    assert "COLA de 317 h" in c.nota_clima and "ANÁLOGO" in c.nota_clima
+    for carpeta in ("2026-11-12T2259_pronostico", "2026-10-31T1807_historico"):
         assert leer_snapshot(RAIZ / "data" / "weather" / carpeta).huella in c.nota_clima
 
 

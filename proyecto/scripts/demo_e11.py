@@ -32,6 +32,8 @@ def configurar():
         'simulacion.inicio="2026-11-12T04:00"',
         "simulacion.duracion_h=48", "malla.paso_m=0.5",
         "simulacion.guardar_campos_cada_h=6", "clima.completar=error",
+        # La evidencia E11 se generó con el pronóstico del 7-nov; el caso base ya usa uno más nuevo.
+        "clima.snapshot=../data/weather/2026-11-07T2001_pronostico",
     ])
     datos["clima"].pop("respaldo", None)
     return leer_config(datos, base_rutas=ruta.parent)

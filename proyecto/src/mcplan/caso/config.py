@@ -39,7 +39,7 @@ _ESQUEMA: dict[str, Any] = {
         "corregir_area": bool,
     },
     "simulacion": {
-        "duracion_h": float, "fraccion_dt": float, "dt_max_h": float,
+        "duracion_h": float, "fraccion_dt": float, "dt_max_h": float, "dtheta_max_paso_K": float,
         "guardar_cada_h": float, "guardar_campos": bool, "guardar_campos_cada_h": float, "inicio": str,
     },
     "ambiente": {
@@ -520,6 +520,8 @@ def validar_config(datos: Mapping[str, Any], carpeta: Path) -> ConfigCaso:
             duracion_s=_numero(_requerir(s, "duracion_h", "simulacion"), "simulacion.duracion_h", positivo=True) * HORA,
             fraccion_dt=_numero(s.get("fraccion_dt", 0.8), "simulacion.fraccion_dt", positivo=True),
             dt_max_s=dt_max_s,
+            dtheta_max_K=(_numero(s["dtheta_max_paso_K"], "simulacion.dtheta_max_paso_K", positivo=True)
+                          if s.get("dtheta_max_paso_K") is not None else math.inf),
             guardar_cada_s=_numero(s.get("guardar_cada_h", 1.0), "simulacion.guardar_cada_h", positivo=True) * HORA,
         )
         inicio = _fecha(s["inicio"], "simulacion.inicio") if "inicio" in s else None

@@ -54,6 +54,8 @@ simulacion:
   duracion_h: 336         # [repo] 14 días: los criterios se evalúan sobre los máximos de 14 días
   fraccion_dt: 0.8        # dt = 0.8 · límite monótono C/ΣG
   dt_max_h: 0.5           # tope por precisión de la cinética de hidratación
+  dtheta_max_paso_K: 1.0  # ningún voxel libera > 1 K de θ por paso: hormigón fresco sobre una vertida
+                          # caliente hidrata en minutos (Arrhenius); sin esto T_max depende de dt (E12)
   guardar_cada_h: 1
 
 criterios:                # [repo] docs/hoja_de_ruta.md (docentes, no normativos)
@@ -64,7 +66,7 @@ criterios:                # [repo] docs/hoja_de_ruta.md (docentes, no normativos
 clima:                    # [repo] snapshots de Open-Meteo del sitio oficial (G07); ver scripts/listar_clima.py
   # Pronóstico más reciente. Se reemplaza por uno nuevo (nunca se sobrescribe) a medida
   # que se acerca el 27-nov; a menos de ~16 días empieza a cubrir la ventana de la obra.
-  snapshot: ../data/weather/2026-11-07T2001_pronostico
+  snapshot: ../data/weather/2026-11-12T2259_pronostico   # descargado 12-nov 22:59 UTC: cubre las primeras 19 h
   completar: respaldo     # error | repetir_ultimo_dia | respaldo (cola que el pronóstico no cubre)
   respaldo:               # [SUPUESTO] decisión del equipo (G07): reanálisis ERA5 de las mismas fechas de 2025
     snapshot: ../data/weather/2026-10-31T1807_historico
@@ -120,7 +122,8 @@ hormigones:
     hidratacion:          # [repo] fuente de calor MEDIDA entregada por el profesor (correo 12-nov-2026)
       modelo: fuente_Q     # Q(t) [W/m³] del archivo -> θ(t) = ∫Q dt/(ρ cp)  (MAPA:fuente-medida)
       archivo: ../data/hidratacion/source_terms.txt   # 8 probetas: M1..M4 × campañas SS y 22A
-      curva: media         # media de las 8 | M1_SS M2_SS M3_SS M4_SS M1_22A M2_22A M3_22A M4_22A
+      curva: M2_22A        # E12: UNA curva (θ total 124 K = media de las 8; campaña 22A, Q -> 0 a 72 h)
+                           # opciones: media | M1_SS M2_SS M3_SS M4_SS M1_22A M2_22A M3_22A M4_22A
                            # θ total: media 124 K; rango 82 K (M4_22A) a 164 K (M3_SS)
       paso_h: 0.25         # resolución de la tabla θ(t) generada
       Ea_J_mol: 40000      # [SUPUESTO] energía de activación (Arrhenius); 0 = sin efecto de T

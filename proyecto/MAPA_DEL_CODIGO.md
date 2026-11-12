@@ -113,12 +113,15 @@ solver 1D legado. Los bordes del caso real están en `thermal/bordes.py`.
 | Modelos de hidratación (exponencial, Schindler, tabla) | `thermal/hidratacion.py` | `MAPA:hidratacion-modelos` |
 | Potencia q''' = ρ cp dθ/dt | `thermal/hidratacion.py` | `MAPA:hidratacion-potencia` |
 | Calor de un paso sin explotar (incremento exacto de θ, acotado por θ∞) | `thermal/hidratacion.py` | `MAPA:hidratacion-paso` |
+| Paso que resuelve la cinética (≤ 1 K de θ por paso, `simulacion.dtheta_max_paso_K`) | `thermal/etapas.py` | `MAPA:paso-hidratacion` |
 | Efecto de la temperatura (Arrhenius) | `thermal/hidratacion.py` | `MAPA:arrhenius` |
 | Edad equivalente (madurez) | `thermal/etapas.py` | `MAPA:edad-equivalente` |
 | θ∞ desde la dosificación | `thermal/hidratacion.py` | `MAPA:dosificacion` |
 | Activación de una vertida nueva | `thermal/etapas.py` | `MAPA:activacion-vertidas` |
 | T "superficial" a 25 mm | `thermal/etapas.py` | `MAPA:superficie-25mm` |
 | ΔT núcleo − superficie | `thermal/etapas.py` | `MAPA:criterio-deltaT` |
+| Dónde ocurren T_max y ΔT_max (celda del núcleo y de la superficie) | `thermal/etapas.py` | `MAPA:ubicacion-maximos` |
+| Caso determinista de 14 días y su diagnóstico (E12) | `scripts/e12_determinista.py` | — (ver `docs/e12.md`) |
 
 ### Tuberías de enfriamiento — módulo `thermal/tuberias.py`
 

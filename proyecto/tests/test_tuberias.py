@@ -155,3 +155,4 @@ def test_visor_activa_desactiva_y_cambia_tuberias():
                                                                      diametro_mm=25.0)})
     with pytest.raises(ValueError, match="booleano"):
         _aplicar_tuberias(copy.deepcopy(datos), {"tuberias_ctrl": dict(activas="si")})
+

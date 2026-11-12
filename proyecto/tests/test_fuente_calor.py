@@ -56,12 +56,14 @@ def test_caso_base_usa_la_fuente_medida_y_entrega_el_calor_del_archivo():
     h = config.hormigones["M1"].hidratacion
     assert h.modelo == "tabla"
     serie = leer_fuente(ARCHIVO)
-    _, th = elevacion_adiabatica(serie.t_h, serie.curva(MEDIA), h.rho * h.cp)
+    curva = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))["hormigones"]["M1"]["hidratacion"]["curva"]
+    assert curva == "M2_22A"  # E12: una sola curva del profesor
+    _, th = elevacion_adiabatica(serie.t_h, serie.curva(curva), h.rho * h.cp)
     assert h.theta_inf_C == pytest.approx(th[-1])
     # a T_ref la potencia del solver reproduce la Q medida (promedio de cada intervalo de la tabla)
     t_med = 30.0 * HORA
     q_solver = float(h.potencia(t_med, h.T_ref_C))
-    q_archivo = float(np.mean(np.interp(np.linspace(30.0, 30.25, 16), serie.t_h, serie.curva(MEDIA))))
+    q_archivo = float(np.mean(np.interp(np.linspace(30.0, 30.25, 16), serie.t_h, serie.curva(curva))))
     assert q_solver == pytest.approx(q_archivo, rel=1e-3)
 
 
