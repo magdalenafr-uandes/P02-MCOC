@@ -109,6 +109,7 @@ solver 1D legado. Los bordes del caso real están en `thermal/bordes.py`.
 |---|---|---|
 | Fuente volumétrica en el motor (W/m³ · V) | `thermal/voxel.py` | `MAPA:fuente-volumetrica` |
 | Calor de hidratación en cada voxel | `thermal/etapas.py` | `MAPA:hidratacion-fuente` |
+| Datos medidos Q(t) del profesor → θ(t) | `caso/fuente_calor.py` | `MAPA:fuente-medida` |
 | Modelos de hidratación (exponencial, Schindler, tabla) | `thermal/hidratacion.py` | `MAPA:hidratacion-modelos` |
 | Potencia q''' = ρ cp dθ/dt | `thermal/hidratacion.py` | `MAPA:hidratacion-potencia` |
 | Efecto de la temperatura (Arrhenius) | `thermal/hidratacion.py` | `MAPA:arrhenius` |
@@ -156,7 +157,8 @@ Desde `proyecto/`:
 | Cambio pedido | Clave en el YAML (`--set` / `--variante`) |
 |---|---|
 | Conductividad, densidad o calor específico del hormigón | `hormigones.M1.k_W_mK=2.5`, `hormigones.M1.rho_kg_m3=2350`, `hormigones.M1.cp_J_kgK=1000` |
-| Calor de hidratación | `hormigones.M1.hidratacion.theta_inf_C=55`, `...tau_h=24`, `...Ea_J_mol=33500` |
+| Curva de calor medida (probeta) | `hormigones.M1.hidratacion.curva=M3_SS` (`media` o `M1_SS` … `M4_22A`) |
+| Volver a la curva pedagógica | `hormigones.M1.hidratacion={modelo: exponencial, theta_inf_C: 45, tau_h: 30, Ea_J_mol: 40000, T_ref_C: 20}` |
 | T de colocación de todas las vertidas | `vertidas.defecto.T_colocacion_C=12` |
 | T de colocación de una vertida | `vertidas.3.T_colocacion_C=12` |
 | Hora de inicio de una vertida | `vertidas.3.inicio_h=20` |

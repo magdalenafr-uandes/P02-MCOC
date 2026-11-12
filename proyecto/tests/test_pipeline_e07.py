@@ -468,6 +468,9 @@ def test_theta_inf_desde_dosificacion_y_config():
     # 350 kg/m³ · 450 kJ/kg · 0,8 / (2400·970) = 54,1 K
     assert theta_inf_desde_dosificacion(350, 450e3, 0.8, 2400, 970) == pytest.approx(54.12, abs=0.01)
     base = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))
+    # Parte de la curva pedagógica (el caso base usa la fuente medida: test_fuente_calor.py).
+    base["hormigones"]["M1"]["hidratacion"] = {"modelo": "exponencial", "theta_inf_C": 45.0, "tau_h": 30.0,
+                                               "beta": 1.0, "Ea_J_mol": 40000, "T_ref_C": 20.0}
     dosis = aplicar_sobrescrituras(base, [
         "hormigones.M1.hidratacion.cemento_kg_m3=350", "hormigones.M1.hidratacion.calor_cemento_J_kg=450000",
         "hormigones.M1.hidratacion.grado_hidratacion_ultimo=0.8",

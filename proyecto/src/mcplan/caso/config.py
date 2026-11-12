@@ -30,6 +30,7 @@ from ..thermal.bordes import Ambiente, CapaProteccion, CondicionBase, factor_vie
 from ..thermal.etapas import Hormigon, Material, ParametrosTiempo, PlanVertida
 from ..thermal.hidratacion import HORA, ModeloHidratacion, theta_inf_desde_dosificacion
 from .clima import VAR_G, VAR_VIENTO, leer_snapshot, series_para_simulacion
+from .fuente_calor import elevacion_adiabatica, leer_fuente
 
 _ESQUEMA: dict[str, Any] = {
     "ifc": str,
@@ -58,6 +59,7 @@ _HORMIGON = {"k_W_mK": float, "rho_kg_m3": float, "cp_J_kgK": float, "hidratacio
 _HIDRATACION = {
     "modelo": str, "theta_inf_C": float, "tau_h": float, "beta": float, "Ea_J_mol": float, "T_ref_C": float,
     "tabla": list, "cemento_kg_m3": float, "calor_cemento_J_kg": float, "grado_hidratacion_ultimo": float,
+    "archivo": str, "curva": str, "paso_h": float,
 }
 _DOSIFICACION = ("cemento_kg_m3", "calor_cemento_J_kg")
 _CONVECCION_VIENTO = {
@@ -213,7 +215,7 @@ def _requerir(seccion: Mapping[str, Any], clave: str, donde: str) -> Any:
 
 
 # [MAPA:config-hormigon] lee k, rho, cp e hidratación del YAML
-def _hormigon(nombre: str, d: Any) -> Hormigon:
+def _hormigon(nombre: str, d: Any, carpeta: Path | None = None) -> Hormigon:
     donde = f"hormigones.{nombre}"
     d = _claves(d, _HORMIGON, donde)
     mat = Material(
@@ -229,7 +231,22 @@ def _hormigon(nombre: str, d: Any) -> Hormigon:
             modelo = str(_requerir(dh, "modelo", dondeh))
             tabla_t: tuple[float, ...] = ()
             tabla_th: tuple[float, ...] = ()
-            if modelo == "tabla":
+            if modelo == "fuente_Q":
+                # Q(t) medido [W/m³] (archivo del profesor) -> θ(t) = ∫Q dt/(ρ cp) -> modelo tabla.
+                for clave in ("theta_inf_C", "tau_h", "beta", "tabla", *_DOSIFICACION):
+                    if clave in dh:
+                        raise ErrorConfiguracion(f"{dondeh}: con modelo fuente_Q sobra '{clave}'.")
+                ruta = Path(str(_requerir(dh, "archivo", dondeh)))
+                if not ruta.is_absolute():
+                    ruta = (Path(carpeta or Path.cwd()) / ruta).resolve()
+                if not ruta.is_file():
+                    raise ErrorConfiguracion(f"{dondeh}.archivo: no existe {ruta}.")
+                serie = leer_fuente(ruta)
+                tabla_t, tabla_th = elevacion_adiabatica(
+                    serie.t_h, serie.curva(str(_requerir(dh, "curva", dondeh))), mat.rho * mat.cp,
+                    _numero(dh.get("paso_h", 0.25), f"{dondeh}.paso_h", positivo=True))
+                modelo, theta_inf, tau = "tabla", tabla_th[-1], 1.0
+            elif modelo == "tabla":
                 # Curva adiabática medida: tau y theta_inf salen de la tabla.
                 for clave in ("theta_inf_C", "tau_h", "beta", *_DOSIFICACION):
                     if clave in dh:
@@ -243,6 +260,9 @@ def _hormigon(nombre: str, d: Any) -> Hormigon:
             else:
                 if "tabla" in dh:
                     raise ErrorConfiguracion(f"{dondeh}: 'tabla' solo con modelo tabla.")
+                for clave in ("archivo", "curva", "paso_h"):
+                    if clave in dh:
+                        raise ErrorConfiguracion(f"{dondeh}: '{clave}' solo con modelo fuente_Q.")
                 tau = _numero(_requerir(dh, "tau_h", dondeh), "tau_h")
                 theta_inf = _theta_inf(dh, dondeh, mat)
             hid = ModeloHidratacion(
@@ -460,7 +480,7 @@ def validar_config(datos: Mapping[str, Any], carpeta: Path) -> ConfigCaso:
 
     if not isinstance(datos["hormigones"], Mapping) or not datos["hormigones"]:
         raise ErrorConfiguracion("hormigones: definir al menos un tipo.")
-    hormigones = {str(n): _hormigon(str(n), d) for n, d in datos["hormigones"].items()}
+    hormigones = {str(n): _hormigon(str(n), d, carpeta) for n, d in datos["hormigones"].items()}
 
     vertidas = datos.get("vertidas") or {}
     if not isinstance(vertidas, Mapping):

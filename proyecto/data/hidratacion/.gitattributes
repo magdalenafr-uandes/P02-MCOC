@@ -1,0 +1,2 @@
+# Conservar los bytes originales: metadata.json registra su huella SHA-256.
+*.txt -text

@@ -140,6 +140,10 @@ def cargar_plan(ruta):
         datos['clima']['snapshot'] = str((fuente.parent/datos['clima']['snapshot']).resolve())
         if (datos['clima'].get('respaldo') or {}).get('snapshot'):
             datos['clima']['respaldo']['snapshot'] = str((fuente.parent/datos['clima']['respaldo']['snapshot']).resolve())
+    for h in (datos.get('hormigones') or {}).values():
+        hid = (h or {}).get('hidratacion') or {}
+        if 'archivo' in hid:  # fuente de calor medida (MAPA:fuente-medida)
+            hid['archivo'] = str((fuente.parent/hid['archivo']).resolve())
     config = leer_config(datos, fuente.parent)
     solidos = extraer_vertidas(config.ruta_ifc)
     planes = resolver_plan(config, [(s.vertida_id,s.nombre,s.propiedades) for s in solidos])

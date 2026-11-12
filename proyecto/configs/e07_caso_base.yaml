@@ -19,7 +19,7 @@
 # Modo rápido (~12 s): agregar --set malla.paso_m=0.5 --set simulacion.duracion_h=72
 #
 #   Material del hormigón ....... hormigones.M1.k_W_mK=2.5   (también rho_kg_m3, cp_J_kgK)
-#   Calor de hidratación ........ hormigones.M1.hidratacion.theta_inf_C=55   (tau_h, Ea_J_mol)
+#   Calor de hidratación (curva). hormigones.M1.hidratacion.curva=M3_SS   (media | M1_SS ... M4_22A)
 #   T de colocación (todas) ..... vertidas.defecto.T_colocacion_C=12
 #   T de colocación (una) ....... vertidas.3.T_colocacion_C=12
 #   Hora de inicio de una vertida vertidas.3.inicio_h=20
@@ -105,15 +105,18 @@ hormigones:
     k_W_mK: 2.22          # [repo] Ju y Lei (2019), guía §31
     rho_kg_m3: 2400
     cp_J_kgK: 970
-    hidratacion:          # [SUPUESTO] curva pedagógica de la guía §24 hasta tener datos de la mezcla
-      modelo: exponencial  # exponencial: θ∞(1-e^(-te/τ)) | schindler: θ∞·exp(-(τ/te)^β) | tabla
-      theta_inf_C: 45.0    # elevación adiabática final [K]; o bien la dosificación:
-      # cemento_kg_m3: 350, calor_cemento_J_kg: 450000, grado_hidratacion_ultimo: 0.8
-      # modelo: tabla + tabla: [[0, 0], [12, 8.5], [24, 22.0], ...]   # curva adiabática MEDIDA [h, K]
-      tau_h: 30.0
-      beta: 1.0            # solo schindler
-      Ea_J_mol: 40000      # energía de activación (Arrhenius); 0 = sin efecto de T
-      T_ref_C: 20.0
+    hidratacion:          # [repo] fuente de calor MEDIDA entregada por el profesor (correo 12-nov-2026)
+      modelo: fuente_Q     # Q(t) [W/m³] del archivo -> θ(t) = ∫Q dt/(ρ cp)  (MAPA:fuente-medida)
+      archivo: ../data/hidratacion/source_terms.txt   # 8 probetas: M1..M4 × campañas SS y 22A
+      curva: media         # media de las 8 | M1_SS M2_SS M3_SS M4_SS M1_22A M2_22A M3_22A M4_22A
+                           # θ total: media 124 K; rango 82 K (M4_22A) a 164 K (M3_SS)
+      paso_h: 0.25         # resolución de la tabla θ(t) generada
+      Ea_J_mol: 40000      # [SUPUESTO] energía de activación (Arrhenius); 0 = sin efecto de T
+      T_ref_C: 20.0        # [SUPUESTO] probetas chicas ~ a T de laboratorio: la curva se lee a T_ref
+      # Curva pedagógica anterior (guía §24), para comparar:
+      # modelo: exponencial    # exponencial: θ∞(1-e^(-te/τ)) | schindler: θ∞·exp(-(τ/te)^β) | tabla
+      # theta_inf_C: 45.0      # o bien cemento_kg_m3, calor_cemento_J_kg, grado_hidratacion_ultimo
+      # tau_h: 30.0
 
 vertidas:
   # [repo] inicio (0, 6, 12, 18, 24 h), T_colocación (18 °C) y retiro de moldaje (72 h) salen del IFC.
