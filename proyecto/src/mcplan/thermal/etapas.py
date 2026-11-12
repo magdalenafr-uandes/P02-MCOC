@@ -44,6 +44,7 @@ from .bordes import (  # noqa: F401  (Ambiente, CondicionBase y SIGMA se reexpor
     resistencia_proteccion,
 )
 from .hidratacion import ModeloHidratacion
+from .tuberias import Tuberia
 from .voxel import MallaVoxel, SolverVoxel, adiabatico
 
 # [MAPA:vacio] voxel aún no vertido: k despreciable, T del aire
@@ -148,6 +149,8 @@ class ResultadoEtapas:
     T_min_C: list[float] = field(default_factory=list)  # hormigón activo
     T_sup_min_C: list[float] = field(default_factory=list)  # hormigón expuesto, a la profundidad del criterio
     T_max_vertida_C: dict[int, list[float]] = field(default_factory=dict)  # nan si inactiva
+    potencia_tuberias_W: list[float] = field(default_factory=list)  # extraída por el agua en cada registro
+    energia_por_tuberia_J: dict[str, float] = field(default_factory=dict)
     T_sup_min_vertida_C: dict[int, list[float]] = field(default_factory=dict)  # nan sin cara expuesta
     etapas: list[dict] = field(default_factory=list)
     balance: dict[str, float] = field(default_factory=dict)
@@ -238,9 +241,15 @@ class SimuladorEtapas:
         profundidad_superficie_m: float = 0.0,
         campos_cada_s: float | None = None,
         progreso=None,
+        tuberias: Sequence[Tuberia] = (),
     ) -> None:
         if campos_cada_s is not None and not campos_cada_s > 0.0:
             raise ValueError("campos_cada_s debe ser positivo.")
+        self.tuberias = tuple(tuberias)
+        for tub in self.tuberias:
+            if tub.vertida_id not in {p.vertida_id for p in plan}:
+                raise ValueError(f"Tubería {tub.nombre}: la vertida {tub.vertida_id} no está en el plan.")
+        self._P_tub_W = 0.0  # potencia extraída en el último paso (para el registro)
         self.campos_cada_s = campos_cada_s  # None: un campo por registro
         self.progreso = progreso
         self._proximo_campo = 0.0
@@ -313,7 +322,28 @@ class SimuladorEtapas:
                     t = p.inicio_s + borde
                     if 0.0 < t < T:
                         cortes.add(t)
+        for tub in self.tuberias:  # encendido y apagado de cada circuito
+            p = self.plan[tub.vertida_id]
+            if p.visible:
+                for borde in (tub.desde_s, tub.hasta_s):
+                    t = p.inicio_s + borde
+                    if 0.0 < t < T:
+                        cortes.add(t)
         return sorted(cortes)
+
+    def _tuberias_etapa(self, t: float, activo: np.ndarray):
+        """(G total por celda [W/K], Σ G·T_agua por celda, circuitos activos) en esta etapa."""
+        G = np.zeros(activo.size)
+        GT = np.zeros(activo.size)
+        activos = []
+        plano = activo.ravel()
+        for tub in self.tuberias:
+            p = self.plan[tub.vertida_id]
+            if p.visible and tub.activa(t, p.inicio_s) and plano[tub.idx].all():
+                np.add.at(G, tub.idx, tub.G)
+                np.add.at(GT, tub.idx, tub.G * tub.T_agua_C)
+                activos.append(tub)
+        return G, GT, activos
 
     # --- propiedades por etapa ----------------------------------------------
     # [MAPA:propiedades-por-voxel] k, rho, cp de hormigón, suelo y vacío en cada etapa
@@ -411,7 +441,8 @@ class SimuladorEtapas:
         activadas: set[int] = set()
 
         # [MAPA:balance-energia] contabilidad de energía: colocación, hidratación, ambiente, base
-        E = dict.fromkeys(("colocacion", "hidratacion", "ambiente", "base", "fuga_vacio"), 0.0)
+        E = dict.fromkeys(("colocacion", "hidratacion", "ambiente", "base", "fuga_vacio", "tuberias"), 0.0)
+        res.energia_por_tuberia_J = {tub.nombre: 0.0 for tub in self.tuberias}
         E_inicial = None
         proximo_guardado = 0.0
         cortes = self.eventos()
@@ -448,6 +479,7 @@ class SimuladorEtapas:
             for c in caras:
                 G_amb_max[c.idx] += c.conductancia(h_max)
             _, G_base = self._conductancias_externas(t0, activo, solido, k, h_tot=0.0)
+            G_tub, GT_tub, tubos_activos = self._tuberias_etapa(t0, activo)
             grupos = []
             for nombre, h in self.hormigones.items():
                 if h.hidratacion is None:
@@ -458,7 +490,8 @@ class SimuladorEtapas:
                     grupos.append((m, h.hidratacion))
 
             if solido.any():
-                G_ext = G_amb_max.reshape(forma) + G_base  # h máximo de la etapa: paso estable siempre
+                # h máximo de la etapa y tuberías activas: paso estable siempre
+                G_ext = G_amb_max.reshape(forma) + G_base + G_tub.reshape(forma)
                 limite = float(np.min((C / (solver.suma_G + G_ext))[solido]))
             else:
                 limite = math.inf
@@ -489,9 +522,11 @@ class SimuladorEtapas:
                 if dt <= 0 or t+dt <= t:
                     raise ValueError('Paso temporal demasiado pequeño para avanzar.')
                 q_h = np.zeros(forma)
+                te_fin = []
                 for m, modelo in grupos:
-                    # [MAPA:hidratacion-fuente] q''' de hidratación en cada voxel activo
-                    q_h[m] = modelo.potencia(te[m], T[m])
+                    # [MAPA:hidratacion-fuente] q''' de hidratación en cada voxel activo (acotado por θ∞)
+                    q_h[m], te_nueva = modelo.calor_en_paso(te[m], T[m], dt)
+                    te_fin.append((m, te_nueva))
                 P_amb = np.zeros(T.size)
                 h_tot, T_eq = self.ambiente.condiciones(t) if caras else (0.0, {})
                 if h_tot > 0.0:
@@ -501,15 +536,22 @@ class SimuladorEtapas:
                         P_amb[c.idx] += c.conductancia(h_tot) * (T_eq[c.orientacion] - T_plano[c.idx])
                 P_amb = P_amb.reshape(forma)
                 P_base = G_base * (T_base - T)
-                self._q = q_h + (P_amb + P_base) / V
+                # [MAPA:tuberia-energia] calor que el agua extrae: Σ G (T_celda − T_agua); varía con T
+                P_tub = (G_tub * T.ravel() - GT_tub).reshape(forma)
+                self._q = q_h + (P_amb + P_base - P_tub) / V
                 T_nuevo = T + dt * solver.tasa_calor(T, t) / C
                 E["hidratacion"] += dt * float(np.sum(q_h)) * V
                 E["ambiente"] += dt * float(np.sum(P_amb))
                 E["base"] += dt * float(np.sum(P_base))
+                self._P_tub_W = float(np.sum(P_tub))
+                E["tuberias"] += dt * self._P_tub_W
+                T_plano = T.ravel()
+                for tub in tubos_activos:
+                    res.energia_por_tuberia_J[tub.nombre] += dt * float(np.sum(tub.G * (T_plano[tub.idx] - tub.T_agua_C)))
                 E["fuga_vacio"] += float(np.sum((C * (T_nuevo - T))[vacio]))
-                for m, modelo in grupos:
+                for m, te_nueva in te_fin:
                     # [MAPA:edad-equivalente] madurez: la hidratación se acelera con T (Arrhenius)
-                    te[m] += dt * modelo.factor_arrhenius(T[m])
+                    te[m] = te_nueva
                 T = T_nuevo
                 T[vacio] = self.ambiente.temperatura(t + dt)
                 t += dt
@@ -540,7 +582,8 @@ class SimuladorEtapas:
         self._registrar(res, t, T, activo, caras, ids)
         solido = activo | dom.es_suelo
         E_final = float(np.sum((C * T)[solido]))
-        aportes = E["colocacion"] + E["hidratacion"] + E["ambiente"] + E["base"] - E["fuga_vacio"]
+        aportes = (E["colocacion"] + E["hidratacion"] + E["ambiente"] + E["base"] - E["fuga_vacio"]
+                   - E["tuberias"])
         res.balance = {
             "E_inicial_J": E_inicial or 0.0,
             "E_final_J": E_final,
@@ -556,6 +599,7 @@ class SimuladorEtapas:
         if res.tiempos_s and abs(res.tiempos_s[-1] - t) < 1e-9:
             return
         res.tiempos_s.append(t)
+        res.potencia_tuberias_W.append(self._P_tub_W)
         if activo.any():
             Ta = T[activo]
             res.T_max_C.append(float(Ta.max()))

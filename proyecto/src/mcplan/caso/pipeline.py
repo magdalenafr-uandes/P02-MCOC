@@ -26,6 +26,7 @@ from ..bim.voxelizador import (
     voxelizar_solidos,
 )
 from ..thermal.etapas import DominioVoxel, PlanVertida, ResultadoEtapas, SimuladorEtapas
+from ..thermal.tuberias import Tuberia, trazar_tuberias
 from .config import ConfigCaso, resolver_plan
 
 
@@ -85,5 +86,22 @@ def ejecutar_pipeline(config: ConfigCaso, simular: bool = True) -> ResultadoPipe
             config.guardar_campos,
             config.criterios.profundidad_superficie_m if config.criterios else 0.0,
             config.campos_cada_s,
+            tuberias=construir_tuberias(config, grilla, plan),
         ).ejecutar()
     return resultado
+
+
+def construir_tuberias(config: ConfigCaso, grilla: GrillaBIM, plan: list[PlanVertida]) -> list[Tuberia]:
+    """Traza los circuitos del YAML sobre la grilla (k del hormigón de cada vertida)."""
+    por_id = {p.vertida_id: p for p in plan}
+    tuberias = []
+    for c in config.tuberias:
+        if c.vertida not in por_id:
+            raise ValueError(f"Tubería {c.nombre}: la vertida {c.vertida} no existe en el IFC.")
+        k = config.hormigones[por_id[c.vertida].hormigon].material.k
+        tuberias.append(trazar_tuberias(
+            grilla.vertida_id, grilla.definicion.origen, grilla.paso, c.nombre, c.vertida, c.cota_m,
+            c.direccion, c.separacion_m, c.diametro_m, c.T_agua_C, k, c.recubrimiento_m,
+            c.desde_h * 3600.0, c.hasta_h * 3600.0,
+        ))
+    return tuberias

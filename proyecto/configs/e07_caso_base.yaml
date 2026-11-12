@@ -89,6 +89,18 @@ protecciones:             # catálogo: R = espesor / k [m²K/W] (moldaje, aislac
   manta_50mm: {espesor_m: 0.050, k_W_mK: 0.04}          # [SUPUESTO] R = 1,25
   poliestireno_100mm: {espesor_m: 0.100, k_W_mK: 0.035} # [SUPUESTO] R = 2,86
 
+# Tuberías de enfriamiento embebidas: la pared del tubo es Dirichlet (T = T_agua). Cada celda
+# que cruza un tubo cede P = G·(T_celda − T_agua), G = 2πkL/ln(r_eq/r) (pozo en celda): la energía
+# extraída varía con la temperatura del hormigón. 'tuberias: []' = sin tuberías.
+# [SUPUESTO] trazado docente sin datos de diseño: una capa a media altura por vertida, tubos rectos
+# de 25 mm cada 1 m (direcciones alternadas), agua a 15 °C durante 7 días desde cada colocación.
+tuberias:
+  - {nombre: V1, vertida: 1, cota_m: 0.275, direccion: x, separacion_m: 1.0, diametro_m: 0.025, T_agua_C: 15.0, desde_h: 0, hasta_h: 168}
+  - {nombre: V2, vertida: 2, cota_m: 0.825, direccion: y, separacion_m: 1.0, diametro_m: 0.025, T_agua_C: 15.0, desde_h: 0, hasta_h: 168}
+  - {nombre: V3, vertida: 3, cota_m: 1.65, direccion: x, separacion_m: 1.0, diametro_m: 0.025, T_agua_C: 15.0, desde_h: 0, hasta_h: 168}
+  - {nombre: V4, vertida: 4, cota_m: 2.75, direccion: y, separacion_m: 1.0, diametro_m: 0.025, T_agua_C: 15.0, desde_h: 0, hasta_h: 168}
+  - {nombre: V5, vertida: 5, cota_m: 3.8, direccion: x, separacion_m: 1.0, diametro_m: 0.025, T_agua_C: 15.0, desde_h: 0, hasta_h: 168}
+
 base:                     # cara inferior de la caja (bajo el suelo)
   tipo: dirichlet         # dirichlet | adiabatico
   T_C: 16.6               # [SUPUESTO] T media del aire en el período (suelo profundo ≈ media anual)

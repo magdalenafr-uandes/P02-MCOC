@@ -181,7 +181,13 @@ def _controles_e10(datos, config, planes):
         snapshots = resumen_snapshots(carpeta, config.inicio, config.tiempo.duracion_s)
     inicio = None if config.inicio is None else config.inicio.isoformat(timespec='minutes')
     ciclo = datos['ambiente'].get('ciclo_diario')
-    return dict(proteccion=proteccion, clima_snapshot=actual, inicio_simulacion=inicio,
+    circuitos = datos.get('tuberias') or []
+    primero = circuitos[0] if circuitos else {}
+    tuberias_ctrl = dict(activas=bool(circuitos), n_circuitos=len(circuitos),
+                         T_agua_C=float(primero.get('T_agua_C', 15.0)),
+                         separacion_m=float(primero.get('separacion_m', 1.0)),
+                         diametro_mm=float(primero.get('diametro_m', 0.025)) * 1000.0)
+    return dict(proteccion=proteccion, clima_snapshot=actual, inicio_simulacion=inicio, tuberias_ctrl=tuberias_ctrl,
                 modo_ambiente='ciclo_diario' if ciclo else 'snapshot' if datos.get('clima') else 'constante',
                 ciclo_diario=dict(hora_min=(ciclo or {}).get('hora_min', 6.0), hora_max=(ciclo or {}).get('hora_max', 15.0)),
                 opciones=dict(protecciones=protecciones, snapshots=snapshots,
@@ -192,9 +198,30 @@ def _controles_e10(datos, config, planes):
                               inicio=inicio))
 
 
+# [MAPA:visor-tuberias] controles del visor -> circuitos 'tuberias' del YAML (activar, T del agua, separación, diámetro)
+def _aplicar_tuberias(datos, plan):
+    """Aplica a todos los circuitos del YAML lo elegido en la página; desactivar = sin circuitos."""
+    tc = plan.get('tuberias_ctrl')
+    if tc is None:
+        return
+    if type(tc.get('activas')) is not bool:
+        raise ValueError('tuberias_ctrl.activas debe ser booleano.')
+    if not tc['activas']:
+        datos['tuberias'] = []
+        return
+    circuitos = datos.get('tuberias') or []
+    if not circuitos:
+        raise ValueError('El caso YAML no declara circuitos de tuberías para activar.')
+    T = _numero(tc['T_agua_C'], 'T_agua_C')
+    sep = _numero(tc['separacion_m'], 'separacion_m', positivo=True)
+    diam = _numero(tc['diametro_mm'], 'diametro_mm', positivo=True) / 1000.0
+    datos['tuberias'] = [dict(c, T_agua_C=T, separacion_m=sep, diametro_m=diam) for c in circuitos]
+
+
 # [MAPA:visor-proteccion-clima] controles E10 del visor -> moldaje, aislación y snapshot en el YAML
 def _aplicar_controles_e10(datos, plan):
     """Escribe en 'vertidas.defecto' y 'clima' lo elegido en la página (mismas claves que --set)."""
+    _aplicar_tuberias(datos, plan)
     prot = plan.get('proteccion')
     if prot is not None:
         d = datos.setdefault('vertidas', {}).setdefault('defecto', {})
@@ -235,7 +262,7 @@ def _aplicar_controles_e10(datos, plan):
 
 def validar_plan(plan, solidos):
     extras = {'caso', 'paso_z_m', 'usar_clima', 'proteccion', 'clima_snapshot', 'opciones',
-              'inicio_simulacion', 'modo_ambiente', 'ciclo_diario'}
+              'inicio_simulacion', 'modo_ambiente', 'ciclo_diario', 'tuberias_ctrl'}
     _validar_basico({k:v for k,v in plan.items() if k not in extras}, solidos)
     if 'proteccion' in plan:
         esperadas = {'moldaje', 'R_moldaje_yaml', 'retiro_moldaje_h', 'aislacion', 'aislacion_caras',
@@ -318,7 +345,9 @@ class Pipeline:
         from .bim.mallas_ifc import extraer_vertidas
         from .bim.voxelizador import definir_grilla, voxelizar_solidos, pesos_area
         from .caso.config import resolver_plan
+        from .caso.pipeline import construir_tuberias
         from .thermal.etapas import DominioVoxel, SimuladorEtapas
+        from .thermal.tuberias import tramos
         from .visualizacion import activo_en
         plan = json.loads(json.dumps(plan, allow_nan=False))
         salida = Path(salida)
@@ -366,7 +395,8 @@ class Pipeline:
         simulador = SimuladorEtapas(DominioVoxel(g.vertida_id,g.es_suelo,g.paso,self._pesos.get(clave) if m.corregir_area else None),
                     planes,config.hormigones,config.ambiente,config.base,config.tiempo,config.suelo,
                     config.T_suelo_inicial_C,True,config.criterios.profundidad_superficie_m,config.campos_cada_s,
-                    progreso=lambda t,fin: progreso(f'Simulando {t/3600:g} / {fin/3600:g} h'))
+                    progreso=lambda t,fin: progreso(f'Simulando {t/3600:g} / {fin/3600:g} h'),
+                    tuberias=construir_tuberias(config,g,planes))
         cupo_campos = min(MAX_FOTOGRAMAS, MAX_VALORES_CAMPOS // math.prod(g.forma))
         cupo_periodicos = cupo_campos - len(simulador.eventos())
         if cupo_periodicos < 0:
@@ -405,7 +435,7 @@ class Pipeline:
         b=simu.balance
         balances=[dict(tiempo_h=plan['final_h'],energia_J=b['E_final_J'],inicial_J=b['E_inicial_J'],
                         hidratacion_J=b['hidratacion_J'],borde_J=b['ambiente_J']+b['base_J']-b['fuga_vacio_J'],
-                        colocacion_J=b['colocacion_J'],residuo_J=b['residuo_J'])]
+                        colocacion_J=b['colocacion_J'],tuberias_J=b['tuberias_J'],residuo_J=b['residuo_J'])]
         def git(*args):
             try:
                 r=subprocess.run(['git',*args],cwd=Path(__file__).resolve().parents[3],capture_output=True,text=True,timeout=5)
@@ -429,6 +459,12 @@ class Pipeline:
                         moldajes=[dict(vertida_id=p.vertida_id,inicio_h=p.inicio_s/3600,
                             retiro_h=None if math.isinf(p.retiro_moldaje_s) else (p.inicio_s+p.retiro_moldaje_s)/3600,
                             R=p.R_lateral) for p in planes if p.visible and p.R_lateral>0],
+                        tuberias=[dict(nombre=tub.nombre,vertida_id=tub.vertida_id,T_agua_C=tub.T_agua_C,
+                                       longitud_m=tub.longitud_m,energia_J=simu.energia_por_tuberia_J[tub.nombre],
+                                       tramos=tramos(tub,g.forma,g.definicion.origen,g.paso))
+                                  for tub in simulador.tuberias],
+                        potencia_tuberias=dict(tiempos_h=[t/3600 for t in simu.tiempos_s],
+                                               potencia_W=simu.potencia_tuberias_W),
                         advertencias=simu.advertencias,nota_clima=config.nota_clima,
                         suelo_incluido=bool(g.es_suelo.any()),motor='SimuladorEtapas')
         (salida/'plan_ejecutado.json').write_text(json.dumps(plan,ensure_ascii=False,indent=2,allow_nan=False),encoding='utf-8')

@@ -246,30 +246,34 @@ def test_adiabatico_sigue_la_curva_en_edad_equivalente():
     T0 = 15.0
 
     # Referencia independiente: RK4 de dte/dt = f(T0 + θ(te)); en adiabático T = T0 + θ(te).
+    # Se compara a las 24 h, en plena subida: a las 72 h la curva ya saturó y el calor de cada paso
+    # (incremento exacto de θ, acotado por θ∞) deja un error ~1e-5 °C que no mide el orden.
+    D = 24 * HORA
+
     def f(te):
         return modelo.factor_arrhenius(T0 + modelo.elevacion(te))
 
     te, h = 0.0, 30.0
-    for _ in range(int(72 * HORA / h)):
+    for _ in range(int(D / h)):
         k1 = f(te); k2 = f(te + h * k1 / 2); k3 = f(te + h * k2 / 2); k4 = f(te + h * k3)
         te += h * (k1 + 2 * k2 + 2 * k3 + k4) / 6
     T_ref = T0 + modelo.elevacion(te)
 
     errores = []
-    for dt in (120.0, 60.0):
+    for dt in (600.0, 300.0):
         sim = SimuladorEtapas(
             dominio_caja(), [PlanVertida(1, 0.0, T0, "M1")], {"M1": Hormigon(HORMIGON, modelo)},
             Ambiente(10.0, 0.0), CondicionBase("adiabatico"),
-            ParametrosTiempo(72 * HORA, dt_max_s=dt, guardar_cada_s=6 * HORA),
+            ParametrosTiempo(D, dt_max_s=dt, guardar_cada_s=6 * HORA),
         )
         r = sim.ejecutar()
         T = r.T_final[r.activo_final]
         np.testing.assert_allclose(T, T.mean(), atol=1e-9)  # sin pérdidas: campo uniforme
         assert abs(r.balance["residuo_J"]) < 1e-9 * abs(r.balance["E_final_J"])
         errores.append(abs(T.mean() - T_ref))
-    assert errores[1] < 0.05
-    assert errores[1] / errores[0] == pytest.approx(0.5, abs=0.05)  # Euler explícito: orden 1 en dt
-    assert T_ref - T0 > 0.9 * modelo.elevacion(72 * HORA)  # Arrhenius acelera (T > T_ref)
+    assert errores[1] < 0.25
+    assert errores[1] / errores[0] == pytest.approx(0.5, abs=0.05)  # Arrhenius al inicio del paso: orden 1 en dt
+    assert T_ref - T0 > 1.05 * modelo.elevacion(D)  # Arrhenius acelera (T > T_ref)
 
 
 def test_activacion_por_etapas_y_caras_expuestas():

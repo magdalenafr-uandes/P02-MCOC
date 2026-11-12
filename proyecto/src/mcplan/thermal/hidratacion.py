@@ -154,6 +154,25 @@ class ModeloHidratacion:
         """qdot_h [W/m³] para la edad equivalente y la temperatura actuales."""
         return self.rho * self.cp * self.tasa_elevacion(te_s) * self.factor_arrhenius(T_C)
 
+    # [MAPA:hidratacion-paso] calor de un paso = incremento exacto de θ: nunca supera lo que queda
+    def calor_en_paso(self, te_s: np.ndarray, T_C: np.ndarray, dt: float) -> tuple[np.ndarray, np.ndarray]:
+        """(q''' medio del paso [W/m³], edad equivalente al final del paso [s]).
+
+        Con Euler explícito, ``potencia·dt`` puede liberar en un paso más calor
+        del que queda en la curva: si T sube, f(T) crece exponencialmente, el
+        paso libera aún más y la temperatura se dispara (con la curva medida de
+        124 K llegaba a 10⁶ °C). Aquí el calor del paso es el incremento de la
+        curva en edad equivalente,
+
+            q·dt = ρ·cp·[θ(t_e + f(T)·dt) − θ(t_e)],
+
+        idéntico a ``potencia·dt`` cuando dt -> 0, pero acotado: el total nunca
+        supera ρ·cp·θ∞ y el ensayo adiabático cumple T = T₀ + θ(t_e) exactamente.
+        """
+        te_nueva = np.asarray(te_s, dtype=float) + dt * self.factor_arrhenius(T_C)
+        q = self.rho * self.cp * (self.elevacion(te_nueva) - self.elevacion(te_s)) / dt
+        return q, te_nueva
+
 
 # API simple E07 y ajuste CSV: conservados para compatibilidad y verificación.
 """Modelo adiabático exponencial ajustable, sin dependencia de temperatura.

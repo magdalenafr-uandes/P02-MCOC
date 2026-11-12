@@ -1,7 +1,31 @@
 # Evaluación inicial: enfriamiento interno con agua
 
-Estado: propuesta de modelación, todavía no implementada en el solver ni en
-el visor. No constituye un dimensionamiento constructivo.
+Estado: **implementado** en el solver, el YAML y el visor con la variante más
+simple de esta propuesta: pared del tubo **Dirichlet** (T = T_agua constante,
+caudal suficiente para que el agua no se caliente). No constituye un
+dimensionamiento constructivo.
+
+## Lo implementado (Dirichlet en la pared del tubo)
+
+    G = 2π·k·L / ln(r_eq / r_tubo)     r_eq = 0,14·√(Δa² + Δb²)   (pozo en celda, Peaceman)
+    P = G·(T_celda − T_agua)           [W], se resta del balance de la celda
+
+- `thermal/tuberias.py`: `conductancia_pozo` (`MAPA:tuberia-dirichlet`) y
+  `trazar_tuberias` (`MAPA:tuberia-trazado`: tubos rectos a una cota, cada
+  `separacion_m`, con `recubrimiento_m` al borde).
+- `thermal/etapas.py` (`MAPA:tuberia-energia`): P se evalúa en cada paso con la
+  temperatura actual, así que la potencia extraída **varía**: es máxima con el
+  núcleo caliente y cae a medida que se enfría. G entra al límite de estabilidad
+  y el encendido/apagado de cada circuito es un evento. La energía extraída
+  (`tuberias`) cierra el balance global.
+- YAML: sección `tuberias:` (`MAPA:config-tuberias`); `tuberias: []` las desactiva.
+- Visor: sección "Tuberías de enfriamiento" (activar, n.º de circuitos, T del
+  agua, separación, diámetro); los tubos se dibujan en cian y el panel informa
+  la potencia actual, la máxima y la energía total.
+
+El modelo con calentamiento del agua a lo largo del circuito (NTU, abajo) sigue
+como mejora futura: con agua a temperatura constante el enfriamiento es un
+límite superior.
 
 ## Problema y alternativa
 

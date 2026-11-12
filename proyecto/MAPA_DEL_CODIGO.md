@@ -112,12 +112,29 @@ solver 1D legado. Los bordes del caso real están en `thermal/bordes.py`.
 | Datos medidos Q(t) del profesor → θ(t) | `caso/fuente_calor.py` | `MAPA:fuente-medida` |
 | Modelos de hidratación (exponencial, Schindler, tabla) | `thermal/hidratacion.py` | `MAPA:hidratacion-modelos` |
 | Potencia q''' = ρ cp dθ/dt | `thermal/hidratacion.py` | `MAPA:hidratacion-potencia` |
+| Calor de un paso sin explotar (incremento exacto de θ, acotado por θ∞) | `thermal/hidratacion.py` | `MAPA:hidratacion-paso` |
 | Efecto de la temperatura (Arrhenius) | `thermal/hidratacion.py` | `MAPA:arrhenius` |
 | Edad equivalente (madurez) | `thermal/etapas.py` | `MAPA:edad-equivalente` |
 | θ∞ desde la dosificación | `thermal/hidratacion.py` | `MAPA:dosificacion` |
 | Activación de una vertida nueva | `thermal/etapas.py` | `MAPA:activacion-vertidas` |
 | T "superficial" a 25 mm | `thermal/etapas.py` | `MAPA:superficie-25mm` |
 | ΔT núcleo − superficie | `thermal/etapas.py` | `MAPA:criterio-deltaT` |
+
+### Tuberías de enfriamiento — módulo `thermal/tuberias.py`
+
+La pared del tubo es **Dirichlet** (T = T_agua). Cada celda que cruza un tubo cede
+P = G·(T_celda − T_agua) con la conductancia de pozo G = 2πkL/ln(r_eq/r)
+(r_eq = 0,14·√(Δa²+Δb²)): la energía extraída varía con la temperatura del hormigón.
+
+| Pregunta | Archivo | Etiqueta |
+|---|---|---|
+| Pared del tubo a T_agua y conductancia G | `thermal/tuberias.py` | `MAPA:tuberia-dirichlet` |
+| Dónde pasan los tubos (cota, separación, recubrimiento) | `thermal/tuberias.py` | `MAPA:tuberia-trazado` |
+| Calor que extrae el agua en cada paso (y su energía) | `thermal/etapas.py` | `MAPA:tuberia-energia` |
+| Lectura de los circuitos desde el YAML | `caso/config.py` | `MAPA:config-tuberias` |
+| Controles de tuberías en el visor | `pipeline.py` | `MAPA:visor-tuberias` |
+
+Supuestos y modelo alternativo (agua que se calienta, NTU): `docs/enfriamiento_tuberias.md`.
 
 ### BIM, voxelización y datos
 
@@ -177,6 +194,9 @@ Desde `proyecto/`:
 | Tamaño de voxel | `malla.paso_m=0.2`, `malla.paso_z_m=0.05` |
 | Duración | `simulacion.duracion_h=168` |
 | Criterios | `criterios.T_max_C=70`, `criterios.delta_T_C=20` |
+| Sin tuberías de enfriamiento | `tuberias=[]` |
+| T del agua / separación / diámetro de un circuito | `tuberias.0.T_agua_C=10`, `tuberias.0.separacion_m=0.75`, `tuberias.0.diametro_m=0.032` |
+| Período de circulación del agua | `tuberias.0.desde_h=0`, `tuberias.0.hasta_h=96` (horas desde la colocación) |
 
 Para un cambio permanente, edita el valor en el YAML. El archivo marca cada dato
 como `[repo]` (tiene fuente) o `[SUPUESTO]` (valor provisional).

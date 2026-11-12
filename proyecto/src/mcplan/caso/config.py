@@ -54,6 +54,7 @@ _ESQUEMA: dict[str, Any] = {
     "hormigones": dict,
     "vertidas": dict,
     "protecciones": dict,
+    "tuberias": list,
 }
 _HORMIGON = {"k_W_mK": float, "rho_kg_m3": float, "cp_J_kgK": float, "hidratacion": dict}
 _HIDRATACION = {
@@ -123,6 +124,64 @@ class ConfigCaso:
     nota_clima: str = ""  # fuente, modelo, descarga y completado del clima
     criterios: Criterios | None = None
     campos_cada_s: float | None = None  # campos 3D para visualizar (None: cada registro)
+    tuberias: tuple[ConfigTuberia, ...] = ()
+
+
+_TUBERIA = {
+    "nombre": str, "vertida": int, "cota_m": float, "direccion": str, "separacion_m": float,
+    "diametro_m": float, "T_agua_C": float, "desde_h": float, "hasta_h": float, "recubrimiento_m": float,
+}
+
+
+@dataclass(frozen=True)
+class ConfigTuberia:
+    """Un circuito de enfriamiento declarado en el YAML (se traza sobre la grilla en el pipeline)."""
+
+    nombre: str
+    vertida: int
+    cota_m: float
+    direccion: str
+    separacion_m: float
+    diametro_m: float
+    T_agua_C: float
+    desde_h: float = 0.0
+    hasta_h: float = math.inf
+    recubrimiento_m: float = 0.5
+
+
+# [MAPA:config-tuberias] circuitos de enfriamiento del YAML: cota, dirección, separación, diámetro, T del agua
+def _tuberias(lista: Any) -> tuple[ConfigTuberia, ...]:
+    if lista is None:
+        return ()
+    if not isinstance(lista, list):
+        raise ErrorConfiguracion("tuberias: lista de circuitos.")
+    circuitos, nombres = [], set()
+    for n, item in enumerate(lista):
+        donde = f"tuberias[{n}]"
+        d = _claves(item, _TUBERIA, donde)
+        nombre = str(d.get("nombre", f"circuito_{n + 1}"))
+        if nombre in nombres:
+            raise ErrorConfiguracion(f"{donde}: nombre {nombre!r} repetido.")
+        nombres.add(nombre)
+        vertida = _requerir(d, "vertida", donde)
+        if isinstance(vertida, bool) or not isinstance(vertida, int):
+            raise ErrorConfiguracion(f"{donde}.vertida: VertidaID entero.")
+        direccion = str(d.get("direccion", "x"))
+        if direccion not in ("x", "y"):
+            raise ErrorConfiguracion(f"{donde}.direccion: 'x' o 'y'.")
+        hasta = d.get("hasta_h")
+        circuitos.append(ConfigTuberia(
+            nombre=nombre, vertida=vertida,
+            cota_m=_numero(_requerir(d, "cota_m", donde), f"{donde}.cota_m"),
+            direccion=direccion,
+            separacion_m=_numero(_requerir(d, "separacion_m", donde), f"{donde}.separacion_m", positivo=True),
+            diametro_m=_numero(_requerir(d, "diametro_m", donde), f"{donde}.diametro_m", positivo=True),
+            T_agua_C=_numero(_requerir(d, "T_agua_C", donde), f"{donde}.T_agua_C"),
+            desde_h=_numero(d.get("desde_h", 0.0), f"{donde}.desde_h", no_negativo=True),
+            hasta_h=math.inf if hasta is None else _numero(hasta, f"{donde}.hasta_h", positivo=True),
+            recubrimiento_m=_numero(d.get("recubrimiento_m", 0.5), f"{donde}.recubrimiento_m", no_negativo=True),
+        ))
+    return tuple(circuitos)
 
 
 @dataclass(frozen=True)
@@ -169,9 +228,16 @@ def aplicar_sobrescrituras(datos: Mapping[str, Any], asignaciones: Sequence[str]
         partes = [int(p) if p.isdigit() else p for p in clave.strip().split(".")]
         nodo = datos
         for p in partes[:-1]:
-            if not isinstance(nodo.get(p), dict):
+            if isinstance(nodo, list):  # p. ej. tuberias.0.T_agua_C: índice de la lista
+                if not isinstance(p, int) or not 0 <= p < len(nodo):
+                    raise ErrorConfiguracion(f"{clave}: índice {p!r} fuera de la lista (0..{len(nodo) - 1}).")
+            elif not isinstance(nodo.get(p), (dict, list)):
                 nodo[p] = {}
             nodo = nodo[p]
+        if isinstance(nodo, list):
+            p = partes[-1]
+            if not isinstance(p, int) or not 0 <= p < len(nodo):
+                raise ErrorConfiguracion(f"{clave}: índice {p!r} fuera de la lista (0..{len(nodo) - 1}).")
         nodo[partes[-1]] = yaml.safe_load(valor)
     return datos
 
@@ -507,6 +573,7 @@ def validar_config(datos: Mapping[str, Any], carpeta: Path) -> ConfigCaso:
     return ConfigCaso(
         ruta_ifc, malla, tiempo, ambiente, base, suelo, T_suelo, hormigones,
         guardar_campos, dict(datos), inicio, nota_clima, criterios, campos_cada_s,
+        _tuberias(datos.get("tuberias")),
     )
 
 
