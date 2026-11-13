@@ -1,0 +1,236 @@
+{
+  "T_max": {
+    "valor_C": 181.61,
+    "t_h": 22.0,
+    "fecha": "28-Nov 02:00",
+    "limite_C": 70.0,
+    "cumple": false,
+    "ubicacion": {
+      "celda": 1073991,
+      "ijk": [
+        77,
+        31,
+        87
+      ],
+      "xyz_m": [
+        8.25,
+        -3.25,
+        1.375
+      ],
+      "vertida": 3,
+      "radio_m": 8.867,
+      "prof_bajo_cara_superior_m": 0.025
+    }
+  },
+  "dT_max": {
+    "valor_C": 163.58,
+    "t_h": 22.0,
+    "fecha": "28-Nov 02:00",
+    "vertida": 3,
+    "limite_C": 20.0,
+    "cumple": false,
+    "T_nucleo_C": 181.61,
+    "T_superficie_C": 18.03,
+    "nucleo": {
+      "celda": 1073991,
+      "ijk": [
+        77,
+        31,
+        87
+      ],
+      "xyz_m": [
+        8.25,
+        -3.25,
+        1.375
+      ],
+      "vertida": 3,
+      "radio_m": 8.867,
+      "prof_bajo_cara_superior_m": 0.025
+    },
+    "superficie": {
+      "celda": 446880,
+      "ijk": [
+        32,
+        16,
+        96
+      ],
+      "xyz_m": [
+        -3.0,
+        -7.0,
+        1.825
+      ],
+      "vertida": 3,
+      "radio_m": 7.616,
+      "prof_bajo_cara_superior_m": 0.025,
+      "cara": "x-",
+      "profundidad_m": 0.025
+    }
+  },
+  "por_vertida": {
+    "1": {
+      "T_max_C": 138.61,
+      "t_T_max_h": 21.0,
+      "dT_max_C": 76.83,
+      "t_dT_max_h": 18.0
+    },
+    "2": {
+      "T_max_C": 162.6,
+      "t_T_max_h": 19.0,
+      "dT_max_C": 93.95,
+      "t_dT_max_h": 51.0
+    },
+    "3": {
+      "T_max_C": 181.61,
+      "t_T_max_h": 22.0,
+      "dT_max_C": 163.58,
+      "t_dT_max_h": 22.0
+    },
+    "4": {
+      "T_max_C": 173.44,
+      "t_T_max_h": 33.0,
+      "dT_max_C": 149.23,
+      "t_dT_max_h": 31.0
+    },
+    "5": {
+      "T_max_C": 161.14,
+      "t_T_max_h": 40.0,
+      "dT_max_C": 125.97,
+      "t_dT_max_h": 38.0
+    }
+  },
+  "T_max_final_C": 49.31,
+  "balance_GJ": {
+    "E_inicial": 56.49,
+    "E_final": 118.18,
+    "colocacion": 26.74,
+    "hidratacion": 184.52,
+    "ambiente": -40.45,
+    "base": -0.27,
+    "fuga_vacio": 0.0,
+    "tuberias": 108.86,
+    "residuo": -0.0
+  },
+  "residuo_relativo": 2.3887095760744836e-15,
+  "tuberias_GJ": {
+    "V1": 29.34,
+    "V2": 36.51,
+    "V3": 27.87,
+    "V4": 10.82,
+    "V5": 4.32
+  },
+  "sin_tuberias": {
+    "T_max_C": 183.17,
+    "t_h": 23.0,
+    "dT_max_C": 162.37,
+    "vertida": 3,
+    "t_dT_h": 23.0
+  },
+  "commit_codigo": "b26c103c327dfbc971d6517a11425114ba1a35ef",
+  "ejecutado_en_s": 568.9,
+  "malla": {
+    "paso_m": 0.25,
+    "paso_z_m": 0.05,
+    "voxeles": 1235676
+  },
+  "inicio": "2026-11-27T04:00:00",
+  "duracion_h": 336.0,
+  "hidratacion": {
+    "curva": "M2_22A",
+    "theta_inf_K": 124.2
+  },
+  "clima": {
+    "nota": "Open-Meteo pronostico / best_match (forecast determinista), descargado 2026-11-12T22:59:41+00:00, 2026-11-12T2259_pronostico, huella 808e9928d128 [cubre 19 h de 336]; COLA de 317 h completada con respaldo: Open-Meteo historico / best_match (observación / reanálisis), descargado 2026-10-31T18:07:35+00:00, 2026-10-31T1807_historico, huella 1905b88deaf7; ANÁLOGO: clima de 2025-11-26 a 2025-12-12 desplazado +1 año(s)",
+    "forecast": {
+      "carpeta": "2026-11-12T2259_pronostico",
+      "metadata": {
+        "source": "Open-Meteo pronostico",
+        "kind": "forecast determinista",
+        "model": "best_match",
+        "retrieved_at": "2026-11-12T22:59:41+00:00",
+        "latitude": -24.95283,
+        "longitude": -70.004838,
+        "latitude_grid": -24.920914,
+        "longitude_grid": -69.96774,
+        "timezone": "America/Santiago",
+        "variables": [
+          "temperature_2m",
+          "wind_speed_10m",
+          "shortwave_radiation"
+        ],
+        "units": {
+          "temperature_2m": "°C",
+          "wind_speed_10m": "m/s",
+          "shortwave_radiation": "W/m²"
+        },
+        "url": "https://api.open-meteo.com/v1/forecast?latitude=-24.95283&longitude=-70.00484&hourly=temperature_2m%2Cwind_speed_10m%2Cshortwave_radiation&wind_speed_unit=ms&timezone=auto&start_date=2026-11-12&end_date=2026-11-27"
+      },
+      "sha256": "808e9928d1281f8fa603bb79836a436460eb5af0fdb60536134f396cdb33c5de"
+    },
+    "respaldo": {
+      "carpeta": "2026-10-31T1807_historico",
+      "desplazar_anios": 1,
+      "sha256": "1905b88deaf74b3cf03058e5c6974233aa8e39f48004bc7ea3e3c049d0192871"
+    }
+  },
+  "plan": [
+    {
+      "id": 1,
+      "nombre": "Vertida_01",
+      "inicio_h": 0.0,
+      "inicio": "27-Nov 04:00",
+      "T_colocacion_C": 18.0,
+      "hormigon": "M1",
+      "R_moldaje": 0.12,
+      "retiro_moldaje_h": 72.0,
+      "R_superior": 0.0
+    },
+    {
+      "id": 2,
+      "nombre": "Vertida_02",
+      "inicio_h": 6.0,
+      "inicio": "27-Nov 10:00",
+      "T_colocacion_C": 18.0,
+      "hormigon": "M1",
+      "R_moldaje": 0.12,
+      "retiro_moldaje_h": 72.0,
+      "R_superior": 0.0
+    },
+    {
+      "id": 3,
+      "nombre": "Vertida_03",
+      "inicio_h": 12.0,
+      "inicio": "27-Nov 16:00",
+      "T_colocacion_C": 18.0,
+      "hormigon": "M1",
+      "R_moldaje": 0.12,
+      "retiro_moldaje_h": 72.0,
+      "R_superior": 0.0
+    },
+    {
+      "id": 4,
+      "nombre": "Vertida_04",
+      "inicio_h": 18.0,
+      "inicio": "27-Nov 22:00",
+      "T_colocacion_C": 18.0,
+      "hormigon": "M1",
+      "R_moldaje": 0.12,
+      "retiro_moldaje_h": 72.0,
+      "R_superior": 0.0
+    },
+    {
+      "id": 5,
+      "nombre": "Vertida_05",
+      "inicio_h": 24.0,
+      "inicio": "28-Nov 04:00",
+      "T_colocacion_C": 18.0,
+      "hormigon": "M1",
+      "R_moldaje": 0.12,
+      "retiro_moldaje_h": 72.0,
+      "R_superior": 0.0
+    }
+  ],
+  "vista_3d": {
+    "t_campo_h": 21.0,
+    "archivo": "temperatura_0007.vti"
+  }
+}
