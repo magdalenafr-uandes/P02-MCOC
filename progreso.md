@@ -2,9 +2,22 @@
 
 Actualizado el 16 de noviembre de 2026 · America/Santiago.
 
-**Paso actual:** 7 y 8 de 10. Terminó la matriz de seis escenarios de vertida única sin manta en la malla de 0,05 m vertical. Están en curso la malla fina y el barrido de la familia completa. Los insumos del cronograma y los pesos son provisionales, con autorización del usuario para avanzar bajo supuestos explícitos.
+**Paso actual:** 8 de 10, en pausa. Se completaron 57 de 60 escenarios del barrido principal y quedaron archivadas 76 corridas verificadas contando las confirmaciones. Se alcanzó el 10% restante de la ventana de 5 horas y se guardaron las corridas ya iniciadas.
 
-**Para retomar:** revisar las carpetas de resultados y el archivo de evidencia del registro de ejecución. Completar primero el nivel `barrido`, consolidar sus resultados con los refinamientos y resolver los planes cuya conclusión pueda cambiar. Después generar las tablas, figuras y presentación.
+**Para retomar:** extraer las corridas archivadas, completar las tres filas de `unica / M1_22A` del nivel `barrido` y regenerar la comparación. Luego generar las gráficas finales, producir el PDF desde su fuente, revisar visualmente todas sus páginas y ensayar con el grupo.
+
+## Corte del 16 de noviembre de 2026 · 19:07, America/Santiago
+
+- El indicador de uso llegó al **10% restante** de la ventana de cinco horas. Se activó `PAUSAR` para detener el inicio de nuevas corridas. Los ejecutores que estaban activos terminaron sus corridas iniciadas y salieron.
+- [Estado del paquete](proyecto/docs/evidencia_defensa/estado.json) · [Corridas reutilizables](proyecto/docs/evidencia_defensa/corridas.zip) · [Filas por escenario](proyecto/docs/evidencia_defensa/escenarios.csv) · [Riesgo por plan](proyecto/docs/evidencia_defensa/comparacion.csv). El empaquetado comprobó la integridad ZIP, el cierre de balance y que el diferencial corresponde a la resta de extremos simultáneos. Pasaron **264 pruebas del proyecto y 5 de la CLI raíz**.
+- Los nueve planes con matriz de barrido completa tienen excedencia conjunta observada de **75–100%** con los pesos principales. Todos quedan descartados por el diferencial. Algunos horizontes permanecen abiertos a 420 h, por lo que su riesgo observado es una cota inferior. El décimo plan, vertida única sin manta, ya falla en las tres combinaciones `M1_SS` del barrido y en los seis casos del cribado con la malla de 0,05 m vertical. El contraste del pronóstico para vertida única con poliestireno y `M1_SS` dio **22,908 °C** de diferencial.
+- Quedan exactamente tres combinaciones del barrido: `unica / M1_22A` con `era5_2023`, `era5_2024` y `era5_2025`. Falta publicar la conclusión con la tabla completa, generar las figuras finales y verificar el PDF. El guion y la fuente de la presentación están en `Archivos Extra/Defensa final`.
+- La rama de publicación es `codex/defensa-final`. El commit de corte es el que añade esta sección. Para reanudar desde GitHub, extraer el ZIP en `proyecto/results/defensa` y retirar solo el marcador `PAUSAR` si está presente. Ejecutar desde la raíz:
+
+  ```powershell
+  proyecto/.venv/Scripts/python.exe proyecto/scripts/defensa.py --nivel barrido --plan unica --curva M1_22A --procesos 3
+  proyecto/.venv/Scripts/python.exe proyecto/scripts/evidencia_defensa.py --nivel barrido --figuras "Archivos Extra/Defensa final/figuras"
+  ```
 
 ## Decisión que debe sostener la defensa
 
@@ -36,7 +49,7 @@ Elegir el plan de menor duración entre los evaluados cuya probabilidad conjunta
 | **5. Vertida única y costo** | Piloto verificado | Ejecutar la operación continua, primero con activación térmica conjunta y después con activación sucesiva dentro de una operación del mismo tiempo físico. | Piloto `unica / M1_SS / era5_2025`, 336 h y 91,3 s. Máxima 54,913 °C, diferencial global 44,191 °C a las 147 h, cara fría x− a 10,72 °C. La métrica global detectó incumplimiento en esta realización. |
 | **6. Familia de planes y pesos** | Fijado antes de comparar | Una operación continua en dos representaciones térmicas, esperas de 3 y 6 h, cada caso con y sin manta de 50 mm. Dos curvas M1 cruzadas con tres climas. | Catálogo en `configs/defensa.yaml`. Pesos hipotéticos 0,75/0,25 por menor confianza de 22A, sensibilidad 0,50/0,50 y 1/3 por clima análogo consecutivo. Producto por independencia supuesta. El pronóstico se usa como contraste sin peso. |
 | **7. Verificación numérica** | Referencia verificada | Comparar espacio, paso de integración y muestreo por separado. Refinar los candidatos cuyo margen pueda cambiar la decisión. | El diferencial del caso de referencia fue 43,673 °C en barrido, 44,191 °C en cribado y 44,940 °C en fino. En los tres casos excede 20 °C. Reducir el paso temporal o el intervalo de registro cambió menos de 0,007 °C. |
-| **8. Campaña y selección** | En curso | Ejecutar y guardar una fila por plan y escenario. Calcular marginales y unión. Revisar sensibilidad a los pesos y horizonte. | En la malla de 0,05 m vertical, la vertida única sin manta tiene `P_T = 0%`, `P_delta = P_F = 100%`. Sus seis diferenciales van de 33,76 a 44,55 °C. Falta la comparación completa. |
+| **8. Campaña y selección** | En pausa · 57/60 | Ejecutar y guardar una fila por plan y escenario. Calcular marginales y unión. Revisar sensibilidad a los pesos y horizonte. | Nueve matrices completas en barrido. Las tres filas restantes pertenecen a la vertida única sin manta con `M1_22A`. La misma alternativa ya tuvo `P_T = 0%` y `P_F = 100%` en el nivel de cribado de 0,05 m vertical. |
 | **9. Evidencia y control en obra** | Parcial | Preparar cronogramas, curvas con umbrales, cortes comparables, duración vs. riesgo, plan de sensores y contingencias. Congelar SHA e insumos. | Corte de vertida única verificado a 147 h. El documento técnico incluye un plan de control docente. Falta generar las gráficas de la familia y cerrar el paquete. |
 | **10. PDF y ensayo** | Parcial | Armar presentación con respaldo y ensayar exposición y preguntas. | Fuente de la presentación con ocho diapositivas principales y dos de respaldo. Falta generar y revisar el PDF con los resultados completos. El ensayo requiere al grupo. |
 
@@ -60,6 +73,8 @@ Las consultas prioritarias del taller son la capacidad y simultaneidad admisible
 - Se comprobó que los tres análogos cubren tanto 336 como 420 h. El contraste con pronóstico aporta 307 h y completa las 29 h restantes del horizonte base con el análogo 2025.
 - [Archivo de avance de las corridas](proyecto/docs/evidencia_defensa/corridas.zip) y [estado del conjunto](proyecto/docs/evidencia_defensa/estado.json). El ZIP contiene corridas completas del modelo con balance y métricas verificados. Si se retoma en otra máquina, extraerlo en `proyecto/results/defensa` y usar esa carpeta como `--salida` al reanudar. Retirar el archivo `PAUSAR` si está presente. La clave de reanudación normaliza finales de línea del código y los JSON meteorológicos. Se comprobó que una corrida del ZIP se reutiliza desde otra carpeta con **cero simulaciones pendientes**.
 - Los dos primeros casos con poliestireno y activación conjunta dieron 22,430 °C con ERA5 2023 y 23,020 °C con ERA5 2024, ambos con `M1_SS`. La cara fría fue x− de la vertida 1. Se inició una confirmación del caso 2024 con 0,05 m vertical. Estos datos aún no cierran la clasificación de la familia completa.
+- En el barrido ya están completos seis escenarios de `continua_manta`, `espera_3h_manta` y `unica_poliestireno`. Para cada plan hubo tres fallas, todas de `M1_SS` por diferencial. La suma ponderada da `P_T = 0%` y `P_delta = P_F = 75%`, o 50% con el reparto alternativo de curvas. Queda confirmar en resolución más fina los casos con menor margen sobre 20 °C y terminar las alternativas restantes.
+- Confirmaciones a 0,05 m vertical: vertida única con manta, `M1_SS / era5_2025`, Δ máxima **25,618 °C**. Vertida única con poliestireno, `M1_SS / era5_2024`, Δ máxima **23,264 °C** frente a 23,020 °C en el barrido. La espera de 6 h sin manta y `M1_SS / era5_2023` dio **43,935 °C** en el barrido. Con esta última corrida, los diez planes tienen por lo menos una excedencia de `M1_SS`; eso aporta una cota inferior de 25% de riesgo conjunto en cada plan, al nivel en que se evaluó el caso. Es un descarte preliminar. Las probabilidades exactas por plan requieren cerrar las matrices por nivel.
 
 ## Relevo entre sesiones
 

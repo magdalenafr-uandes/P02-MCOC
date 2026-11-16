@@ -200,8 +200,8 @@ def main():
                44, 382, (250, 67, 60, 60, 89), 28, 12)
     deck.figura(FIGURAS / "duracion_riesgo.png", 575, 118, 347, 245)
     dz = "0,10" if nivel == "barrido" else "0,05"
-    deck.texto(f"Malla de comparación 0,50 × 0,50 × {dz} m. Una línea de 40 m³/h. Manta superior y lateral.",
-               45, 65, 15, SEC)
+    deck.texto(f"Malla 0,50 × 0,50 × {dz} m. Una línea de 40 m³/h. P observada sirve de cota si el horizonte sigue abierto.",
+               45, 65, 14, SEC)
     deck.fin()
 
     deck.pagina("El diferencial identifica el mecanismo crítico", "Evolución térmica · 1:10")

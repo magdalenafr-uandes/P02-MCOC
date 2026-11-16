@@ -58,6 +58,14 @@ def test_falla_doble_cuenta_una_vez_y_el_umbral_no_redondea(peso_falla, cumple):
         dict(curva="b", clima="comun", I_T=0, I_delta=0, I_F=0, pico_tardio=False),
     ]
     resumen = defensa.resumir(resultados, {"a": peso_falla, "b": 1 - peso_falla}, {"comun": 1})
-    assert resumen == dict(P_T=peso_falla, P_delta=peso_falla, P_F=peso_falla, cumple=cumple)
+    assert resumen == dict(P_T=peso_falla, P_delta=peso_falla, P_F=peso_falla, cumple=cumple,
+                           escenarios_horizonte_abierto=0)
     with pytest.raises(ValueError, match="una fila"):
         defensa.resumir(resultados[:1], {"a": .05, "b": .95}, {"comun": 1})
+
+
+def test_excedencia_observada_descarta_aunque_el_horizonte_siga_abierto():
+    caso = dict(curva="a", clima="c", I_T=0, I_delta=1, I_F=1, pico_tardio=True)
+    assert defensa.resumir([caso], {"a": 1}, {"c": 1})["cumple"] == "no"
+    caso.update(I_delta=0, I_F=0)
+    assert defensa.resumir([caso], {"a": 1}, {"c": 1})["cumple"] == "indeterminado_horizonte"

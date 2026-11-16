@@ -205,12 +205,13 @@ def resumir(resultados, pesos_curvas, pesos_climas):
     total_clima = sum(climas.values())
     sumas = [sum(curvas[r["curva"]] * climas[r["clima"]] * r[k] for r in resultados)
              for k in ("I_T", "I_delta", "I_F")]
-    if any(r["pico_tardio"] for r in resultados):
-        cumple = "indeterminado_horizonte"
+    abiertos = sum(r["pico_tardio"] and curvas[r["curva"]] * climas[r["clima"]] > 0 for r in resultados)
+    if sumas[-1] > LIMITE_RIESGO * total_clima:
+        cumple = "no"
     else:
-        cumple = "si" if sumas[-1] <= LIMITE_RIESGO * total_clima else "no"
+        cumple = "indeterminado_horizonte" if abiertos else "si"
     return dict(P_T=float(sumas[0] / total_clima), P_delta=float(sumas[1] / total_clima),
-                P_F=float(sumas[2] / total_clima), cumple=cumple)
+                P_F=float(sumas[2] / total_clima), cumple=cumple, escenarios_horizonte_abierto=abiertos)
 
 
 def escribir_csv(ruta, filas):
