@@ -15,6 +15,8 @@ espera_6h,barrido,curvas,39.91937878552559,0.0,1.0,1.0,no,0
 espera_6h,barrido,pesos_alternativos_curvas,39.91937878552559,0.0,1.0,1.0,no,0
 espera_6h_manta,barrido,curvas,39.91937878552559,0.0,0.75,0.75,no,1
 espera_6h_manta,barrido,pesos_alternativos_curvas,39.91937878552559,0.0,0.5,0.5,no,1
+unica,barrido,curvas,15.919378785525588,0.0,1.0,1.0,no,0
+unica,barrido,pesos_alternativos_curvas,15.919378785525588,0.0,1.0,1.0,no,0
 unica,cribado,curvas,15.919378785525588,0.0,1.0,1.0,no,0
 unica,cribado,pesos_alternativos_curvas,15.919378785525588,0.0,1.0,1.0,no,0
 unica_manta,barrido,curvas,15.919378785525588,0.0,0.75,0.75,no,2

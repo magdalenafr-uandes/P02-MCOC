@@ -2,9 +2,9 @@
 
 Actualizado el 16 de noviembre de 2026 · America/Santiago.
 
-**Paso actual:** 8 de 10, en pausa. Se completaron 57 de 60 escenarios del barrido principal y quedaron archivadas 76 corridas verificadas contando las confirmaciones. Se alcanzó el 10% restante de la ventana de 5 horas y se guardaron las corridas ya iniciadas.
+**Paso actual:** 9 de 10, en curso. Barrido completo: 60/60 escenarios y 79 corridas verificadas contando confirmaciones. Ningún plan del barrido cumple; no se recomienda un plan constructivo validado.
 
-**Para retomar:** extraer las corridas archivadas, completar las tres filas de `unica / M1_22A` del nivel `barrido` y regenerar la comparación. Luego generar las gráficas finales, producir el PDF desde su fuente, revisar visualmente todas sus páginas y ensayar con el grupo.
+**Para retomar:** revisar la evidencia final y el PDF; confirmar los supuestos de obra y ensayar con el grupo. No repetir el barrido: las 60 filas están completas. Conservar como limitación los horizontes abiertos y la ausencia de un plan factible.
 
 ## Corte del 16 de noviembre de 2026 · 19:07, America/Santiago
 
@@ -49,7 +49,7 @@ Elegir el plan de menor duración entre los evaluados cuya probabilidad conjunta
 | **5. Vertida única y costo** | Piloto verificado | Ejecutar la operación continua, primero con activación térmica conjunta y después con activación sucesiva dentro de una operación del mismo tiempo físico. | Piloto `unica / M1_SS / era5_2025`, 336 h y 91,3 s. Máxima 54,913 °C, diferencial global 44,191 °C a las 147 h, cara fría x− a 10,72 °C. La métrica global detectó incumplimiento en esta realización. |
 | **6. Familia de planes y pesos** | Fijado antes de comparar | Una operación continua en dos representaciones térmicas, esperas de 3 y 6 h, cada caso con y sin manta de 50 mm. Dos curvas M1 cruzadas con tres climas. | Catálogo en `configs/defensa.yaml`. Pesos hipotéticos 0,75/0,25 por menor confianza de 22A, sensibilidad 0,50/0,50 y 1/3 por clima análogo consecutivo. Producto por independencia supuesta. El pronóstico se usa como contraste sin peso. |
 | **7. Verificación numérica** | Referencia verificada | Comparar espacio, paso de integración y muestreo por separado. Refinar los candidatos cuyo margen pueda cambiar la decisión. | El diferencial del caso de referencia fue 43,673 °C en barrido, 44,191 °C en cribado y 44,940 °C en fino. En los tres casos excede 20 °C. Reducir el paso temporal o el intervalo de registro cambió menos de 0,007 °C. |
-| **8. Campaña y selección** | En pausa · 57/60 | Ejecutar y guardar una fila por plan y escenario. Calcular marginales y unión. Revisar sensibilidad a los pesos y horizonte. | Nueve matrices completas en barrido. Las tres filas restantes pertenecen a la vertida única sin manta con `M1_22A`. La misma alternativa ya tuvo `P_T = 0%` y `P_F = 100%` en el nivel de cribado de 0,05 m vertical. |
+| **8. Campaña y selección** | Verificado · 60/60, sin plan factible | Ejecutar y guardar una fila por plan y escenario. Calcular marginales y unión. Revisar sensibilidad a los pesos y horizonte. | Diez matrices completas; P_T = 0%, P_F observada = 75–100%, o 50–100% con pesos 50/50. Los horizontes abiertos impiden declarar capturados todos los picos; sus cotas inferiores ya descartan los planes. |
 | **9. Evidencia y control en obra** | Parcial | Preparar cronogramas, curvas con umbrales, cortes comparables, duración vs. riesgo, plan de sensores y contingencias. Congelar SHA e insumos. | Corte de vertida única verificado a 147 h. El documento técnico incluye un plan de control docente. Falta generar las gráficas de la familia y cerrar el paquete. |
 | **10. PDF y ensayo** | Parcial | Armar presentación con respaldo y ensayar exposición y preguntas. | Fuente de la presentación con ocho diapositivas principales y dos de respaldo. Falta generar y revisar el PDF con los resultados completos. El ensayo requiere al grupo. |
 
@@ -100,3 +100,16 @@ Siguiente acción concreta
 ```
 
 Registrar verificaciones parciales a medida que se obtienen. Marcar un paso como verificado cuando exista la evidencia de cierre indicada en su fila.
+
+## 16 de noviembre de 2026 · 20:29, America/Santiago · Paso 8
+
+Estado: verificado para el descarte dentro del modelo provisional; no se encontró plan factible.
+
+- Cambio: se retomó `codex/defensa-final` en `7c626c0`, con árbol limpio; se restauraron las 76 corridas del ZIP y se ejecutaron solo las tres pendientes. `unica / M1_22A` dio Δ = 34,790; 33,715; 33,249 °C para ERA5 2023, 2024 y 2025, respectivamente (127–159 s por corrida).
+- Verificación: `defensa.py --nivel barrido --plan unica --curva M1_22A --procesos 3`; después `evidencia_defensa.py --nivel barrido --figuras "Archivos Extra/Defensa final/figuras"`. Resultado: **79 corridas verificadas, cero pendientes de barrido**; claves/insumos, balance, diferencial simultáneo e integridad ZIP comprobados por el empaquetador.
+- Evidencia: `proyecto/docs/evidencia_defensa/{estado.json,corridas.zip,escenarios.csv,comparacion.csv}`. No cambió el solver ni sus entradas; las 76 corridas anteriores mantienen vigencia.
+- Resultado: sin aislación P_F = 100%; con manta/poliestireno P_F observada = 75%. La sensibilidad 50/50 da 100% y 50%, respectivamente. Todos superan 5%. Algunos horizontes a 420 h siguen abiertos: sus probabilidades son cotas inferiores, suficientes para descartar, pero no máximos definitivos de horizontes mayores.
+- Pruebas: la ejecución inicial encontró temporales no escribibles; con `--basetemp=.pytest_cache/tmp_defensa_cierre` pasó raíz (5). Proyecto terminó con dos fallos HTTP por WinError 10013 del sandbox; se repite la suite completa con acceso a localhost antes del commit. No se considera aprobado ese intento fallido.
+- Uso consultado: 96% restante al empezar, 95% antes de la campaña, 93% tras completarla.
+- Siguiente acción: cerrar figuras y documento técnico, revisar el PDF y registrar el ensayo grupal como pendiente de participación humana.
+- Verificación resuelta antes de guardar: la suite completa de proyecto terminó con código 0 (264 pruebas) al permitir localhost; raíz pasó 5/5. Repetir las tres pendientes informó **0 por ejecutar**, comprobando reutilización. Queda 91% de la ventana.
