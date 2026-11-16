@@ -19,7 +19,9 @@ from mcplan.version_demo import version_visualizador
 RAIZ = Path(__file__).resolve().parents[1]
 
 
-def crear_servidor(plan, puerto, salida, resultado_inicial=None):
+def crear_servidor(plan, puerto, salida, resultado_inicial=None, *, plan_base=None):
+    if plan_base is None:
+        plan_base = plan
     pipeline = Pipeline()
     executor = ThreadPoolExecutor(max_workers=1)
     candado = threading.Lock()
@@ -57,13 +59,14 @@ def crear_servidor(plan, puerto, salida, resultado_inicial=None):
             self.wfile.write(raw)
 
         def do_GET(self):
-            ruta = urlparse(self.path).path
+            destino = urlparse(self.path)
+            ruta = destino.path
             if ruta in ('/', '/index.html'):
                 self.responder((RAIZ/'visor_e08/index.html').read_bytes(), tipo='text/html; charset=utf-8')
             elif ruta == '/analisis.js':
                 self.responder((RAIZ/'visor_e08/analisis.js').read_bytes(), tipo='text/javascript; charset=utf-8')
             elif ruta == '/api/plan':
-                self.responder(plan)
+                self.responder(plan_base if destino.query == 'caso=base' else plan)
             elif ruta == '/api/version':
                 self.responder(dict(aplicacion='mcplan-e08',version=version))
             elif ruta == '/api/estado':
@@ -78,7 +81,8 @@ def crear_servidor(plan, puerto, salida, resultado_inicial=None):
                 self.responder({'error': 'Ruta inexistente'}, 404)
 
         def do_POST(self):
-            if self.path not in ('/api/ejecutar','/api/cerrar'):
+            destino_solicitud = urlparse(self.path)
+            if destino_solicitud.path not in ('/api/ejecutar','/api/cerrar'):
                 self.responder({'error': 'Ruta inexistente'}, 404)
                 return
             origen = self.headers.get('Origin')
@@ -86,7 +90,7 @@ def crear_servidor(plan, puerto, salida, resultado_inicial=None):
             if origen is not None and origen not in permitidos:
                 self.responder({'error': 'Origen no permitido'}, 403)
                 return
-            if self.path == '/api/cerrar':
+            if destino_solicitud.path == '/api/cerrar':
                 with candado:
                     ocupado = estado['estado']=='running'
                 if ocupado:
@@ -104,10 +108,11 @@ def crear_servidor(plan, puerto, salida, resultado_inicial=None):
                     raise ValueError('Se requieren plan y convergencia booleana.')
                 # Los archivos del caso se eligen al iniciar el servidor/CLI;
                 # la interfaz modifica parámetros, no las rutas del proceso.
-                entrada['plan']['ifc'] = plan['ifc']
-                entrada['plan']['material'] = plan['material']
-                if 'opciones' in plan:  # catálogos y carpeta de snapshots: los fija el servidor
-                    entrada['plan']['opciones'] = plan['opciones']
+                plan_servidor = plan_base if destino_solicitud.query == 'caso=base' else plan
+                entrada['plan']['ifc'] = plan_servidor['ifc']
+                entrada['plan']['material'] = plan_servidor['material']
+                if 'opciones' in plan_servidor:  # catálogos y carpeta de snapshots: los fija el servidor
+                    entrada['plan']['opciones'] = plan_servidor['opciones']
                 with candado:
                     if estado['estado'] == 'running':
                         self.responder({'error': 'Ya hay una simulación en ejecución'}, 409)
@@ -154,7 +159,7 @@ def main():
     parser.add_argument('--resultado',type=Path,help='Abrir una corrida guardada y reconstruir sus indicadores sin simular.')
     parser.add_argument('--restaurar-ultimo', action='store_true', help='Recuperar la corrida completa más reciente.')
     args = parser.parse_args()
-    plan = cargar_plan(args.plan)
+    plan_base = plan = cargar_plan(args.plan)
     resultado_inicial = None
     if args.resultado:
         if args.ejecutar:
@@ -177,7 +182,7 @@ def main():
             if fila['vertida_id'] == 'total':
                 print(f'Δx={fila["paso_m"]:g} m: error total={fila["error_relativo"]:.3%}')
         return 0
-    servidor, executor = crear_servidor(plan, args.puerto, args.salida,resultado_inicial)
+    servidor, executor = crear_servidor(plan, args.puerto, args.salida, resultado_inicial, plan_base=plan_base)
     print(f'Demo E08: http://127.0.0.1:{servidor.server_port}', flush=True)
     print('Detener con Ctrl+C. Los cálculos se ejecutan en Python; el navegador muestra los resultados.', flush=True)
     try:

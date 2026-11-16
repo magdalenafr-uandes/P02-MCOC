@@ -148,7 +148,8 @@ def test_api_servidor_ejecuta_pipeline_real_y_rechaza_origen_ajeno(plan, tmp_pat
     spec = importlib.util.spec_from_file_location('demo_e08', RAIZ/'scripts/demo_e08.py')
     modulo = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(modulo)
-    servidor, executor = modulo.crear_servidor(plan, 0, tmp_path)
+    restaurado = dict(plan, final_h=1, ifc='ifc-de-la-corrida-guardada.ifc')
+    servidor, executor = modulo.crear_servidor(restaurado, 0, tmp_path, plan_base=plan)
     hilo = threading.Thread(target=servidor.serve_forever, daemon=True)
     hilo.start()
     url = f'http://127.0.0.1:{servidor.server_port}'
@@ -159,7 +160,8 @@ def test_api_servidor_ejecuta_pipeline_real_y_rechaza_origen_ajeno(plan, tmp_pat
 
     body = json.dumps(dict(plan=plan, convergencia=False)).encode()
     try:
-        assert obtener('/api/plan') == plan
+        assert obtener('/api/plan') == restaurado
+        assert obtener('/api/plan?caso=base') == plan
         version=obtener('/api/version')
         assert version['aplicacion']=='mcplan-e08'
         assert len(version['version'])==64
@@ -170,12 +172,12 @@ def test_api_servidor_ejecuta_pipeline_real_y_rechaza_origen_ajeno(plan, tmp_pat
         assert lanzador.disponible()
         with urlopen(url, timeout=10) as respuesta:
             html = respuesta.read().decode()
-        assert 'Ejecutar simulación' in html
+        assert 'Ejecutar simulación' in html and 'Cargar caso base' in html
         request = Request(url+'/api/ejecutar', data=body, headers={'Content-Type': 'application/json', 'Origin': 'https://externo.invalid'})
         with pytest.raises(HTTPError) as error:
             urlopen(request, timeout=10)
         assert error.value.code == 403
-        request = Request(url+'/api/ejecutar', data=body, headers={'Content-Type': 'application/json', 'Origin': url})
+        request = Request(url+'/api/ejecutar?caso=base', data=body, headers={'Content-Type': 'application/json', 'Origin': url})
         with urlopen(request, timeout=10) as respuesta:
             assert respuesta.status == 202
         limite = time.monotonic()+60

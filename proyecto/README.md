@@ -23,6 +23,10 @@ de pantalla y encuadra la vista 3D sobre el hormigón.
 inicia el servicio en segundo plano y abre el navegador. Cuando cambia el
 código o la configuración, reinicia el servidor compatible si está inactivo;
 si hay un cálculo en curso, espera a que termine antes de actualizar.
+Las entradas se rellenan desde la última corrida guardada o desde el perfil
+del proyecto al abrir por primera vez. **Cargar caso base** recupera todas las
+entradas del perfil, incluido el plan de vertidas. El resultado anterior sigue
+visible hasta ejecutar de nuevo.
 
 El visor y los scripts de línea de comandos usan ahora el mismo motor
 `thermal/etapas.py`: suelo, materiales, edad equivalente/Arrhenius, moldaje,

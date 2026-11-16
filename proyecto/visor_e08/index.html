@@ -11,6 +11,7 @@ header,main{max-width:none;width:100%;padding-left:clamp(14px,2vw,40px);padding-
 #rotulo-estanque[hidden],#tubos[hidden],#ajustes-tuberias[hidden]{display:none}
 #cortehorizontal[hidden],#controles-corte-vertical[hidden],#controles-moldaje[hidden]{display:none}
 #controles-corte-vertical{margin-bottom:10px}
+#cargar-base{color:var(--accent)}
 #controles-corte-vertical input[type=range]{padding:0;vertical-align:middle}
 canvas#vista[data-vista="vertical"]{cursor:crosshair;touch-action:auto}
 </style></head>
@@ -78,7 +79,7 @@ canvas#vista[data-vista="vertical"]{cursor:crosshair;touch-action:auto}
 </div>
 <label><input id="convergencia" type="checkbox"> Incluir convergencia geométrica</label><label style="margin-top:8px">Resoluciones [m], separadas por coma<input id="pasos" type="text" style="width:100%;margin:4px 0 12px"></label>
 </details>
-<div class="row acciones"><button class="primary" type="submit" id="ejecutar">Ejecutar simulación</button><button type="button" id="exportar">Guardar inputs JSON</button></div></form>
+<div class="row acciones"><button class="primary" type="submit" id="ejecutar" disabled>Ejecutar simulación</button><button type="button" id="exportar" disabled>Guardar inputs JSON</button><a id="cargar-base" href="?caso=base">Cargar caso base</a></div></form>
 <p id="pendiente">Ejecuta para generar resultados.</p><div id="estado" role="status" aria-live="polite">Conectando con Python…</div></section>
 <details class="panel"><summary>Material y alcance</summary><p id="material">M1 · referencia docente</p><p id="contexto" class="hint"></p><p class="hint">Balance térmico por voxeles, activación temporal y contacto perfecto entre vertidas. Suelo, moldaje, aislación y dependencia térmica de hidratación según el caso YAML compartido. El clima sale de snapshots de Open-Meteo; un reanálisis de otro año entra como análogo, no como pronóstico de obra. La nota de clima de cada ejecución dice qué horas vienen de cada fuente.</p></details></aside>
 <div><section class="panel"><h2>Indicadores del escenario completo</h2><p class="hint">Picos de toda la corrida; los valores de la vista 3D corresponden al instante seleccionado.</p>
@@ -181,6 +182,10 @@ let base=null,resultado=null,frames=[],revision=0,revisionEjecutada=-1,ocupado=f
 let yaw=-.65,pitch=.8,zoom=1,arrastre=null,ancho=800,alto=480,seleccionVoxel=null,poligonosPantalla=[];
 let referenciaEscenario=null,limitesVista=null;
 const canvas=$('vista'),ctx=canvas.getContext('2d');
+const consulta=new URLSearchParams(location.search);
+const consultaCaso=consulta.get('caso')==='base'?'?caso=base':'';
+consulta.set('caso','base');
+$('cargar-base').href='?'+consulta;
 function mensaje(t){$('estado').textContent=t;}
 // Abrir la categoría del campo inválido antes de que el navegador intente enfocarlo.
 $('entradas').addEventListener('invalid',e=>{let categoria=e.target.closest('details');while(categoria){categoria.open=true;categoria=categoria.parentElement.closest('details');}},true);
@@ -260,8 +265,12 @@ $('agua-regulada').addEventListener('change',actualizarTuberias);
 function pendiente(){revision++;$('pendiente').textContent='Entradas modificadas: ejecuta para actualizar los resultados.';}
 async function pedir(url,opciones){const r=await fetch(url,opciones);const d=await r.json();if(!r.ok)throw Error(d.error||r.statusText);return d;}
 async function iniciar(){
+ if(location.protocol==='file:'){
+  mensaje('Abre Abrir visualizador.cmd para cargar automáticamente los datos del proyecto.');
+  return;
+ }
  try{
-  base=await pedir('/api/plan');
+  base=await pedir('/api/plan'+consultaCaso);
   iniciarTuberias();
   for(const [id,campo] of [['dx','paso_m'],['final','final_h'],['ambiente','ambiente_C'],['h','h_W_m2_K'],['dt','dt_s'],['guardar','guardar_cada_h']])$(id).value=base[campo];
   $('inicioobra').value=base.inicio_simulacion||base.opciones?.inicio||'2026-11-27T04:00';
@@ -281,6 +290,7 @@ async function iniciar(){
   actualizarClima();
   $('pasos').value=base.pasos_convergencia_m.join(', ');
   base.vertidas.forEach(crearFila);
+  $('exportar').disabled=false;
   dibujar();
   const estado=await pedir('/api/estado');
   if(estado.estado==='done'||estado.carpeta_resultado){
@@ -293,11 +303,13 @@ async function iniciar(){
    ocupado=true;
    $('ejecutar').disabled=true;
    sondear(-1);
+  }else{
+   $('ejecutar').disabled=false;
   }
  }catch(e){mensaje('No se pudo abrir el visor: '+e.message);}
 }
 $('entradas').addEventListener('input',e=>{if(!e.target.classList.contains('visible')&&e.target.id!=='convergencia')pendiente();});
-$('entradas').addEventListener('submit',async e=>{e.preventDefault();if(ocupado)return;try{const p=leerPlan();ocupado=true;$('ejecutar').disabled=true;const rev=revision;await pedir('/api/ejecutar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({plan:p,convergencia:$('convergencia').checked})});mensaje('Iniciando…');sondear(rev);}catch(error){ocupado=false;$('ejecutar').disabled=false;mensaje('Error: '+error.message);}});
+$('entradas').addEventListener('submit',async e=>{e.preventDefault();if(ocupado||!base)return;try{const p=leerPlan();ocupado=true;$('ejecutar').disabled=true;const rev=revision;await pedir('/api/ejecutar'+consultaCaso,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({plan:p,convergencia:$('convergencia').checked})});mensaje('Iniciando…');sondear(rev);}catch(error){ocupado=false;$('ejecutar').disabled=false;mensaje('Error: '+error.message);}});
 async function sondear(rev){
  try{
   const estado=await pedir('/api/estado');
