@@ -19,6 +19,10 @@ planes:
   continua_manta: {activacion: sucesiva, espera_h: 0, aislacion: manta_50mm}
   espera_3h_manta: {activacion: sucesiva, espera_h: 3, aislacion: manta_50mm}
   espera_6h_manta: {activacion: sucesiva, espera_h: 6, aislacion: manta_50mm}
+  # Extensión conservada por separado tras el piloto de manta: mismo cronograma
+  # continuo y mayor resistencia en las caras expuestas, con los mismos pesos.
+  unica_poliestireno: {activacion: conjunta, espera_h: 0, aislacion: poliestireno_100mm}
+  continua_poliestireno: {activacion: sucesiva, espera_h: 0, aislacion: poliestireno_100mm}
 # Se conserva M1 del IFC. Solo se cruzan las dos curvas que llevan ese identificador.
 # Los pesos son hipótesis para el conjunto discreto, con menor peso para 22A.
 # Las otras curvas se conservan como datos y pueden evaluarse como sensibilidad.
@@ -35,6 +39,7 @@ climas:
     respaldo: {snapshot: ../data/weather/defensa_2025, desplazar_anios: 1}
     peso: 0
 niveles:
+  barrido: {paso_m: 0.50, paso_z_m: 0.10, fraccion_dt: 0.8, registro_h: 0.25}
   cribado: {paso_m: 0.50, paso_z_m: 0.05, fraccion_dt: 0.8, registro_h: 0.25}
   fino: {paso_m: 0.25, paso_z_m: 0.05, fraccion_dt: 0.8, registro_h: 0.25}
   temporal: {paso_m: 0.50, paso_z_m: 0.05, fraccion_dt: 0.4, registro_h: 0.25}

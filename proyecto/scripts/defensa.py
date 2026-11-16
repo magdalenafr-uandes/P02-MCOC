@@ -230,6 +230,15 @@ def escribir_tablas(salida, resultados, estudio):
     escribir_csv(salida / "comparacion.csv", resumen)
 
 
+def huella_modelo():
+    codigo = hashlib.sha256()
+    for funcion in (cronograma, preparar_caso, metricas, calcular):
+        codigo.update(inspect.getsource(funcion).encode())
+    for ruta in sorted((RAIZ / "src/mcplan").rglob("*.py")):
+        codigo.update(ruta.read_bytes())
+    return codigo.hexdigest()
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, default=RAIZ / "configs/defensa.yaml")
@@ -260,12 +269,7 @@ def main():
     print(f"Volumen IFC: {sum(s.volumen for s in solidos):.3f} m3. Cronogramas: {args.salida}", flush=True)
     if args.solo_cronograma:
         return
-    codigo = hashlib.sha256()
-    for funcion in (cronograma, preparar_caso, metricas, calcular):
-        codigo.update(inspect.getsource(funcion).encode())
-    for ruta in sorted((RAIZ / "src/mcplan").rglob("*.py")):
-        codigo.update(ruta.read_bytes())
-    archivos = dict(ifc=sha256_archivo(rutas[0]), hidratacion=sha256_archivo(rutas[1]), codigo=codigo.hexdigest())
+    archivos = dict(ifc=sha256_archivo(rutas[0]), hidratacion=sha256_archivo(rutas[1]), codigo=huella_modelo())
     commit = subprocess.check_output(["git", "-C", str(RAIZ), "rev-parse", "HEAD"], text=True).strip()
     def preparar_tarea(plan, curva, clima, nivel):
         historico = estudio["climas"][clima]
