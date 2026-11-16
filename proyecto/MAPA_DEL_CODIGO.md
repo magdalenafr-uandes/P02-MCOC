@@ -24,6 +24,10 @@ Indicadores de comparación y sondas fijas: `indicadores.py`, `MAPA:indicadores-
 Se exportan en `resultado.json`: picos, diferencial por vertida a la profundidad
 del criterio, sondas del núcleo/borde y temperaturas de piezas previas en cada colocación.
 
+Comparación para la defensa en `scripts/defensa.py`. `metricas` extrae los
+extremos globales y sus ubicaciones. `resumir` suma el peso de la unión de
+excedencias. `configs/defensa.yaml` define los planes y escenarios de la campaña.
+
 ```text
 configs/e07_caso_base.yaml   todos los parámetros del caso (material, T, moldaje, malla, clima)
         │  caso/config.py         valida el YAML y lo combina con el IFC          [MAPA:prioridad-ifc-yaml]

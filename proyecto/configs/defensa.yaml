@@ -1,0 +1,41 @@
+# Escenarios docentes provisionales. Fundamentación y datos pendientes en progreso.md.
+caso_base: e07_caso_base.yaml
+inicio: "2026-11-19T04:00"
+zona_horaria: America/Santiago
+horizonte_h: 336
+horizonte_extendido_h: 420
+capacidad_m3_h: 40
+temperatura_colocacion_C: 18
+retiro_moldaje_h: 72
+# Una línea de colocación, orden ascendente del IFC y espera mínima provisional de cero.
+# Se usa el mismo catálogo de protecciones para todos. La campaña provisional
+# se ejecuta sin tuberías porque falta confirmar su disponibilidad en obra.
+planes:
+  unica: {activacion: conjunta, espera_h: 0, aislacion: null}
+  continua: {activacion: sucesiva, espera_h: 0, aislacion: null}
+  espera_3h: {activacion: sucesiva, espera_h: 3, aislacion: null}
+  espera_6h: {activacion: sucesiva, espera_h: 6, aislacion: null}
+  unica_manta: {activacion: conjunta, espera_h: 0, aislacion: manta_50mm}
+  continua_manta: {activacion: sucesiva, espera_h: 0, aislacion: manta_50mm}
+  espera_3h_manta: {activacion: sucesiva, espera_h: 3, aislacion: manta_50mm}
+  espera_6h_manta: {activacion: sucesiva, espera_h: 6, aislacion: manta_50mm}
+# Se conserva M1 del IFC. Solo se cruzan las dos curvas que llevan ese identificador.
+# Los pesos son hipótesis para el conjunto discreto, con menor peso para 22A.
+# Las otras curvas se conservan como datos y pueden evaluarse como sensibilidad.
+curvas: {M1_SS: 0.75, M1_22A: 0.25}
+pesos_alternativos_curvas: {M1_SS: 0.5, M1_22A: 0.5}
+Ea_J_mol: 0
+climas:
+  era5_2023: {snapshot: ../data/weather/defensa_2023, desplazar_anios: 3, peso: 1}
+  era5_2024: {snapshot: ../data/weather/defensa_2024, desplazar_anios: 2, peso: 1}
+  era5_2025: {snapshot: ../data/weather/defensa_2025, desplazar_anios: 1, peso: 1}
+  pronostico:
+    snapshot: ../data/weather/defensa_pronostico
+    completar: respaldo
+    respaldo: {snapshot: ../data/weather/defensa_2025, desplazar_anios: 1}
+    peso: 0
+niveles:
+  cribado: {paso_m: 0.50, paso_z_m: 0.05, fraccion_dt: 0.8, registro_h: 0.25}
+  fino: {paso_m: 0.25, paso_z_m: 0.05, fraccion_dt: 0.8, registro_h: 0.25}
+  temporal: {paso_m: 0.50, paso_z_m: 0.05, fraccion_dt: 0.4, registro_h: 0.25}
+  registro: {paso_m: 0.50, paso_z_m: 0.05, fraccion_dt: 0.8, registro_h: 0.125}
