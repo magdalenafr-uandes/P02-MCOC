@@ -1,0 +1,13 @@
+{
+  "fecha": "2026-11-16",
+  "zona": "America/Santiago",
+  "archivo": "Defensa final/Defensa final - Grupo 1.pdf",
+  "sha256": "59d5115e2a0537bb845d24ba0bbaa002f773594f803a03950a17ef680b792e30",
+  "paginas": 12,
+  "exposicion": 8,
+  "respaldo": 4,
+  "revision_visual": "12 páginas inspeccionadas; ecuación y leyenda corregidas y renderizadas de nuevo",
+  "resultado": "sin recortes ni símbolos faltantes observados",
+  "ensayo_grupal": "pendiente",
+  "commit_evidencia": "fc95932a4fd3d08652679052c342b63e71858b9c"
+}

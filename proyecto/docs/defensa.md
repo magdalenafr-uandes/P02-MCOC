@@ -37,3 +37,59 @@ proyecto/.venv/Scripts/python.exe proyecto/scripts/evidencia_defensa.py --nivel 
 ## Control docente en obra
 
 Para un plan que resulte admisible, ubicar sensores en las zonas de máximo y mínimo que aparezcan de forma repetida en los escenarios, con un sensor de núcleo y otro cerca de la superficie en secciones comparables. Registrar ambiente, colocación y retiro de protecciones junto a las series de hormigón. Asignar a un responsable de terreno la instalación y revisión, y al encargado técnico la comparación contra los escenarios. Usar lecturas frecuentes desde la colocación y conservarlas al menos durante los 14 días evaluados, extendiendo el seguimiento si el hormigón sigue calentándose. Antes de usar alertas de obra hay que fijar márgenes que reflejen el error numérico y la dispersión de las mediciones. Ante una desviación, verificar el sensor, contrastar ambas métricas y evaluar la siguiente colocación o el cambio de protección con ese diagnóstico. Retirar aislación para enfriar el núcleo puede agravar el diferencial.
+
+## Cierre del barrido · 16 de noviembre de 2026
+
+Se completaron 60 escenarios principales y se conservan 79 corridas verificadas. Ninguno de los diez planes alcanza el requisito de 5% en esta familia. No se declara un plan recomendado ni optimalidad global. La ausencia de solución es un resultado del conjunto evaluado, no prueba de imposibilidad para otras medidas.
+
+| Plan | D [h] | P_T [%] | P_Δ = P_F observada [%] | P_F con pesos 50/50 [%] | Horizontes abiertos |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| continua | 15.919 | 0.0 | 100.0 | 100.0 | 0 |
+| continua_manta | 15.919 | 0.0 | 75.0 | 50.0 | 1 |
+| continua_poliestireno | 15.919 | 0.0 | 75.0 | 50.0 | 2 |
+| espera_3h | 27.919 | 0.0 | 100.0 | 100.0 | 0 |
+| espera_3h_manta | 27.919 | 0.0 | 75.0 | 50.0 | 1 |
+| espera_6h | 39.919 | 0.0 | 100.0 | 100.0 | 0 |
+| espera_6h_manta | 39.919 | 0.0 | 75.0 | 50.0 | 1 |
+| unica | 15.919 | 0.0 | 100.0 | 100.0 | 0 |
+| unica_manta | 15.919 | 0.0 | 75.0 | 50.0 | 2 |
+| unica_poliestireno | 15.919 | 0.0 | 75.0 | 50.0 | 2 |
+
+En filas con horizonte abierto, la probabilidad observada es una cota inferior: ampliar puede aumentar el riesgo, nunca recuperar la factibilidad ya descartada. Faltan los picos definitivos posteriores a 420 h en esos escenarios; no se presenta el horizonte como cerrado.
+
+### Comprobación numérica de referencia
+
+Vertida única, M1_SS, ERA5 2025. Se cambia una variable por nivel; la referencia es cribado.
+
+| Nivel | T máxima [°C] | Δ máxima [°C] | Tiempo de Δ [h] | Residuo / escala de energía |
+| --- | ---: | ---: | ---: | ---: |
+| barrido | 54.911051 | 43.673489 | 147.000 | 2.419e-16 |
+| cribado | 54.913126 | 44.190917 | 147.000 | 1.815e-16 |
+| fino | 54.917713 | 44.940139 | 147.000 | 8.643e-16 |
+| registro | 54.911387 | 44.184339 | 146.875 | 6.657e-16 |
+| temporal | 54.911420 | 44.184287 | 147.000 | 9.077e-16 |
+
+La clasificación permanece desfavorable al refinar espacio, paso temporal y muestreo. Estas comparaciones no demuestran orden asintótico de convergencia ni validan la temperatura superficial con sensores. La interpolación a 25 mm continúa siendo una aproximación de malla gruesa.
+
+### Paquete y reproducción
+
+Código e insumos congelados en el commit `fc95932` de `codex/defensa-final`. Los JSON conservan además el commit de cada ejecución y sus huellas completas. La versión de modelo en `estado.json` identifica el solver sin depender de cambios documentales.
+
+Desde la raíz, restaurar el ZIP si no hay resultados locales; nunca sobrescribir otras corridas sin comprobar sus claves:
+
+```powershell
+Expand-Archive -LiteralPath proyecto/docs/evidencia_defensa/corridas.zip -DestinationPath proyecto/results/defensa
+proyecto/.venv/Scripts/python.exe proyecto/scripts/defensa.py --nivel barrido --plan unica --curva M1_SS --clima era5_2025
+proyecto/.venv/Scripts/python.exe proyecto/scripts/defensa.py --nivel barrido --procesos 3
+proyecto/.venv/Scripts/python.exe proyecto/scripts/evidencia_defensa.py --nivel barrido --figuras "Archivos Extra/Defensa final/figuras"
+```
+
+El segundo comando de simulación selecciona la familia completa y debe informar cero pendientes con el paquete restaurado vigente. Se requiere instalar `proyecto/` y la CLI raíz en entornos separados según sus pyproject; el PDF requiere ReportLab. El PDF ya calculado evita depender de estas instalaciones durante la defensa.
+
+### Pendientes que requieren decisión humana
+
+- Confirmar capacidad de 40 m³/h, protecciones disponibles y restricciones de obra.
+- Confirmar con el profesor qué representan SS/22A y su comparabilidad; las ocho curvas se conservan y la elección de M1 se declara condicionada al IFC.
+- Ensayar siete minutos y preguntas con todos los integrantes. El guion propone tiempos; no consta un ensayo real ni evaluación individual.
+- Confirmar en Canvas el plazo del artículo. No se verificó acceso a Canvas en esta sesión.
+- Si se desea una recomendación ejecutable, definir y simular un control nuevo de la cara fría; no declarar validado un control no calculado.

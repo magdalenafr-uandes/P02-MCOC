@@ -126,7 +126,8 @@ def graficar(resultados, resumen, destino, nivel):
         ax.axhline(limite, color="#ab492f", ls="--", lw=1.2, label=f"Límite {limite} °C")
         ax.set(xlabel="Días desde el inicio de obra", ylabel=y)
         ax.grid(axis="y", color="#dbe2e6")
-        ax.legend(fontsize=8.6, frameon=False)
+        ax.legend(fontsize=8.6, frameon=False, ncol=2 if ax is axes[0] else 1,
+                  loc="upper center", bbox_to_anchor=(0.5, -0.2))
     fig.savefig(destino / "curvas_comparadas.png", dpi=175)
     plt.close(fig)
 
@@ -206,6 +207,22 @@ def main():
         with (args.salida / "comparacion.csv").open(encoding="utf-8", newline="") as f:
             resumen = [r for r in csv.DictReader(f) if r["nivel"] == args.nivel and r["pesos"] == "curvas"]
         graficar(resultados, resumen, args.figuras, args.nivel)
+        with (args.salida / "cronogramas.csv").open(encoding="utf-8", newline="") as f:
+            horarios = list(csv.DictReader(f))
+        planes = ("continua", "espera_3h", "espera_6h")
+        fig, ax = plt.subplots(figsize=(9, 3.4), layout="constrained")
+        colores = plt.get_cmap("viridis")(np.linspace(0.15, 0.85, 5))
+        for i, plan in enumerate(planes):
+            for fila in (r for r in horarios if r["plan"] == plan):
+                j = int(fila["vertida"]) - 1
+                ax.barh(i, float(fila["duracion_h"]), left=float(fila["inicio_h"]),
+                        color=colores[j], label=f"Vertida {j + 1}" if i == 0 else None)
+        ax.set(yticks=range(3), yticklabels=("Continua", "Espera 3 h", "Espera 6 h"),
+               xlabel="Horas desde 19/11/2026 04:00 · America/Santiago", xlim=(0, 42))
+        ax.invert_yaxis()
+        ax.legend(ncol=5, loc="upper center", bbox_to_anchor=(0.5, 1.25), frameon=False)
+        fig.savefig(args.figuras / "cronogramas.png", dpi=180)
+        plt.close(fig)
     if args.figuras and args.corte:
         base = next(r for r in resultados if (r["plan"], r["nivel"], r["curva"], r["clima"])
                     == ("unica", "cribado", "M1_SS", "era5_2025"))

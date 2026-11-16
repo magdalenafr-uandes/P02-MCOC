@@ -147,7 +147,7 @@ def main():
         )
     )
     sha = estado.get("commit_modelo") or subprocess.check_output(
-        ["git", "-C", str(RAIZ), "rev-parse", "--short", "HEAD"], text=True
+        ["git", "-C", str(RAIZ), "rev-parse", "HEAD"], text=True
     ).strip()
     deck = Presentacion()
 
@@ -170,10 +170,10 @@ def main():
     deck.fin()
 
     deck.pagina("La colocación cambia el dominio térmico", "Física y método · 1:05")
-    a = deck.parrafo("Balance físico", "La conducción redistribuye calor. La fuente Q(a) aporta calor volumétrico desde la activación de cada pieza.", 45, 392)
+    a = deck.parrafo("Balance físico", "ρ cₚ ∂T/∂t = div(k grad T) + Q(a). Fuente en W/m³, edad a desde cada activación y colocación a 18 °C.", 45, 392)
     a = deck.parrafo("Bordes e interfaces", "Suelo explícito, base fija, intercambio con viento y radiación. La cara cubierta pasa a contacto conductivo con la nueva vertida.", 45, a)
     b = deck.parrafo("Celdas y avance explícito", "Capacidad ρ cₚ V por voxel. El paso se limita por C/ΣG y por los eventos del cronograma.", 500, 392)
-    deck.parrafo("Diferencial global", "La temperatura más alta del hormigón activo y la más fría a 25 mm se comparan en el mismo instante.", 500, b)
+    deck.parrafo("Diferencial global", "Extremos simultáneos de hormigón activo. A 25 mm se interpola entre cara y centro; la malla gruesa no resuelve esa profundidad.", 500, b)
     deck.texto("Criterios docentes   T máxima ≤ 70 °C   /   diferencial ≤ 20 °C   /   horizonte base de 336 h",
                45, 79, 17, ACENTO, True)
     deck.fin()
@@ -206,7 +206,7 @@ def main():
 
     deck.pagina("El diferencial identifica el mecanismo crítico", "Evolución térmica · 1:10")
     deck.figura(FIGURAS / "curvas_comparadas.png", 36, 92, 888, 319)
-    deck.texto("Vertida única · M1_SS · ERA5 2025. Las dos curvas de temperatura usan extremos del mismo instante.",
+    deck.texto("Activación conjunta · M1_SS · ERA5 2025. Extremos simultáneos; con protección el horizonte sigue abierto.",
                45, 65, 15, SEC)
     deck.fin()
 
@@ -232,12 +232,30 @@ def main():
                "El caso adiabático reproduce la curva de hidratación a partir de la energía integrada.", 45, 135, 18, ancho=840)
     deck.fin()
 
+    deck.pagina("Cronogramas y límites de la búsqueda", "Respaldo · construcción")
+    deck.figura(FIGURAS / "cronogramas.png", 45, 182, 870, 232)
+    deck.texto("Una línea a 40 m³/h, sin simultaneidad. Esperas por interfaz: 0, 3 y 6 h. "
+               "Las protecciones no cambian la duración física. Diez planes, seis escenarios por plan.",
+               45, 135, 19, ancho=850)
+    deck.texto("No hay mínimo factible en esta familia. No se demuestra optimalidad global ni se valida una medida aún no simulada.",
+               45, 69, 16, SEC, ancho=850)
+    deck.fin()
+
+    deck.pagina("Supuestos y alcance de la evidencia", "Respaldo · limitaciones")
+    deck.parrafo("Riesgo condicionado", "Con pesos 50/50, P conjunta sigue entre 50% y 100%. Las dos campañas M1 son escenarios de modelo; falta confirmar su comparabilidad.", 45, 389)
+    deck.parrafo("Horizonte", "Base 336 h, extensión 420 h. Persisten señales tardías en algunos casos protegidos: P observada es cota inferior, ya mayor que 5%.", 500, 389)
+    deck.parrafo("Verificación y validación", "Caso adiabático: error 7,11 × 10⁻¹⁵ °C. Balance relativo < 3 × 10⁻¹⁶ en referencias. No hay mediciones independientes de la fundación.", 45, 222)
+    deck.parrafo("Datos de obra", "Capacidad, protecciones y pesos son supuestos docentes. Confirmarlos antes de ampliar la familia o recomendar ejecución. El criterio térmico no calcula fisuración.", 500, 222)
+    deck.fin()
+
     deck.pagina("Datos y reproducción sin internet", "Respaldo · fuentes")
     deck.parrafo("Entradas versionadas", "IFC oficial, fuente Q(t), tres archivos ERA5 con metadatos, configuración de escenarios y pesos, y cronogramas.", 45, 392)
     deck.parrafo("Resultados", "Las filas por escenario contienen máximos, ubicación y balance. La tabla de comparación incluye la sensibilidad de pesos 50/50.", 500, 392)
-    deck.texto(f"Código e insumos de campaña   {sha}", 45, 224, 19, ACENTO, True)
-    deck.texto("proyecto/.venv/Scripts/python.exe proyecto/scripts/defensa.py --plan unica", 45, 177, 17)
-    deck.texto("proyecto/.venv/Scripts/python.exe proyecto/scripts/defensa.py --procesos 4", 45, 141, 17)
+    deck.texto(f"Evidencia congelada en Git   {sha}", 45, 224, 15, ACENTO, True)
+    deck.texto("Rama: codex/defensa-final · github.com/magdalenafr-uandes/P02-MCOC", 45, 195, 16)
+    deck.texto("Caso: defensa.py --nivel barrido --plan unica --curva M1_SS --clima era5_2025", 45, 155, 16)
+    deck.texto("Comparación: defensa.py --nivel barrido --procesos 3", 45, 122, 16)
+    deck.texto("Ejecutar desde raíz con proyecto/.venv/Scripts/python.exe proyecto/scripts/…", 45, 92, 14, SEC)
     deck.texto("Fuentes: IFC y archivo del curso · Open-Meteo ERA5 · Guía técnica en proyecto/docs/defensa.md", 45, 69, 14, SEC)
     deck.fin()
     deck.c.save()

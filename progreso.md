@@ -2,7 +2,7 @@
 
 Actualizado el 16 de noviembre de 2026 · America/Santiago.
 
-**Paso actual:** 9 de 10, en curso. Barrido completo: 60/60 escenarios y 79 corridas verificadas contando confirmaciones. Ningún plan del barrido cumple; no se recomienda un plan constructivo validado.
+**Paso actual:** 10 de 10, PDF verificado; ensayo grupal pendiente. Barrido completo: 60/60 escenarios y 79 corridas verificadas contando confirmaciones. Ningún plan del barrido cumple; no se recomienda un plan constructivo validado.
 
 **Para retomar:** revisar la evidencia final y el PDF; confirmar los supuestos de obra y ensayar con el grupo. No repetir el barrido: las 60 filas están completas. Conservar como limitación los horizontes abiertos y la ausencia de un plan factible.
 
@@ -50,8 +50,8 @@ Elegir el plan de menor duración entre los evaluados cuya probabilidad conjunta
 | **6. Familia de planes y pesos** | Fijado antes de comparar | Una operación continua en dos representaciones térmicas, esperas de 3 y 6 h, cada caso con y sin manta de 50 mm. Dos curvas M1 cruzadas con tres climas. | Catálogo en `configs/defensa.yaml`. Pesos hipotéticos 0,75/0,25 por menor confianza de 22A, sensibilidad 0,50/0,50 y 1/3 por clima análogo consecutivo. Producto por independencia supuesta. El pronóstico se usa como contraste sin peso. |
 | **7. Verificación numérica** | Referencia verificada | Comparar espacio, paso de integración y muestreo por separado. Refinar los candidatos cuyo margen pueda cambiar la decisión. | El diferencial del caso de referencia fue 43,673 °C en barrido, 44,191 °C en cribado y 44,940 °C en fino. En los tres casos excede 20 °C. Reducir el paso temporal o el intervalo de registro cambió menos de 0,007 °C. |
 | **8. Campaña y selección** | Verificado · 60/60, sin plan factible | Ejecutar y guardar una fila por plan y escenario. Calcular marginales y unión. Revisar sensibilidad a los pesos y horizonte. | Diez matrices completas; P_T = 0%, P_F observada = 75–100%, o 50–100% con pesos 50/50. Los horizontes abiertos impiden declarar capturados todos los picos; sus cotas inferiores ya descartan los planes. |
-| **9. Evidencia y control en obra** | Parcial | Preparar cronogramas, curvas con umbrales, cortes comparables, duración vs. riesgo, plan de sensores y contingencias. Congelar SHA e insumos. | Corte de vertida única verificado a 147 h. El documento técnico incluye un plan de control docente. Falta generar las gráficas de la familia y cerrar el paquete. |
-| **10. PDF y ensayo** | Parcial | Armar presentación con respaldo y ensayar exposición y preguntas. | Fuente de la presentación con ocho diapositivas principales y dos de respaldo. Falta generar y revisar el PDF con los resultados completos. El ensayo requiere al grupo. |
+| **9. Evidencia y control en obra** | Verificado bajo supuestos | Preparar cronogramas, curvas con umbrales, cortes comparables, duración vs. riesgo, plan de sensores y contingencias. Congelar SHA e insumos. | Figuras finales generadas, corte verificado a 147 h, informe con tabla completa y sensibilidad. Insumos/resultados congelados en `fc95932`; controles de obra son propuesta docente, no medida validada. |
+| **10. PDF y ensayo** | PDF verificado; ensayo bloqueado por participación del grupo | Armar presentación con respaldo y ensayar exposición y preguntas. | PDF de 12 páginas: 8 principales (7 min propuestos), 4 de respaldo. Renderizado e inspeccionado; huella en `revision_pdf.json`. El ensayo y la comprensión individual siguen pendientes. |
 
 Para el paso 4, calcular en cada instante `T_max_activo(t) − T_min_superficie_25mm(t)` y luego maximizar en el tiempo. Para el paso 8, una fila falla si supera cualquiera de los dos límites y cuenta una vez aunque supere ambos. Evaluar el 5% con valores sin redondear. Usar 14 días desde el inicio común y extender si quedan máximos tardíos o temperaturas crecientes, informando ambos horizontes.
 
@@ -113,3 +113,15 @@ Estado: verificado para el descarte dentro del modelo provisional; no se encontr
 - Uso consultado: 96% restante al empezar, 95% antes de la campaña, 93% tras completarla.
 - Siguiente acción: cerrar figuras y documento técnico, revisar el PDF y registrar el ensayo grupal como pendiente de participación humana.
 - Verificación resuelta antes de guardar: la suite completa de proyecto terminó con código 0 (264 pruebas) al permitir localhost; raíz pasó 5/5. Repetir las tres pendientes informó **0 por ejecutar**, comprobando reutilización. Queda 91% de la ventana.
+
+## 16 de noviembre de 2026 · 20:39, America/Santiago · Pasos 9 y 10
+
+Estado: paso 9 verificado bajo los supuestos declarados; paso 10 verificado en PDF, bloqueado en ensayo grupal.
+
+- Cambio: se generaron cronogramas, duración–riesgo y curvas comparables con umbrales; se conservó el corte de referencia vigente. El informe técnico incluye las diez alternativas, sensibilidad 50/50, balance y refinamiento por nivel, comandos y pendientes humanos. Se amplió el respaldo de la presentación sin alterar las ocho diapositivas principales.
+- Verificación: `defensa.py --nivel barrido --procesos 3` informó **60 seleccionadas, 0 por ejecutar**. El empaquetador volvió a comprobar 79 corridas y cero faltantes. La fuente PDF se ejecutó con el Python/ReportLab del runtime instalado; Poppler renderizó las páginas. Se inspeccionaron las 12 páginas, se corrigió un glifo de ecuación y la leyenda, y se renderizaron/revisaron otra vez las páginas afectadas. Pypdf comprobó 12 páginas, identificación del proyecto, SHA de evidencia y extracción sin caracteres de sustitución. Compilación de ambas fuentes Python correcta.
+- Resultado: PDF disponible en `Defensa final/Defensa final - Grupo 1.pdf`; fuente editable en `Archivos Extra/Defensa final/generar_presentacion.py`. No se afirma ensayo real. `revision_pdf.json` conserva SHA-256 y comprobaciones. El SHA congelado de los resultados es `fc95932a4fd3d08652679052c342b63e71858b9c`; el commit de publicación posterior añade figuras, PDF y documentación.
+- Pruebas antes de guardar: raíz 5/5; suite completa del proyecto 264/264, código 0 con localhost permitido y temporales dentro de `.pytest_cache`. No se cambió física ni insumos del solver.
+- Uso después de este avance: **89% restante**. El cierre no se debe al límite: el trabajo autónomo previsto quedó terminado; el ensayo, las confirmaciones de obra y el significado de SS/22A requieren al grupo/profesor. Los horizontes abiertos quedan registrados como limitación, sin afirmar picos definitivos.
+- Punto exacto para retomar: abrir el PDF y `Archivos Extra/Defensa final/guion.md`, ensayar 7 minutos con los tres integrantes y registrar tiempo real y respuestas. Confirmar supuestos de obra y campañas; si se pide una alternativa factible, acordar un control de cara fría y simularlo con los mismos escenarios antes de recomendarlo. Confirmar también el plazo del artículo en Canvas.
+- Publicación: pendiente de push del commit que contiene este reporte; comprobar SHA remoto y enviar aviso por Gmail al finalizar.
