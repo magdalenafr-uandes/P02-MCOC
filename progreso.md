@@ -125,3 +125,14 @@ Estado: paso 9 verificado bajo los supuestos declarados; paso 10 verificado en P
 - Uso después de este avance: **89% restante**. El cierre no se debe al límite: el trabajo autónomo previsto quedó terminado; el ensayo, las confirmaciones de obra y el significado de SS/22A requieren al grupo/profesor. Los horizontes abiertos quedan registrados como limitación, sin afirmar picos definitivos.
 - Punto exacto para retomar: abrir el PDF y `Archivos Extra/Defensa final/guion.md`, ensayar 7 minutos con los tres integrantes y registrar tiempo real y respuestas. Confirmar supuestos de obra y campañas; si se pide una alternativa factible, acordar un control de cara fría y simularlo con los mismos escenarios antes de recomendarlo. Confirmar también el plazo del artículo en Canvas.
 - Publicación: pendiente de push del commit que contiene este reporte; comprobar SHA remoto y enviar aviso por Gmail al finalizar.
+
+### Publicación comprobada · 16 de noviembre de 2026, 20:43 · America/Santiago
+
+- Push real completado: `7c626c0..8d123d8` en `origin/codex/defensa-final`.
+- `git ls-remote origin refs/heads/codex/defensa-final` devolvió `8d123d8fdb50d3e25526b3a3190402bd8f8f9ba0`, igual a HEAD. Enlace: https://github.com/magdalenafr-uandes/P02-MCOC/tree/codex/defensa-final .
+- Se guarda esta constancia en un commit documental de cierre y se vuelve a comprobar el remoto antes del correo. El correo identificará el SHA final del reporte, además del SHA congelado `fc95932` de la campaña.
+- Incidencia de herramientas: la revisión automática rechazó `git restore` sobre el ZIP regenerado por riesgo de descartar cambios sin respaldo. No se ejecutó; se conservó el ZIP verificado en el commit publicado. No quedó trabajo bloqueado por esa revisión.
+- Cierre por dependencia humana: ensayo grupal y confirmación de supuestos; no por falta de saldo. No se declara terminada la defensa ni validado un plan factible. Próxima acción exacta: ensayo con el PDF y guion, y registrar tiempos y observaciones en este archivo. El correo se envía después de comprobar el commit final; su resultado se comunica en el chat.
+- Comprobación adicional del paquete: diez planes × seis escenarios ERA5 = 60 filas principales y ZIP íntegro de 79 corridas. Un conteo exploratorio por nivel dio 61 porque incluía el contraste de pronóstico de peso cero; al seleccionar los climas principales se verificó la matriz 60/60. No se eliminó el contraste ni se alteraron pesos.
+- Saldo al iniciar el cierre: **88%** de la ventana de cinco horas.
+- Antes del commit documental final: suites raíz y proyecto aprobadas nuevamente (5 y 264, código 0). Se conserva la evidencia anterior; no hay fallos de pruebas sin resolver.
