@@ -1,6 +1,6 @@
 """Muestra la fuente de calor medida Q(t) y su curva adiabática θ(t) (MAPA:fuente-medida).
 
-Lee ``data/hidratacion/source_terms.txt`` (datos del profesor, 8 probetas),
+Lee ``data/hidratacion/source_terms.txt`` (8 probetas de dos campañas),
 imprime por probeta el pico de Q, el calor total y la elevación adiabática
 θ = ∫Q dt/(ρ cp), y guarda una figura que compara con la curva pedagógica
 anterior (θ∞ = 45 K, τ = 30 h).

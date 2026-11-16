@@ -1,8 +1,8 @@
 """Fuente de calor de hidratación medida Q(t) [W/m³] -> curva adiabática θ(t) [K].
 
-Lee el archivo de la campaña experimental entregado por el profesor
+Lee el archivo de la campaña experimental
 (``data/hidratacion/source_terms.txt``): columnas de Q(t) por probeta y
-campaña, cada 60 s. El solver no lee este archivo: la configuración lo
+campaña, con tiempos definidos en el archivo. La configuración lo
 convierte aquí en una tabla (t, θ) para ``ModeloHidratacion('tabla')``.
 
 Conversión (energía): bajo condición adiabática todo el calor generado eleva
@@ -17,8 +17,7 @@ calor entregado coincide con el medido.
 Supuestos (declarados en el YAML):
 - las probetas son pequeñas y siguen la temperatura del laboratorio, así que
   la curva se interpreta a T_ref (edad equivalente);
-- después del fin del registro de una probeta, su Q se toma como 0 (al final
-  ya vale 0–3 W/m³ en la campaña 22A);
+- después del fin del registro de una probeta, su Q se toma como 0;
 - las 2 h previas al inicio de la ventana no están en el archivo.
 """
 

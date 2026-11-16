@@ -28,7 +28,9 @@ def test_archivo_original_trazable():
     serie = leer_fuente(ARCHIVO)
     assert serie.sha256 == meta["sha256"]
     assert serie.nombres == PROBETAS
-    assert serie.t_h[0] == 0.0 and serie.t_h[1] == pytest.approx(1 / 60, rel=1e-3)
+    assert serie.t_h[0] == 0.0
+    # Los tiempos del archivo se guardan con tres decimales de hora.
+    assert serie.t_h[1] == pytest.approx(meta["paso_s"] / HORA, abs=0.0005)
     # la campaña 22A termina antes (NaN): se toma Q = 0 después del registro
     assert np.isnan(serie.Q["M1_22A"][-1]) and serie.curva("M1_22A")[-1] == 0.0
 

@@ -1,13 +1,13 @@
 {
   "archivo": "source_terms.txt",
-  "sha256": "27196495c1da43f54e941d81fee22932b7a0e31911b32680d123715eeb3b7815",
-  "fuente": "Profesor del curso (correo del 12-nov-2026): datos de campaña experimental para la fuente de calor Q(t)",
-  "descripcion": "Fuente volumétrica de calor de hidratación Q(t) recuperada con una PINN de conductancia fija, probetas M1-M4, dos campañas",
+  "sha256": "182b4a500dd02060b89dc452f007a379c7ab6cdc569e67de59a04c00d3497956",
+  "fuente": "Archivo de reemplazo entregado por el usuario el 16-nov-2026",
+  "descripcion": "Fuente volumétrica de calor Q(t) estimada por inversión de volúmenes finitos y regularización de Tikhonov, con conductancia de borde fija de 2,5 W/(m² K)",
   "probeta": "cilindro de hormigón, radio 0,0375 m, altura 0,15 m",
-  "campanas": {"SS": "13-20 de abril de 2025", "22A": "22 de abril de 2025 (NaN tras 163,1 h)"},
+  "campanas": {"SS": "13-20 de abril de 2025", "22A": "22 de abril de 2025 (NaN después de 163 h; el archivo indica menor confianza para esta campaña)"},
   "unidades": {"time_h": "h", "Q": "W/m^3 de hormigón"},
   "tiempo_cero": "inicio de la ventana retenida = inicio del registro + 2 h (las primeras 2 h no están en el archivo)",
-  "paso_s": 60,
+  "paso_s": 600,
   "columnas": ["time_h", "M1_SS", "M2_SS", "M3_SS", "M4_SS", "M1_22A", "M2_22A", "M3_22A", "M4_22A"],
   "uso_en_el_modelo": "caso/fuente_calor.py integra Q para obtener la elevación adiabática theta(t) = integral(Q dt)/(rho·cp) y la entrega al modelo 'tabla' de hidratación"
 }
