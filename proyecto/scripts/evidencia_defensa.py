@@ -17,18 +17,49 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from defensa import RAIZ, cargar_yaml, escribir_tablas, huella_modelo
+from defensa import RAIZ, cargar_yaml, clave_corrida, escribir_tablas, huella_modelo, ruta_corrida, sha256_archivo
 from mcplan.caso.config import leer_config
 from mcplan.caso.pipeline import ejecutar_pipeline
 
 
-def cargar_corridas(entrada):
+def cargar_corridas(entrada, estudio):
     archivos = sorted(entrada.glob("*__*__*__*__*.json"))
     filas = [(p, json.loads(p.read_text(encoding="utf-8"))) for p in archivos]
     version = huella_modelo()
-    filtradas = [(p, r) for p, r in filas if r["entradas"]["codigo"] == version]
+    antigua = huella_modelo(normalizar=False)
+    filtradas = {}
+    for p, r in filas:
+        entradas = r["entradas"]
+        if entradas["codigo"] not in (version, antigua):
+            continue
+        carpeta = RAIZ / "configs"
+        caso = deepcopy(r["caso"])
+        if r["periodo_base"]:
+            # La clave original se calculó con el tipo numérico del YAML.
+            caso["simulacion"]["duracion_h"] = estudio["horizonte_h"]
+        extendido = estudio["horizonte_extendido_h"]
+        if r["clave"] != clave_corrida(caso, entradas, r["D_h"], extendido):
+            raise ValueError(f"La configuración registrada no coincide con la clave de {p.name}.")
+        clima = caso["clima"]
+        firma = dict(entradas, codigo=version)
+        for campo, datos_clima in (("clima", clima), ("respaldo", clima.get("respaldo"))):
+            if datos_clima is None:
+                continue
+            rutas = [carpeta / datos_clima["snapshot"] / n for n in ("forecast.json", "metadata.json")]
+            cruda = [sha256_archivo(s) for s in rutas]
+            portable = [sha256_archivo(s, texto=True) for s in rutas]
+            if entradas[campo] not in (cruda, portable):
+                raise ValueError(f"Archivos de clima distintos a los registrados en {p.name}.")
+            firma[campo] = portable
+        for campo, nombre in (("ifc", caso["ifc"]), ("hidratacion", caso["hormigones"]["M1"]["hidratacion"]["archivo"])):
+            if sha256_archivo(carpeta / nombre) != entradas[campo]:
+                raise ValueError(f"El archivo {campo} de {p.name} cambió.")
+        r.update(entradas=firma, clave=clave_corrida(caso, firma, r["D_h"], extendido))
+        salida = ruta_corrida(entrada, r["nivel"], r["plan"], r["curva"], r["clima"], r["clave"])
+        filtradas[salida.name] = (salida, r)
     if not filtradas:
         raise ValueError("Todavía no hay corridas que empaquetar.")
+    filtradas = list(filtradas.values())
     identidades = [(r["plan"], r["nivel"], r["curva"], r["clima"]) for _, r in filtradas]
     if len(identidades) != len(set(identidades)):
         raise ValueError("Hay dos configuraciones vigentes con el mismo identificador. Revisar antes de publicar.")
@@ -148,7 +179,7 @@ def main():
     p.add_argument("--corte", action="store_true")
     args = p.parse_args()
     estudio = cargar_yaml(RAIZ / "configs/defensa.yaml")
-    lista = cargar_corridas(args.entrada)
+    lista = cargar_corridas(args.entrada, estudio)
     resultados = [r for _, r in lista]
     faltantes = verificar_familia(resultados, estudio, args.nivel)
     if faltantes and not args.permitir_parcial:
@@ -159,8 +190,9 @@ def main():
     (args.salida / archivo_cronograma.name).write_bytes(archivo_cronograma.read_bytes())
     comprimido = args.salida / "corridas.zip"
     with zipfile.ZipFile(comprimido, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archivo:
-        for ruta, _ in lista:
-            archivo.write(ruta, ruta.name)
+        for ruta, resultado in lista:
+            texto = json.dumps(resultado, ensure_ascii=False, indent=2, allow_nan=False) + "\n"
+            archivo.writestr(ruta.name, texto.encode("utf-8"))
     with zipfile.ZipFile(comprimido) as archivo:
         if archivo.testzip() is not None or len(archivo.namelist()) != len(lista):
             raise ValueError("No se pudo verificar el archivo de corridas.")

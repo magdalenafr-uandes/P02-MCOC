@@ -1,3 +1,7 @@
 plan,nivel,pesos,D_h,P_T,P_delta,P_F,cumple
+continua,cribado,curvas,15.919378785525588,0.0,1.0,1.0,no
+continua,cribado,pesos_alternativos_curvas,15.919378785525588,0.0,1.0,1.0,no
+continua_manta,barrido,curvas,15.919378785525588,0.0,0.75,0.75,indeterminado_horizonte
+continua_manta,barrido,pesos_alternativos_curvas,15.919378785525588,0.0,0.5,0.5,indeterminado_horizonte
 unica,cribado,curvas,15.919378785525588,0.0,1.0,1.0,no
 unica,cribado,pesos_alternativos_curvas,15.919378785525588,0.0,1.0,1.0,no

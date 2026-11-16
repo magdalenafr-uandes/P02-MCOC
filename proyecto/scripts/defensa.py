@@ -33,8 +33,19 @@ def cargar_yaml(ruta):
     return yaml.safe_load(ruta.read_text(encoding="utf-8-sig"))
 
 
-def sha256_archivo(ruta):
-    return hashlib.sha256(ruta.read_bytes()).hexdigest()
+def sha256_archivo(ruta, texto=False):
+    contenido = ruta.read_bytes()
+    if texto:
+        contenido = contenido.replace(b"\r\n", b"\n")
+    return hashlib.sha256(contenido).hexdigest()
+
+
+def clave_corrida(datos, entradas, D_h, extendido):
+    return hashlib.sha256(json.dumps([datos, entradas, D_h, extendido], sort_keys=False).encode()).hexdigest()
+
+
+def ruta_corrida(carpeta, nivel, plan, curva, clima, clave):
+    return carpeta / f"{nivel}__{plan}__{curva}__{clima}__{clave[:12]}.json"
 
 
 def guardar_json(ruta, valor):
@@ -230,12 +241,13 @@ def escribir_tablas(salida, resultados, estudio):
     escribir_csv(salida / "comparacion.csv", resumen)
 
 
-def huella_modelo():
+def huella_modelo(normalizar=True):
     codigo = hashlib.sha256()
     for funcion in (cronograma, preparar_caso, metricas, calcular):
         codigo.update(inspect.getsource(funcion).encode())
     for ruta in sorted((RAIZ / "src/mcplan").rglob("*.py")):
-        codigo.update(ruta.read_bytes())
+        contenido = ruta.read_bytes()
+        codigo.update(contenido.replace(b"\r\n", b"\n") if normalizar else contenido)
     return codigo.hexdigest()
 
 
@@ -274,16 +286,16 @@ def main():
     def preparar_tarea(plan, curva, clima, nivel):
         historico = estudio["climas"][clima]
         dir_clima = carpeta / historico["snapshot"]
-        entradas = dict(archivos, clima=[sha256_archivo(dir_clima / n) for n in ("forecast.json", "metadata.json")])
+        entradas = dict(archivos, clima=[sha256_archivo(dir_clima / n, texto=True) for n in ("forecast.json", "metadata.json")])
         if "respaldo" in historico:
             respaldo = carpeta / historico["respaldo"]["snapshot"]
-            entradas["respaldo"] = [sha256_archivo(respaldo / n) for n in ("forecast.json", "metadata.json")]
+            entradas["respaldo"] = [sha256_archivo(respaldo / n, texto=True) for n in ("forecast.json", "metadata.json")]
         datos = preparar_caso(base, estudio, estudio["planes"][plan], historico, curva,
                               estudio["niveles"][nivel], horarios[plan], estudio["horizonte_h"])
         D_h = horarios[plan][-1]["fin_h"]
         extendido = estudio["horizonte_extendido_h"]
-        clave = hashlib.sha256(json.dumps([datos, entradas, D_h, extendido], sort_keys=False).encode()).hexdigest()
-        ruta = args.salida / f"{nivel}__{plan}__{curva}__{clima}__{clave[:12]}.json"
+        clave = clave_corrida(datos, entradas, D_h, extendido)
+        ruta = ruta_corrida(args.salida, nivel, plan, curva, clima, clave)
         return dict(ruta=str(ruta), clave=clave, datos=datos, carpeta=str(carpeta),
                     entradas=entradas, commit=commit, horizonte_extendido_h=extendido,
                     plan=plan, curva=curva, clima=clima, nivel=nivel, D_h=D_h)
