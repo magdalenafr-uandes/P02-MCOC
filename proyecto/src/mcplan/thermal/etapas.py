@@ -43,6 +43,7 @@ from .bordes import (  # noqa: F401  (Ambiente, CondicionBase y SIGMA se reexpor
     orientacion,
     resistencia_proteccion,
 )
+from .enfriamiento import AguaRecirculada, Enfriamiento, trazar_circuitos
 from .hidratacion import ModeloHidratacion
 from .tuberias import Tuberia
 from .voxel import MallaVoxel, SolverVoxel, adiabatico
@@ -167,6 +168,7 @@ class ResultadoEtapas:
     edad_equivalente_final_s: np.ndarray | None = None
     activo_final: np.ndarray | None = None
     campos: dict[float, np.ndarray] = field(default_factory=dict)
+    enfriamiento: dict | None = None
 
     @property
     # [MAPA:criterio-deltaT] diferencial núcleo - superficie (criterio 20 °C)
@@ -250,10 +252,13 @@ class SimuladorEtapas:
         campos_cada_s: float | None = None,
         progreso=None,
         tuberias: Sequence[Tuberia] = (),
+        enfriamiento: Enfriamiento | None = None,
     ) -> None:
         if campos_cada_s is not None and not campos_cada_s > 0.0:
             raise ValueError("campos_cada_s debe ser positivo.")
         self.tuberias = tuple(tuberias)
+        if self.tuberias and enfriamiento is not None:
+            raise ValueError("Elegir un solo modelo de enfriamiento: tuberias o enfriamiento.")
         for tub in self.tuberias:
             if tub.vertida_id not in {p.vertida_id for p in plan}:
                 raise ValueError(f"Tubería {tub.nombre}: la vertida {tub.vertida_id} no está en el plan.")
@@ -285,6 +290,7 @@ class SimuladorEtapas:
         self.suelo = suelo
         self.T_suelo_inicial_C = T_suelo_inicial_C
         self.guardar_campos = guardar_campos
+        self.enfriamiento = enfriamiento
         self._q = np.zeros(dominio.vertida_id.shape)
 
     # --- coherencia constructiva -------------------------------------------
@@ -440,6 +446,13 @@ class SimuladorEtapas:
         ids = dom.vertida_id
         res = ResultadoEtapas(T_max_vertida_C={vid: [] for vid in sorted(self.plan)})
         res.advertencias = self.advertencias_apoyo()
+        agua = None
+        circuitos_por_vertida = {}
+        circuitos_activos = []
+        if self.enfriamiento is not None:
+            agua = AguaRecirculada(self.enfriamiento, d[0])
+            vertidas_visibles = [vid for vid, p in self.plan.items() if p.visible]
+            circuitos_por_vertida = trazar_circuitos(ids, d, vertidas_visibles, self.enfriamiento.separacion_m)
 
         activo = np.zeros(forma, dtype=bool)  # hormigón activo
         T = np.full(forma, self.ambiente.temperatura(0.0))
@@ -449,7 +462,7 @@ class SimuladorEtapas:
         activadas: set[int] = set()
 
         # [MAPA:balance-energia] contabilidad de energía: colocación, hidratación, ambiente, base
-        E = dict.fromkeys(("colocacion", "hidratacion", "ambiente", "base", "fuga_vacio", "tuberias"), 0.0)
+        E = dict.fromkeys(("colocacion", "hidratacion", "ambiente", "base", "fuga_vacio", "tuberias", "agua"), 0.0)
         res.energia_por_tuberia_J = {tub.nombre: 0.0 for tub in self.tuberias}
         E_inicial = None
         proximo_guardado = 0.0
@@ -498,9 +511,15 @@ class SimuladorEtapas:
                     grupos.append((m, h.hidratacion))
 
             if solido.any():
-                # h máximo de la etapa y tuberías activas: paso estable siempre
+                # h máximo de la etapa y conductancias de los circuitos activos
                 G_ext = G_amb_max.reshape(forma) + G_base + G_tub.reshape(forma)
+                if agua is not None:
+                    circuitos_activos = [c for vid in sorted(activadas) for c in circuitos_por_vertida.get(vid, [])]
+                    for circuito in circuitos_activos:
+                        G_ext.ravel()[circuito] += agua.G_tramo_W_K
                 limite = float(np.min((C / (solver.suma_G + G_ext))[solido]))
+                if agua is not None:
+                    limite = min(limite, agua.limite_dt_s(circuitos_activos))
             else:
                 limite = math.inf
             # [MAPA:estabilidad-caso] dt = fraccion_dt · C/ΣG con el h máximo de la etapa
@@ -554,6 +573,8 @@ class SimuladorEtapas:
                 # [MAPA:tuberia-energia] calor que el agua extrae: Σ G (T_celda − T_agua); varía con T
                 P_tub = (G_tub * T.ravel() - GT_tub).reshape(forma)
                 self._q = q_h + (P_amb + P_base - P_tub) / V
+                if agua is not None and circuitos_activos:
+                    E['agua'] += agua.intercambiar(T, self._q, circuitos_activos, dt, V)
                 T_nuevo = T + dt * solver.tasa_calor(T, t) / C
                 E["hidratacion"] += dt * float(np.sum(q_h)) * V
                 E["ambiente"] += dt * float(np.sum(P_amb))
@@ -598,7 +619,7 @@ class SimuladorEtapas:
         solido = activo | dom.es_suelo
         E_final = float(np.sum((C * T)[solido]))
         aportes = (E["colocacion"] + E["hidratacion"] + E["ambiente"] + E["base"] - E["fuga_vacio"]
-                   - E["tuberias"])
+                   - E["tuberias"] - E["agua"])
         res.balance = {
             "E_inicial_J": E_inicial or 0.0,
             "E_final_J": E_final,
@@ -608,6 +629,10 @@ class SimuladorEtapas:
         res.T_final = T
         res.edad_equivalente_final_s = te
         res.activo_final = activo
+        if agua is not None:
+            res.enfriamiento = dict(circuitos=len(circuitos_activos),
+                                   longitud_m=sum(c.size for c in circuitos_activos) * d[0],
+                                   energia_neta_J=E['agua'], T_agua_final_C=agua.temperatura_C)
         return res
 
     def _registrar(self, res, t, T, activo, caras, ids, forzar_campo=False) -> None:

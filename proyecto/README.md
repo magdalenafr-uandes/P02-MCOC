@@ -61,6 +61,9 @@ en **horas**, tal como indica su documentación. Los campos son datos de celda
 y se guardan en tiempos exactos, además de activaciones y cambios de etapa.
 El visor respeta los tres pasos espaciales; no dibuja celdas anisotrópicas
 como cubos. Una edición avisa que los resultados necesitan recalcularse.
+En **Mostrar → Corte vertical · temperatura**, elige un plano X–Z o Y–Z y
+mueve el corte de una capa de voxeles a la siguiente. La sección usa el
+mismo reloj, colores y selección de voxeles que la vista 3D.
 
 Los JSON antiguos `configs/e08.json` siguen aceptándose por compatibilidad:
 se convierten al mismo motor, conservando el caso simple sin suelo ni clima.

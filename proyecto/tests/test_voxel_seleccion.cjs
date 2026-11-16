@@ -10,7 +10,7 @@ new vm.Script(script);
 const funciones=script.slice(script.indexOf('function puntoEnPoligono'),script.indexOf('function prepararCanvas'));
 
 function escenario(){
-  const controles={tiempo:{value:'0'},corte:{value:'1'},limpiarvoxel:{},voxeltemperatura:{},voxeldetalle:{},voxelinstante:{}};
+  const controles={tiempo:{value:'0'},modo:{value:'temperatura'},corte:{value:'1'},limpiarvoxel:{},voxeltemperatura:{},voxeldetalle:{},voxelinstante:{}};
   const c={$:id=>controles[id],seleccionVoxel:0,frames:[[21],[22.5],[NaN]],poligonosPantalla:[],
     visibles:()=>new Set([2]),dibujar:()=>{},actualizarAnalisis:()=>{},resultado:{indices:[[1,2,3]],vertida_id:[2],
       origen_m:[-1,-2,0],pasos_m:[.5,.5,.05],fotogramas:[
@@ -66,4 +66,38 @@ test('quitar selección limpia el panel sin cambiar los datos',()=>{
   assert.equal(controles.voxeltemperatura.textContent,'— °C');
   assert.equal(controles.limpiarvoxel.disabled,true);
   assert.deepEqual(c.frames,[[21],[22.5],[NaN]]);
+});
+
+test('el corte vertical proyecta la capa correcta y consulta su voxel durante la reproducción',()=>{
+  const {c,controles}=escenario();
+  controles.modo.value='vertical';
+  controles.ejevertical={value:'1'};
+  controles.cortevertical={value:'1'};
+  controles.posicionvertical={};
+  c.limitesVista=null;c.seleccionVoxel=null;
+  c.resultado.indices=[[0,0,0],[0,1,0],[1,1,1],[1,1,2],[1,2,0]];
+  c.resultado.vertida_id=[2,2,2,2,1];
+  c.frames=[[19,31,46,NaN,60],[20,34,47,NaN,61]];
+  const dibujo=new Proxy({},{get:(obj,k)=>obj[k]??(()=>{})});
+  const color=script.slice(script.indexOf('let escalaT='),script.indexOf('function rgb'));
+  const corte=script.slice(script.indexOf('function encuadrarHormigon'),script.indexOf('function dibujar()'));
+  vm.runInContext(color+corte,c);
+
+  c.dibujarCorteVertical(dibujo,640,400);
+  assert.equal(controles.posicionvertical.textContent,'Y = -1.25 m');
+  assert.deepEqual(Array.from(c.poligonosPantalla,p=>p.voxel),[1,2]);
+  const {p}=c.poligonosPantalla[1];
+  assert.ok(Math.abs((p[1][0]-p[0][0])/(p[2][1]-p[1][1])-10)<1e-10);
+  c.seleccionarEnVista((p[0][0]+p[2][0])/2,(p[0][1]+p[2][1])/2);
+  assert.equal(controles.voxeltemperatura.textContent,'46.00 °C');
+  controles.tiempo.value='1';c.actualizarVoxel();
+  assert.equal(controles.voxeltemperatura.textContent,'47.00 °C');
+
+  controles.ejevertical.value='0';
+  c.configurarCorteVertical();c.poligonosPantalla=[];
+  c.dibujarCorteVertical(dibujo,640,400);
+  assert.equal(controles.posicionvertical.textContent,'X = -0.75 m');
+  assert.deepEqual(Array.from(c.poligonosPantalla,p=>p.voxel),[0,1]);
+  c.actualizarVoxel();
+  assert.match(controles.voxelinstante.textContent,/fuera de la vista actual/);
 });

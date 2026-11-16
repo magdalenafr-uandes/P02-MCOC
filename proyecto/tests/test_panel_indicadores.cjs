@@ -4,12 +4,14 @@ const A=require('../visor_e08/analisis.js');
 const html=fs.readFileSync(path.join(__dirname,'../visor_e08/index.html'),'utf8');
 const principal=html.split('<script>')[1].split('</script>')[0];new vm.Script(principal);
 const fuente=principal.slice(principal.indexOf('const numeroAnalisis='),principal.indexOf('function visibles()'));
+const moldajes=principal.slice(principal.indexOf('function datosMoldajes()'),principal.indexOf('function moldajesActivos()'));
 class Elemento{
- constructor(){this.value='';this.children=[];this.style={};this.textContent='';this.hidden=false;}
+ constructor(){this.value='';this.children=[];this.style={};this.textContent='';this.hidden=false;this.arcos=[];}
  append(...nodos){this.children.push(...nodos);}
  replaceChildren(...nodos){this.children=[...nodos];}
  getBoundingClientRect(){return {width:600,height:255};}
- getContext(){return new Proxy({},{get:(obj,key)=>obj[key]??(()=>{}),set:(obj,key,value)=>(obj[key]=value,true)});}
+ getContext(){return new Proxy({clearRect:()=>{this.arcos=[];},arc:(...args)=>this.arcos.push(args)},
+  {get:(obj,key)=>obj[key]??(()=>{}),set:(obj,key,value)=>(obj[key]=value,true)});}
 }
 function muestra(){const serie={vertida_id:1,inicio_h:0,maxima_C:[18,60,50],superficie_min_C:[18,20,20],delta_C:[0,40,30],pico:{valor_C:60,tiempo_h:24},diferencial_maximo:{valor_C:40,tiempo_h:24}};return {
  ifc_sha256:'geometria',pasos_m:[.5,.5,.05],vertida_id:[1],fotogramas:[{tiempo_h:0},{tiempo_h:24},{tiempo_h:48}],
@@ -18,7 +20,7 @@ function muestra(){const serie={vertida_id:1,inicio_h:0,maxima_C:[18,60,50],supe
 function entorno(resultado){const nodos={},$=id=>nodos[id]??(nodos[id]=new Elemento());$('tiempo').value='1';$('ejeanalisis').value='obra';$('metricacomparacion').value='maxima';
  const c={AnalisisTermico:A,$,resultado,frames:[[18],[58],[45]],seleccionVoxel:null,referenciaEscenario:null,document:{createElement:()=>new Elemento()},
   opcion:(sel,valor,texto)=>{const o=new Elemento();o.value=valor;o.textContent=texto;sel.append(o);},sessionStorage:{getItem:()=>null,setItem:()=>{},removeItem:()=>{}},mensaje:()=>{}};
- vm.createContext(c);vm.runInContext(fuente,c);return {c,$};}
+ vm.createContext(c);vm.runInContext(fuente+moldajes,c);return {c,$};}
 
 test('el panel muestra picos, tabla, sondas y comparación usando sus funciones reales',()=>{const {c,$}=entorno(muestra());c.prepararAnalisis();c.actualizarAnalisis();
  assert.equal($('picoglobal').textContent,'60.00 °C');assert.equal($('picodelta').textContent,'40.00 K');assert.equal($('resumenvertidas').children.length,1);assert.equal($('tablacolocaciones').children.length,1);
@@ -27,4 +29,24 @@ test('el panel muestra picos, tabla, sondas y comparación usando sus funciones 
  assert.equal($('leyendasondas').children.length,3);$('quitarreferencia').onclick();assert.equal($('tablacomparacion').children.length,0);
 });
 test('la corrida antigua conserva su pico y no inventa el diferencial',()=>{const r=muestra();delete r.indicadores;for(let i=0;i<3;i++)r.fotogramas[i].Tmax_C=[18,60,50][i];const {c,$}=entorno(r);c.prepararAnalisis();c.actualizarAnalisis();assert.equal($('picoglobal').textContent,'60.00 °C');assert.equal($('picodelta').textContent,'—');assert.ok($('alcanceindicadores').textContent.includes('Resultado anterior'));});
+
+test('las sondas marcan el desmolde guardado en horas de obra y en edad local',()=>{
+ const r=muestra();r.indicadores.series.por_vertida[0].inicio_h=6;
+ r.moldajes=[{vertida_id:1,inicio_h:6,retiro_h:30,R:.12}];
+ const {c,$}=entorno(r),grafico=$('graficosondas'),leyenda=$('leyendasondas');
+ c.prepararAnalisis();c.actualizarAnalisis();
+ assert.match(leyenda.children.at(-1).textContent,/Desmolde V1 · 30 h de obra/);
+ assert.equal(grafico.arcos[0][0],52+530*30/48);
+ assert.equal($('graficodelta').arcos.length,0);
+
+ $('ejeanalisis').value='edad';c.actualizarAnalisis();
+ assert.match(leyenda.children.at(-1).textContent,/Desmolde V1 · 24 h de edad/);
+ assert.ok(Math.abs(grafico.arcos[0][0]-(52+530*24/42))<1e-9);
+
+ for(const retiro of [null,60]){
+  r.moldajes[0].retiro_h=retiro;c.actualizarAnalisis();
+  assert.equal(grafico.arcos.length,0);
+  assert.equal(leyenda.children.length,2);
+ }
+});
 if(process.env.MCPLAN_RESULTADO_QA)test('postproceso de la corrida real recuperada llega a todos los paneles',()=>{const r=JSON.parse(fs.readFileSync(process.env.MCPLAN_RESULTADO_QA,'utf8')),{c,$}=entorno(r);c.prepararAnalisis();c.actualizarAnalisis();assert.ok(Number.parseFloat($('picoglobal').textContent)>0);assert.equal($('tablacolocaciones').children.length,r.indicadores.colocaciones.length);$('fijarreferencia').onclick();assert.equal($('tablacomparacion').children.length,4);});

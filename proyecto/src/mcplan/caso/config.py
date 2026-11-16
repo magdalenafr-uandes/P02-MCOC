@@ -27,6 +27,7 @@ from typing import Any
 import yaml
 
 from ..thermal.bordes import Ambiente, CapaProteccion, CondicionBase, factor_viento_log
+from ..thermal.enfriamiento import Enfriamiento
 from ..thermal.etapas import Hormigon, Material, ParametrosTiempo, PlanVertida
 from ..thermal.hidratacion import HORA, ModeloHidratacion, theta_inf_desde_dosificacion
 from .clima import VAR_G, VAR_VIENTO, leer_snapshot, series_para_simulacion
@@ -55,6 +56,11 @@ _ESQUEMA: dict[str, Any] = {
     "vertidas": dict,
     "protecciones": dict,
     "tuberias": list,
+    "enfriamiento": dict,
+}
+_ENFRIAMIENTO = {
+    "T_agua_C": float, "caudal_L_min": float, "UA_lineal_W_mK": float,
+    "separacion_m": float, "volumen_estanque_m3": float,
 }
 _HORMIGON = {"k_W_mK": float, "rho_kg_m3": float, "cp_J_kgK": float, "hidratacion": dict}
 _HIDRATACION = {
@@ -125,6 +131,7 @@ class ConfigCaso:
     criterios: Criterios | None = None
     campos_cada_s: float | None = None  # campos 3D para visualizar (None: cada registro)
     tuberias: tuple[ConfigTuberia, ...] = ()
+    enfriamiento: Enfriamiento | None = None
 
 
 _TUBERIA = {
@@ -572,11 +579,24 @@ def validar_config(datos: Mapping[str, Any], carpeta: Path) -> ConfigCaso:
     if s.get("guardar_campos_cada_h") is not None:
         campos_cada_s = _numero(s["guardar_campos_cada_h"], "simulacion.guardar_campos_cada_h", positivo=True) * HORA
     guardar_campos = _booleano(s.get("guardar_campos", campos_cada_s is not None), "simulacion.guardar_campos")
+    enfriamiento = leer_enfriamiento(datos["enfriamiento"]) if "enfriamiento" in datos else None
+    tuberias = _tuberias(datos.get("tuberias"))
+    if tuberias and enfriamiento is not None:
+        raise ErrorConfiguracion("Elegir un solo modelo de enfriamiento: tuberias o enfriamiento.")
     return ConfigCaso(
         ruta_ifc, malla, tiempo, ambiente, base, suelo, T_suelo, hormigones,
         guardar_campos, dict(datos), inicio, nota_clima, criterios, campos_cada_s,
-        _tuberias(datos.get("tuberias")),
+        tuberias=tuberias, enfriamiento=enfriamiento,
     )
+
+
+def leer_enfriamiento(datos: Any) -> Enfriamiento:
+    valores = _claves(datos, _ENFRIAMIENTO, "enfriamiento")
+    for clave, valor in valores.items():
+        if clave == "volumen_estanque_m3" and valor is None:
+            continue  # temperatura de entrada regulada
+        valores[clave] = _numero(valor, f"enfriamiento.{clave}", positivo=clave != "T_agua_C")
+    return Enfriamiento(**valores)
 
 
 # --- combinación con el IFC ----------------------------------------------------------

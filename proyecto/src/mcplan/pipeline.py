@@ -4,7 +4,7 @@ Las propiedades de colocación del plan prevalecen sobre el IFC; los GUID y
 la geometría siempre proceden del IFC. No hay secuencias en el solver.
 """
 import base64
-from dataclasses import replace
+from dataclasses import asdict, replace
 import hashlib
 import json
 from datetime import datetime, timedelta
@@ -119,12 +119,24 @@ def _normalizar_caso(datos):
     return datos
 
 
+def controles_enfriamiento(caso):
+    from .caso.config import leer_enfriamiento
+    from .thermal.enfriamiento import Enfriamiento
+
+    activo = 'enfriamiento' in caso
+    config = leer_enfriamiento(caso['enfriamiento']) if activo else Enfriamiento()
+    return dict(activo=activo, **asdict(config))
+
+
 def cargar_plan(ruta):
     from .caso.config import leer_config, resolver_plan, aplicar_sobrescrituras
     from .bim.mallas_ifc import extraer_vertidas
     ruta = Path(ruta).resolve()
     if ruta.suffix.lower() == '.json':
-        return _cargar_json(ruta)
+        plan = _cargar_json(ruta)
+        if 'enfriamiento' not in plan:
+            plan['enfriamiento'] = controles_enfriamiento(plan.get('caso', {}))
+        return plan
     datos = yaml.safe_load(ruta.read_text(encoding='utf-8-sig'))
     pasos_conv = [.5, .375, .25]
     if 'caso' in datos:
@@ -153,6 +165,7 @@ def cargar_plan(ruta):
                 dt_s=min(config.tiempo.dt_max_s, 1800.), guardar_cada_h=config.tiempo.guardar_cada_s/3600,
                 ambiente_C=round(config.ambiente.T_C, 1), h_W_m2_K=round(config.ambiente.h_conveccion(0), 2),
                 usar_clima=bool(datos.get('clima') or datos['ambiente'].get('ciclo_diario')),
+                enfriamiento=controles_enfriamiento(datos),
                 vertidas=[dict(id=p.vertida_id,inicio_h=p.inicio_s/3600,temperatura_C=p.T_colocacion_C) for p in planes],
                 **_controles_e10(datos, config, planes))
 
@@ -262,7 +275,7 @@ def _aplicar_controles_e10(datos, plan):
 
 def validar_plan(plan, solidos):
     extras = {'caso', 'paso_z_m', 'usar_clima', 'proteccion', 'clima_snapshot', 'opciones',
-              'inicio_simulacion', 'modo_ambiente', 'ciclo_diario', 'tuberias_ctrl'}
+              'inicio_simulacion', 'modo_ambiente', 'ciclo_diario', 'tuberias_ctrl', 'enfriamiento'}
     _validar_basico({k:v for k,v in plan.items() if k not in extras}, solidos)
     if 'proteccion' in plan:
         esperadas = {'moldaje', 'R_moldaje_yaml', 'retiro_moldaje_h', 'aislacion', 'aislacion_caras',
@@ -281,7 +294,7 @@ def validar_plan(plan, solidos):
 # [MAPA:visor-adaptador] controles del visor E08 -> mismo YAML y mismo motor que la CLI
 def configurar_caso(plan):
     """Traduce controles del visor a la misma configuración usada por la CLI."""
-    from .caso.config import leer_config
+    from .caso.config import leer_config, leer_enfriamiento
     if 'caso' in plan:
         datos = _normalizar_caso(plan['caso'])
         datos['malla'].update(paso_m=plan['paso_m'], paso_z_m=plan['paso_z_m'])
@@ -325,6 +338,14 @@ def configurar_caso(plan):
                      hormigones={material['material']:dict(k_W_mK=props.k,rho_kg_m3=props.rho,cp_J_kgK=props.cp,
                          hidratacion=dict(modelo='exponencial',theta_inf_C=hid.incremento_K,tau_h=hid.escala_s/3600,Ea_J_mol=0))},vertidas={})
     datos['ifc'] = plan['ifc']
+    if 'enfriamiento' in plan:
+        controles = plan['enfriamiento']
+        if not isinstance(controles, dict) or type(controles.get('activo')) is not bool:
+            raise ValueError('Tuberías: indicar si el enfriamiento está activo.')
+        if controles['activo']:
+            datos['enfriamiento'] = asdict(leer_enfriamiento({k:v for k,v in controles.items() if k != 'activo'}))
+        else:
+            datos.pop('enfriamiento', None)
     datos['simulacion'].update(duracion_h=plan['final_h'],dt_max_h=plan['dt_s']/3600,
                                guardar_cada_h=plan['guardar_cada_h'],guardar_campos=True,
                                guardar_campos_cada_h=plan['guardar_cada_h'])
@@ -396,7 +417,8 @@ class Pipeline:
                     planes,config.hormigones,config.ambiente,config.base,config.tiempo,config.suelo,
                     config.T_suelo_inicial_C,True,config.criterios.profundidad_superficie_m,config.campos_cada_s,
                     progreso=lambda t,fin: progreso(f'Simulando {t/3600:g} / {fin/3600:g} h'),
-                    tuberias=construir_tuberias(config,g,planes))
+                    tuberias=construir_tuberias(config,g,planes),
+                    enfriamiento=config.enfriamiento)
         cupo_campos = min(MAX_FOTOGRAMAS, MAX_VALORES_CAMPOS // math.prod(g.forma))
         cupo_periodicos = cupo_campos - len(simulador.eventos())
         if cupo_periodicos < 0:
@@ -435,7 +457,8 @@ class Pipeline:
         b=simu.balance
         balances=[dict(tiempo_h=plan['final_h'],energia_J=b['E_final_J'],inicial_J=b['E_inicial_J'],
                         hidratacion_J=b['hidratacion_J'],borde_J=b['ambiente_J']+b['base_J']-b['fuga_vacio_J'],
-                        colocacion_J=b['colocacion_J'],tuberias_J=b['tuberias_J'],residuo_J=b['residuo_J'])]
+                        colocacion_J=b['colocacion_J'],tuberias_J=b['tuberias_J'],
+                        agua_J=b['agua_J'],residuo_J=b['residuo_J'])]
         def git(*args):
             try:
                 r=subprocess.run(['git',*args],cwd=Path(__file__).resolve().parents[3],capture_output=True,text=True,timeout=5)
@@ -445,7 +468,12 @@ class Pipeline:
         mallas=[dict(id=s.vertida_id,guid=s.guid,vertices=s.triangulos.reshape(-1,3).tolist(),
                       triangulos=np.arange(s.triangulos.size//3).reshape(-1,3).tolist()) for s in solidos]
         if 'caso' in plan:
-            plan['caso']=config.datos
+            circuitos_yaml = plan['caso'].get('tuberias')
+            plan['caso'] = config.datos.copy()
+            if circuitos_yaml and not config.tuberias:
+                # Los controles guardan el modo activo; el plan conserva el trazado para volver a seleccionarlo.
+                plan['caso'].pop('enfriamiento', None)
+                plan['caso']['tuberias'] = circuitos_yaml
         material=dict(material=', '.join(config.hormigones),estado='parámetros docentes y supuestos; sin calibración experimental')
         # [MAPA:visor-moldaje] horarios resueltos del moldaje para la reproducción 3D
         from .indicadores import crear_indicadores
@@ -456,6 +484,7 @@ class Pipeline:
                         origen_m=list(g.definicion.origen),forma=list(g.forma),paso_m=plan['paso_m'],pasos_m=list(g.paso),
                         indices=np.argwhere(mascara).tolist(),vertida_id=g.vertida_id[mascara].tolist(),
                         volumenes=volumenes,balances=balances,fotogramas=fotogramas,mallas=mallas,
+                        enfriamiento=simu.enfriamiento,
                         moldajes=[dict(vertida_id=p.vertida_id,inicio_h=p.inicio_s/3600,
                             retiro_h=None if math.isinf(p.retiro_moldaje_s) else (p.inicio_s+p.retiro_moldaje_s)/3600,
                             R=p.R_lateral) for p in planes if p.visible and p.R_lateral>0],

@@ -1,11 +1,14 @@
 # Evaluación inicial: enfriamiento interno con agua
 
-Estado: **implementado** en el solver, el YAML y el visor con la variante más
-simple de esta propuesta: pared del tubo **Dirichlet** (T = T_agua constante,
-caudal suficiente para que el agua no se caliente). No constituye un
-dimensionamiento constructivo.
+El solver, el YAML y el visor permiten elegir un modelo de enfriamiento por
+corrida. El caso base usa los circuitos definidos en el YAML. En el visor, el
+selector **Tuberías de enfriamiento → Modelo** ofrece también los circuitos
+automáticos y la opción sin enfriamiento.
 
-## Lo implementado (Dirichlet en la pared del tubo)
+## Circuitos del YAML con pared Dirichlet
+
+La pared del tubo se mantiene a la temperatura del agua, que se supone
+uniforme a lo largo del circuito.
 
     G = 2π·k·L / ln(r_eq / r_tubo)     r_eq = 0,14·√(Δa² + Δb²)   (pozo en celda, Peaceman)
     P = G·(T_celda − T_agua)           [W], se resta del balance de la celda
@@ -19,13 +22,29 @@ dimensionamiento constructivo.
   y el encendido/apagado de cada circuito es un evento. La energía extraída
   (`tuberias`) cierra el balance global.
 - YAML: sección `tuberias:` (`MAPA:config-tuberias`); `tuberias: []` las desactiva.
-- Visor: sección "Tuberías de enfriamiento" (activar, n.º de circuitos, T del
+- Visor: opción **Circuitos del YAML** (n.º de circuitos, T del
   agua, separación, diámetro); los tubos se dibujan en cian y el panel informa
   la potencia actual, la máxima y la energía total.
 
-El modelo con calentamiento del agua a lo largo del circuito (NTU, abajo) sigue
-como mejora futura: con agua a temperatura constante el enfriamiento es un
-límite superior.
+## Circuitos automáticos con caudal configurable
+
+Esta opción genera circuitos rectos en el eje X en el nivel de voxeles más
+cercano a media altura de cada vertida. La separación transversal se aproxima
+a la malla. Cada tramo continuo en hormigón forma un circuito alimentado en
+paralelo desde el estanque compartido. El agua circula desde la colocación de
+cada vertida hasta el final de la corrida.
+
+El escenario inicial usa agua a 15 °C, 12 L/min por circuito, una separación
+de 1,5 m, UA de 8 W/(m·K) y un estanque de 20 m³. Todos son supuestos editables.
+El estanque mezcla los retornos y acumula su calor. Con entrada regulada,
+el modelo supone un control ideal que sostiene la temperatura elegida.
+El resultado informa la cantidad y longitud de los circuitos operados, el calor
+neto transferido y la temperatura final de entrada.
+
+En el YAML, usar `tuberias: []` y una sección `enfriamiento:` con
+`T_agua_C`, `caudal_L_min`, `separacion_m`, `UA_lineal_W_mK` y
+`volumen_estanque_m3`. El valor `volumen_estanque_m3: null` mantiene
+fija la temperatura de entrada.
 
 ## Problema y alternativa
 
@@ -41,7 +60,7 @@ a la pared de la tubería y al agua, que sale más caliente. Si el circuito es
 cerrado, debe representarse el calentamiento del estanque y, si existe, el
 rechazo térmico de un enfriador: una bomba por sí sola no mantiene fría el agua.
 
-## Modelo propuesto para el proyecto
+## Modelo térmico de los circuitos automáticos
 
 El balance actual por voxel se conserva, añadiendo un intercambio localizado:
 
@@ -64,8 +83,9 @@ se invierte: no se fuerza una extracción de calor inexistente.
 
 No se impone al hormigón la temperatura del agua ni se enfría todo el núcleo
 uniformemente. Cada tramo actúa únicamente sobre las celdas atravesadas y
-solo cuando la vertida correspondiente existe. Los encendidos y apagados
-deben ser eventos y el paso estable debe incluir la conductancia adicional.
+solo cuando la vertida correspondiente existe. La colocación activa cada
+circuito como evento. El paso estable incluye la conductancia adicional del
+agua y, en recirculación sin regulación, la capacidad térmica del estanque.
 
 La malla actual tiene Δx = 0,5 m y Δz = 0,05 m en el perfil del visor.
 Una tubería menor que la celda requiere un modelo de intercambio subcelda:

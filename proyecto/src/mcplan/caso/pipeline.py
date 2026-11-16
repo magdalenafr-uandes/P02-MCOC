@@ -87,6 +87,7 @@ def ejecutar_pipeline(config: ConfigCaso, simular: bool = True) -> ResultadoPipe
             config.criterios.profundidad_superficie_m if config.criterios else 0.0,
             config.campos_cada_s,
             tuberias=construir_tuberias(config, grilla, plan),
+            enfriamiento=config.enfriamiento,
         ).ejecutar()
     return resultado
 

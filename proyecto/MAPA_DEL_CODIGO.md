@@ -110,6 +110,7 @@ solver 1D legado. Los bordes del caso real están en `thermal/bordes.py`.
 | Fuente volumétrica en el motor (W/m³ · V) | `thermal/voxel.py` | `MAPA:fuente-volumetrica` |
 | Calor de hidratación en cada voxel | `thermal/etapas.py` | `MAPA:hidratacion-fuente` |
 | Datos medidos Q(t) del profesor → θ(t) | `caso/fuente_calor.py` | `MAPA:fuente-medida` |
+| Calor transferido del voxel al agua en cada tramo | `thermal/enfriamiento.py` | `MAPA:tuberias-intercambio` |
 | Modelos de hidratación (exponencial, Schindler, tabla) | `thermal/hidratacion.py` | `MAPA:hidratacion-modelos` |
 | Potencia q''' = ρ cp dθ/dt | `thermal/hidratacion.py` | `MAPA:hidratacion-potencia` |
 | Calor de un paso sin explotar (incremento exacto de θ, acotado por θ∞) | `thermal/hidratacion.py` | `MAPA:hidratacion-paso` |

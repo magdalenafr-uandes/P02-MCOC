@@ -13,7 +13,7 @@ import sys
 import uuid
 from urllib.parse import urlparse
 
-from mcplan.pipeline import Pipeline, cargar_plan
+from mcplan.pipeline import Pipeline, cargar_plan, controles_enfriamiento
 from mcplan.version_demo import version_visualizador
 
 RAIZ = Path(__file__).resolve().parents[1]
@@ -136,6 +136,8 @@ def recuperar_resultado(archivo, plan_base):
         resultado['indicadores'] = reconstruir_indicadores(resultado)
     resultado['carpeta_origen'] = str(archivo.resolve().parent)
     plan = resultado['plan'].copy()
+    if 'enfriamiento' not in plan:
+        plan['enfriamiento'] = controles_enfriamiento(resultado.get('caso_ejecutado', plan.get('caso', {})))
     plan['opciones'] = dict(plan_base.get('opciones', {}), restaurado=True)
     return plan, resultado
 

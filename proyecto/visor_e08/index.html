@@ -8,6 +8,11 @@
 #vermoldaje[aria-pressed="true"]{border-color:#d8ae75;background:#654526;color:#ffe2b5}.moldaje-clave{color:#e2b47c}
 .voxel-info{padding:12px 16px;border:1px solid #dba56d;border-radius:8px;margin:12px 0;background:#2b2825}.voxel-info strong{font-size:24px;color:#ffd09b}.voxel-info p{margin:4px 0}.voxel-info .row{justify-content:space-between}
 header,main{max-width:none;width:100%;padding-left:clamp(14px,2vw,40px);padding-right:clamp(14px,2vw,40px)}.layout{grid-template-columns:clamp(280px,22vw,360px) minmax(0,1fr);gap:18px}.layout>div{min-width:0}.layout>aside{position:sticky;top:14px;max-height:calc(100vh - 28px);overflow-y:auto;align-self:start}canvas#vista{height:clamp(380px,52vh,640px)}.indicadores-kpi{grid-template-columns:repeat(4,minmax(0,1fr))}.indicadores-kpi .kpi{min-width:0}.indicadores-kpi strong{font-size:25px}.kpi .nota{font-size:12px;color:var(--muted);display:block}.graficos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.graficos .panel{min-width:0}.grafico-analisis{display:block;width:100%;height:255px}.leyenda-series{display:flex;gap:12px;flex-wrap:wrap;min-height:22px;font-size:12px;margin-bottom:8px}.aviso{padding:10px 12px;border-left:3px solid #e3b873;background:#2b2b24;font-size:13px}.criterio-ok{color:#8ce3c2}.criterio-no{color:#ffaaa0}.tabla-datos th,.tabla-datos td{white-space:nowrap}.tabla-datos{margin:10px 0}.filebutton{display:inline-block;border:1px solid var(--line);padding:8px;border-radius:6px;color:var(--text);cursor:pointer}.filebutton:focus-within{outline:2px solid var(--accent)}.comparador-acciones{margin-bottom:12px}@media(max-width:1100px){.layout{grid-template-columns:280px minmax(0,1fr)}.indicadores-kpi{grid-template-columns:repeat(2,minmax(0,1fr))}.graficos{grid-template-columns:1fr}}@media(max-width:850px){.layout{grid-template-columns:1fr}.layout>aside{position:static;max-height:none;overflow:visible}.graficos{grid-template-columns:1fr}}@media(max-width:480px){.indicadores-kpi{grid-template-columns:1fr}}
+#rotulo-estanque[hidden],#tubos[hidden],#ajustes-tuberias[hidden]{display:none}
+#cortehorizontal[hidden],#controles-corte-vertical[hidden],#controles-moldaje[hidden]{display:none}
+#controles-corte-vertical{margin-bottom:10px}
+#controles-corte-vertical input[type=range]{padding:0;vertical-align:middle}
+canvas#vista[data-vista="vertical"]{cursor:crosshair;touch-action:auto}
 </style></head>
 <body><header><small>GRUPO 1 · TALTAL · E08</small><h1>Del IFC a la temperatura</h1><p>Geometría real, construcción por vertidas y calor de hidratación.</p></header>
 <main class="layout"><aside><section class="panel"><h2>Entradas de simulación</h2>
@@ -38,13 +43,32 @@ header,main{max-width:none;width:100%;padding-left:clamp(14px,2vw,40px);padding-
 <label>Hasta [h]<input id="aislhasta" type="number" min="0.01" step="any" placeholder="fin"></label>
 </div><div class="row" style="margin-top:8px"><span class="hint">Caras aisladas:</span><label><input type="checkbox" id="carasup"> superior</label><label><input type="checkbox" id="caralat"> lateral</label></div>
 <p class="hint">R = espesor/k, en serie con la película exterior. Al desmoldar, las caras laterales pasan a ver el aire, o la aislación si empieza en el desmolde. Las horas se cuentan desde el inicio de cada vertida.</p></details>
-<details class="categoria" id="tubos" hidden><summary>Tuberías de enfriamiento</summary>
-<label><input type="checkbox" id="tubosactivas"> Activar tuberías (<span id="tubosn">0</span> circuitos del YAML)</label>
+<details class="categoria"><summary>Tuberías de enfriamiento</summary>
+<label>Modelo <select id="modelo-tuberias">
+<option value="ninguno">Sin enfriamiento</option>
+<option value="yaml" id="modelo-tuberias-yaml" disabled>Circuitos del YAML</option>
+<option value="automatico">Circuitos automáticos</option>
+</select></label>
+<div id="tubos" hidden>
+<p class="hint"><span id="tubosn">0</span> circuitos definidos en el YAML.</p>
 <div class="fields" style="margin-top:8px">
 <label>T del agua [°C]<input id="tubosT" type="number" step="any"></label>
 <label>Separación [m]<input id="tubossep" type="number" min="0.05" step="any"></label>
 <label>Diámetro [mm]<input id="tubosdiam" type="number" min="1" step="any"></label>
-</div><p class="hint">La pared del tubo es Dirichlet (T = T del agua). Cada celda que cruza un tubo cede P = G·(T − T_agua), con G = 2πkL/ln(r_eq/r) (pozo en celda): la energía extraída varía con la temperatura del hormigón. Trazado, cotas y horarios por circuito en el YAML.</p></details>
+</div><p class="hint">La pared del tubo se mantiene a la temperatura del agua. El YAML define el trazado, las cotas y los horarios de cada circuito.</p></div>
+<div id="ajustes-tuberias" hidden>
+<p class="hint">Trazado automático con circuitos rectos a media altura de cada vertida. El agua circula desde su colocación hasta el fin de la simulación.</p>
+<div class="fields">
+<label><span id="rotulo-agua">Agua inicial [°C]</span><input id="agua-inicial" type="number" step="any" required></label>
+<label>Caudal por circuito [L/min]<input id="agua-caudal" type="number" min="0.001" step="any" required></label>
+<label>Separación en planta [m]<input id="tuberias-separacion" type="number" min="0.001" step="any" required></label>
+<label>Conductancia por metro [W/(m·K)]<input id="tuberias-ua" type="number" min="0.001" step="any" required></label>
+<label id="rotulo-estanque">Estanque compartido [m³]<input id="agua-volumen" type="number" min="0.001" step="any" required></label>
+</div>
+<label style="margin-top:8px"><input id="agua-regulada" type="checkbox"> Mantener fija la temperatura de entrada</label>
+<p class="hint" id="modo-agua"></p>
+<p class="hint">Los valores iniciales y el trazado son supuestos para comparar escenarios.</p>
+</div></details>
 <details class="categoria"><summary>Plan de vertidas</summary><div class="scroll"><table><thead><tr><th>Ver</th><th>Inicio [+h]</th><th>Colocación [°C]</th><th>Fecha y hora local</th></tr></thead><tbody id="vertidas"></tbody></table></div>
 <p class="hint">Puedes editar la fecha y hora de cada vertida o sus horas desde el inicio de obra. Cambiar el inicio de obra desplaza todas conservando los intervalos. Ocultar cambia solo la vista.</p>
 </details>
@@ -63,14 +87,19 @@ header,main{max-width:none;width:100%;padding-left:clamp(14px,2vw,40px);padding-
 <div class="kpi"><small>Mayor diferencial en una misma vertida</small><strong id="picodelta">—</strong><span id="picodeltanota" class="nota">Máxima interior − mínima superficial</span></div>
 <div class="kpi"><small>Ventana de colocaciones</small><strong id="ventanavertidas">—</strong><span id="ventananota" class="nota">Desde la primera hasta la última</span></div>
 <div class="kpi"><small>Edad final de la última vertida</small><strong id="edadultima">—</strong><span id="edadultimanota" class="nota">Tiempo observado después de colocarla</span></div>
-</div><p id="alcanceindicadores" class="hint">Los indicadores se incorporan al ejecutar con esta versión.</p></section>
-<section class="panel"><div class="row" style="justify-content:space-between"><h2>Vista 3D</h2><div class="row"><label>Mostrar <select id="modo"><option value="temperatura">Voxeles · temperatura</option><option value="vertida">Voxeles · vertida</option><option value="ifc">Mallas IFC completas</option></select></label><button id="camara">Restablecer cámara</button></div></div>
-<div class="row" style="margin-bottom:12px"><button id="vermoldaje" type="button" aria-pressed="false">Mostrar moldaje</button><span id="moldajeestado" class="hint moldaje-clave">Moldaje lateral en marrón; se retira según el reloj de cada vertida.</span></div>
+</div><p id="alcanceindicadores" class="hint">Los indicadores se incorporan al ejecutar con esta versión.</p><p id="resultado-tuberias" class="hint" hidden></p></section>
+<section class="panel"><div class="row" style="justify-content:space-between"><h2>Vista de la fundación</h2><div class="row"><label>Mostrar <select id="modo"><option value="temperatura">Voxeles · temperatura</option><option value="vertida">Voxeles · vertida</option><option value="ifc">Mallas IFC completas</option><option value="vertical">Corte vertical · temperatura</option></select></label><button id="camara" type="button">Restablecer cámara</button></div></div>
+<div id="controles-moldaje" class="row" style="margin-bottom:12px"><button id="vermoldaje" type="button" aria-pressed="false">Mostrar moldaje</button><span id="moldajeestado" class="hint moldaje-clave">Moldaje lateral en marrón; se retira según el reloj de cada vertida.</span></div>
 <div class="ambiente-visible" role="status" aria-label="Temperatura exterior en la simulación"><div><small>Temperatura del aire exterior</small><strong id="aire">— °C</strong></div><div><span id="instanteaire">Ejecuta la simulación para ver la temperatura.</span><small>Corresponde al reloj de la obra y cambia al reproducir o mover el tiempo.</small></div></div>
-<div class="row"><label>Corte horizontal [m] <input id="corte" type="range" step="any" min="0" max="5" value="5"></label><output id="cortevalor">Sin corte</output></div>
-<canvas id="vista" aria-label="Visualización 3D de la fundación; haz clic en una cara para consultar su voxel" role="img"></canvas><p class="hint">Clic en un voxel para ver su temperatura · arrastra para girar · rueda para acercar. Usa el corte para seleccionar voxels interiores. En modo IFC se ocultan triángulos completos.</p>
-<div class="voxel-info"><div class="row"><span>Voxel seleccionado · hormigón</span><button id="limpiarvoxel" type="button" disabled>Quitar selección</button></div><strong id="voxeltemperatura">— °C</strong><p id="voxeldetalle" class="hint">Haz clic en una cara visible en los modos Voxeles · temperatura o Voxeles · vertida.</p><p id="voxelinstante" class="hint"></p><small>Es la temperatura representativa del voxel, no la temperatura exacta de su cara exterior.</small></div>
-<div class="legend"></div><div class="legendtext"><span id="escalamin">10 °C</span><span id="escalamed">40 °C</span><span id="escalamax">70 °C</span></div>
+<div id="cortehorizontal" class="row"><label>Corte horizontal [m] <input id="corte" type="range" step="any" min="0" max="5" value="5"></label><output id="cortevalor" for="corte">Sin corte</output></div>
+<div id="controles-corte-vertical" class="row" hidden>
+<label>Plano <select id="ejevertical"><option value="1">X–Z · mover en Y</option><option value="0">Y–Z · mover en X</option></select></label>
+<label>Posición del corte <input id="cortevertical" type="range" min="0" max="0" step="1" value="0" disabled></label>
+<output id="posicionvertical" for="cortevertical">Sin resultados</output>
+</div>
+<canvas id="vista" aria-label="Visualización 3D de la fundación" role="img"></canvas><p id="ayudavista" class="hint">Clic en un voxel para ver su temperatura · arrastra para girar · rueda para acercar. En modo IFC se ocultan triángulos completos.</p>
+<div class="voxel-info"><div class="row"><span>Voxel seleccionado · hormigón</span><button id="limpiarvoxel" type="button" disabled>Quitar selección</button></div><strong id="voxeltemperatura">— °C</strong><p id="voxeldetalle" class="hint">Haz clic en un voxel visible para consultar su temperatura.</p><p id="voxelinstante" class="hint"></p><small>Temperatura representativa del voxel.</small></div>
+<div id="escalatermica"><div class="legend"></div><div class="legendtext"><span id="escalamin">10 °C</span><span id="escalamed">40 °C</span><span id="escalamax">70 °C</span></div></div>
 <input id="tiempo" aria-label="Instante de simulación" type="range" min="0" max="0" value="0" step="1" disabled>
 <div class="row"><button id="reproducir" disabled>▶ Reproducir</button><label>Velocidad<select id="velocidad"><option value="1">1 h/s</option><option value="6" selected>6 h/s</option><option value="24">24 h/s</option></select></label><strong id="hora">Sin resultados</strong><span id="alcancevista" class="hint"></span></div>
 <p class="hint">Curvas: verde = máxima del hormigón; azul = temperatura del aire. La reproducción avanza el reloj de la obra, sin depender de la hora de apertura.</p>
@@ -103,11 +132,13 @@ function advertenciasComparacion(actual,referencia){const a=actual.indicadores,b
  if(a?.resumen.duracion_h!==b?.resumen.duracion_h)m.push('Los horizontes de observación son distintos.');
  if(a?.resumen.observacion_ultima_vertida_h!==b?.resumen.observacion_ultima_vertida_h)m.push('La última vertida tiene distinta edad al finalizar: revisar también sus curvas por edad.');
  if(JSON.stringify(actual.contexto)!==JSON.stringify(referencia.contexto))m.push('Cambian material, clima, fecha o protecciones: el efecto no se puede atribuir solo al intervalo.');
+ if(JSON.stringify(actual.enfriamiento??null)!==JSON.stringify(referencia.enfriamiento??null))m.push('La configuración de enfriamiento por tuberías cambia entre las corridas.');
  return m;}
 function contexto(r){const c=r.caso_ejecutado||{};return {hormigones:c.hormigones,ambiente:c.ambiente,clima:c.clima,inicio:c.simulacion?.inicio,base:c.base,suelo:c.suelo,
  protecciones:c.protecciones,vertidas:Object.fromEntries(Object.entries(c.vertidas||{}).map(([id,v])=>[id,Object.fromEntries(Object.entries(v).filter(([k])=>!['inicio','inicio_h'].includes(k)))]))};}
 function referenciaCompacta(r,nombre){if(r?.indicadores?.version!==1||!r.indicadores.resumen?.pico||!r.indicadores.resumen?.diferencial_maximo||!Array.isArray(r.indicadores.series?.tiempos_h)||!Array.isArray(r.indicadores.series.maxima_global_C)||!Array.isArray(r.indicadores.series.por_vertida))throw Error('El archivo no contiene los indicadores nuevos. Ejecuta de nuevo ese caso con esta versión.');
- return {nombre,ifc_sha256:r.ifc_sha256,pasos_m:r.pasos_m||[r.paso_m,r.paso_m,r.paso_m],contexto:r.contexto||contexto(r),indicadores:r.indicadores};}
+ return {nombre,ifc_sha256:r.ifc_sha256,pasos_m:r.pasos_m||[r.paso_m,r.paso_m,r.paso_m],contexto:r.contexto||contexto(r),
+ enfriamiento:r.caso_ejecutado?.enfriamiento??r.enfriamiento??(r.caso_ejecutado?.tuberias?.length?r.caso_ejecutado.tuberias:null),indicadores:r.indicadores};}
 function filasComparacion(actual,referencia){const a=actual.indicadores?.resumen,b=referencia.indicadores?.resumen;if(!a||!b)return [];
  return [ ['Temperatura máxima','°C',b.pico.valor_C,a.pico.valor_C],['Diferencial máximo por vertida','K',b.diferencial_maximo.valor_C,a.diferencial_maximo.valor_C],
  ['Ventana de colocaciones','h',b.ventana_colocaciones_h,a.ventana_colocaciones_h],['Edad final de la última vertida','h',b.observacion_ultima_vertida_h,a.observacion_ultima_vertida_h] ].map(([nombre,unidad,ref,valor])=>({nombre,unidad,referencia:ref,actual:valor,cambio:finito(ref)&&finito(valor)?valor-ref:null}));}
@@ -117,7 +148,7 @@ function seriesSondas(indicadores,vid,porEdad=false){const inicio=indicadores?.s
  return (indicadores?.sondas||[]).filter(s=>String(s.vertida_id)===String(vid)).map(s=>({nombre:s.tipo==='nucleo'?'Núcleo fijo':'Borde fijo',color:s.tipo==='nucleo'?'#f5b46b':'#79b8ff',
  puntos:s.tiempos_h.map((t,i)=>[porEdad?t-inicio:t,s.temperatura_C[i]]).filter(p=>p[0]>=0),sonda:s}));}
 function serieComparacion(indicadores,metrica){const s=indicadores.series;return s.tiempos_h.map((t,i)=>{if(metrica!=='delta')return [t,s.maxima_global_C[i]];const valores=s.por_vertida.map(v=>v.delta_C[i]).filter(finito);return [t,valores.length?Math.max(...valores):null];});}
-function graficar(canvas,series,{cursor=null,umbral=null,unidad='°C',edad=false,eventos=[]}={}){
+function graficar(canvas,series,{cursor=null,umbral=null,unidad='°C',edad=false,eventos=[],marca=null}={}){
  const rect=canvas.getBoundingClientRect(),w=rect.width,h=rect.height,dpr=Math.min(globalThis.devicePixelRatio||1,2);
  canvas.width=Math.max(1,Math.round(w*dpr));canvas.height=Math.max(1,Math.round(h*dpr));const c=canvas.getContext('2d');c.setTransform(dpr,0,0,dpr,0,0);c.clearRect(0,0,w,h);
  const puntos=series.flatMap(s=>s.puntos).filter(p=>finito(p[0])&&finito(p[1]));c.font='12px system-ui';c.fillStyle='#aec0cb';
@@ -135,6 +166,12 @@ function graficar(canvas,series,{cursor=null,umbral=null,unidad='°C',edad=false
  c.save();c.beginPath();c.rect(x0,y0,x1-x0,y1-y0);c.clip();
  for(const s of series){c.strokeStyle=s.color;c.lineWidth=2;c.beginPath();let conectado=false;for(const p of s.puntos){if(!finito(p[1])||!finito(p[0])){conectado=false;continue;}if(conectado)c.lineTo(x(p[0]),y(p[1]));else c.moveTo(x(p[0]),y(p[1]));conectado=true;}c.stroke();}
  if(finito(cursor)&&cursor>=xmin&&cursor<=xmax){c.strokeStyle='#f3c77c';c.lineWidth=1;c.beginPath();c.moveTo(x(cursor),y0);c.lineTo(x(cursor),y1);c.stroke();}c.restore();
+ if(finito(marca?.tiempo_h)&&marca.tiempo_h>=xmin&&marca.tiempo_h<=xmax){
+  const posicion=x(marca.tiempo_h);
+  c.strokeStyle=marca.color;c.lineWidth=2;c.setLineDash([5,4]);
+  c.beginPath();c.moveTo(posicion,y0);c.lineTo(posicion,y1);c.stroke();c.setLineDash([]);
+  c.fillStyle=marca.color;c.beginPath();c.arc(posicion,y0,4,0,2*Math.PI);c.fill();
+ }
 }
 return {pico,finito,referenciaCompacta,filasComparacion,advertenciasComparacion,seriesPorVertida,seriesSondas,serieComparacion,graficar,firma,contexto,colores};
 });
@@ -152,7 +189,7 @@ const fechaCivil=s=>Date.parse(s+'Z');
 function fechaVertida(h){return new Date(fechaCivil($('inicioobra').value)+h*3600000).toISOString().slice(0,16);}
 function sincronizarFechas(){for(const tr of $('vertidas').rows){const f=tr.querySelector('.fecha');f.min=$('inicioobra').value;f.value=fechaVertida(Number(tr.querySelector('.inicio').value));}}
 function crearFila(v,i){const tr=document.createElement('tr');tr.dataset.id=v.id;
- const label=document.createElement('label');const chk=document.createElement('input');chk.type='checkbox';chk.checked=true;chk.className='visible';chk.setAttribute('aria-label',`Mostrar vertida ${v.id}`);chk.addEventListener('change',()=>{facesCache=null;dibujar();});
+ const label=document.createElement('label');const chk=document.createElement('input');chk.type='checkbox';chk.checked=true;chk.className='visible';chk.setAttribute('aria-label',`Mostrar vertida ${v.id}`);chk.addEventListener('change',()=>{facesCache=null;actualizarVoxel();dibujar();});
  const sw=document.createElement('span');sw.className='swatch';sw.style.background=colores[i%colores.length];label.append(chk,sw,document.createTextNode('V'+v.id));const td=document.createElement('td');td.append(label);tr.append(td);
  for(const [campo,clase] of [['inicio_h','inicio'],['temperatura_C','temperatura']]){const td=document.createElement('td'),input=document.createElement('input');input.type='number';input.step='any';input.required=true;input.value=v[campo];input.className=clase;input.setAttribute('aria-label',`${campo} vertida ${v.id}`);if(campo==='inicio_h')input.min='0';td.append(input);tr.append(td);}
  const celda=document.createElement('td'),fecha=document.createElement('input');fecha.type='datetime-local';fecha.className='fecha';fecha.required=true;fecha.min=$('inicioobra').value;fecha.value=fechaVertida(v.inicio_h);fecha.setAttribute('aria-label',`Fecha y hora vertida ${v.id}`);celda.append(fecha);tr.append(celda);
@@ -160,13 +197,17 @@ function crearFila(v,i){const tr=document.createElement('tr');tr.dataset.id=v.id
  fecha.addEventListener('input',()=>{if(fecha.value)tr.querySelector('.inicio').value=(fechaCivil(fecha.value)-fechaCivil($('inicioobra').value))/3600000;});
  $('vertidas').append(tr);}
 function leerPlan(){const p=structuredClone(base);for(const [id,campo] of [['dx','paso_m'],['final','final_h'],['ambiente','ambiente_C'],['h','h_W_m2_K'],['dt','dt_s'],['guardar','guardar_cada_h']])p[campo]=Number($(id).value);
+ const modelo=$('modelo-tuberias').value;
+ p.enfriamiento={activo:modelo==='automatico'};
+ for(const [id,campo] of Object.entries(camposTuberias))p.enfriamiento[campo]=Number($(id).value);
+ if($('agua-regulada').checked)p.enfriamiento.volumen_estanque_m3=null;
  if('caso' in p){p.paso_z_m=Number($('dz').value);p.usar_clima=$('clima').checked;p.inicio_simulacion=$('inicioobra').value;p.modo_ambiente=$('modoambiente').value;p.ciclo_diario={hora_min:Number($('horamin').value),hora_max:Number($('horamax').value)};}
  if(p.proteccion){const opc=v=>v===''?null:v,num=id=>$(id).value===''?null:Number($(id).value),desde=$('aisldesde').value;
   p.proteccion={...p.proteccion,moldaje:opc($('moldaje').value),retiro_moldaje_h:num('retiro'),aislacion:opc($('aislacion').value),
    aislacion_caras:[...($('carasup').checked?['superior']:[]),...($('caralat').checked?['lateral']:[])],
    aislacion_desde:desde==='desmolde'?'desmolde':desde==='colocacion'?0:Number($('aisldesdeh').value),aislacion_hasta_h:num('aislhasta')};
   p.clima_snapshot=$('snapshot').value||null;}
- if(p.tuberias_ctrl)p.tuberias_ctrl={...p.tuberias_ctrl,activas:$('tubosactivas').checked,T_agua_C:Number($('tubosT').value),
+ if(p.tuberias_ctrl)p.tuberias_ctrl={...p.tuberias_ctrl,activas:modelo==='yaml',T_agua_C:Number($('tubosT').value),
   separacion_m:Number($('tubossep').value),diametro_mm:Number($('tubosdiam').value)};
  p.pasos_convergencia_m=$('pasos').value.split(',').map(x=>Number(x.trim()));p.vertidas=[...$('vertidas').rows].map(tr=>({id:Number(tr.dataset.id),inicio_h:Number(tr.querySelector('.inicio').value),temperatura_C:Number(tr.querySelector('.temperatura').value)}));return p;}
 function actualizarClima(){const variable=$('clima').checked,ciclo=variable&&$('modoambiente').value==='ciclo_diario';$('ambiente').disabled=variable;$('h').disabled=variable&&!ciclo;$('modoambiente').disabled=!variable;$('ciclodiario').hidden=!ciclo;$('snapshot').disabled=!variable||ciclo||!$('snapshot').options.length;$('horamin').disabled=!ciclo;$('horamax').disabled=!ciclo;infoSnapshot();infoCiclo();}
@@ -187,16 +228,41 @@ function iniciarE10(){const pr=base.proteccion,op=base.opciones;if(!pr)return;$(
  if(pr.aislacion_desde==='desmolde')$('aisldesde').value='desmolde';else if(!pr.aislacion_desde)$('aisldesde').value='colocacion';else{$('aisldesde').value='horas';$('aisldesdeh').value=pr.aislacion_desde;}
  for(const s of op.snapshots.filter(s=>!s.error))opcion($('snapshot'),s.carpeta,`${s.carpeta} · ${s.kind}`);
  if(base.clima_snapshot)$('snapshot').value=base.clima_snapshot;
- $('aislacion').addEventListener('change',actualizarAislacion);$('aisldesde').addEventListener('change',actualizarAislacion);$('snapshot').addEventListener('change',infoSnapshot);actualizarAislacion();
- const tc=base.tuberias_ctrl;if(tc){$('tubos').hidden=false;$('tubosn').textContent=tc.n_circuitos;$('tubosactivas').checked=tc.activas;$('tubosactivas').disabled=!tc.n_circuitos;
-  $('tubosT').value=tc.T_agua_C;$('tubossep').value=tc.separacion_m;$('tubosdiam').value=tc.diametro_mm;
-  const ajustarTubos=()=>{for(const id of ['tubosT','tubossep','tubosdiam'])$(id).disabled=!$('tubosactivas').checked;};$('tubosactivas').addEventListener('change',ajustarTubos);ajustarTubos();}}
+ $('aislacion').addEventListener('change',actualizarAislacion);$('aisldesde').addEventListener('change',actualizarAislacion);$('snapshot').addEventListener('change',infoSnapshot);actualizarAislacion();}
 $('clima').addEventListener('change',actualizarClima);
+const camposTuberias={'agua-inicial':'T_agua_C','agua-caudal':'caudal_L_min','tuberias-separacion':'separacion_m',
+ 'tuberias-ua':'UA_lineal_W_mK','agua-volumen':'volumen_estanque_m3'};
+function actualizarTuberias(){
+ const modelo=$('modelo-tuberias').value, activo=modelo==='automatico', regulada=$('agua-regulada').checked;
+ $('tubos').hidden=modelo!=='yaml';
+ for(const id of ['tubosT','tubossep','tubosdiam'])$(id).disabled=modelo!=='yaml';
+ $('ajustes-tuberias').hidden=!activo;
+ $('agua-regulada').disabled=!activo;
+ for(const id of Object.keys(camposTuberias))$(id).disabled=!activo||(regulada&&id==='agua-volumen');
+ $('rotulo-estanque').hidden=regulada;
+ $('rotulo-agua').textContent=regulada?'Agua de entrada [°C]':'Agua inicial [°C]';
+ $('modo-agua').textContent=regulada?'Se supone un enfriador ideal que mantiene el agua a la temperatura elegida.':'El agua vuelve al estanque, donde se acumula el calor que recoge de los circuitos.';
+}
+function iniciarTuberias(){
+ const tc=base.tuberias_ctrl, cantidad=base.caso?.tuberias?.length??0, agua=base.enfriamiento;
+ $('modelo-tuberias-yaml').disabled=!tc||!cantidad;
+ $('modelo-tuberias').value=agua?.activo?'automatico':tc?.activas&&cantidad?'yaml':'ninguno';
+ $('tubosn').textContent=cantidad;
+ if(tc){
+  $('tubosT').value=tc.T_agua_C;$('tubossep').value=tc.separacion_m;$('tubosdiam').value=tc.diametro_mm;
+ }
+ $('agua-regulada').checked=agua?.volumen_estanque_m3===null;
+ for(const [id,campo] of Object.entries(camposTuberias))$(id).value=agua?.[campo]??(id==='agua-volumen'?20:'');
+ actualizarTuberias();
+}
+$('modelo-tuberias').addEventListener('change',actualizarTuberias);
+$('agua-regulada').addEventListener('change',actualizarTuberias);
 function pendiente(){revision++;$('pendiente').textContent='Entradas modificadas: ejecuta para actualizar los resultados.';}
 async function pedir(url,opciones){const r=await fetch(url,opciones);const d=await r.json();if(!r.ok)throw Error(d.error||r.statusText);return d;}
 async function iniciar(){
  try{
   base=await pedir('/api/plan');
+  iniciarTuberias();
   for(const [id,campo] of [['dx','paso_m'],['final','final_h'],['ambiente','ambiente_C'],['h','h_W_m2_K'],['dt','dt_s'],['guardar','guardar_cada_h']])$(id).value=base[campo];
   $('inicioobra').value=base.inicio_simulacion||base.opciones?.inicio||'2026-11-27T04:00';
   const tieneCaso='caso' in base;
@@ -256,11 +322,17 @@ async function sondear(rev){
 function decodificar(s){const bytes=Uint8Array.from(atob(s),c=>c.charCodeAt(0));const vista=new DataView(bytes.buffer),a=new Float32Array(bytes.length/4);for(let i=0;i<a.length;i++)a[i]=vista.getFloat32(i*4,true);return a;}
 function mostrar(carpeta){detener();{const tmin=resultado.fotogramas.map(f=>f.Tmin_C).filter(Number.isFinite),tmax=resultado.fotogramas.map(f=>f.Tmax_C).filter(Number.isFinite);escalaT=[Math.floor(Math.min(10,...tmin)/5)*5,Math.ceil(Math.max(70,...tmax)/5)*5];$('escalamin').textContent=escalaT[0]+' °C';$('escalamed').textContent=((escalaT[0]+escalaT[1])/2).toFixed(0)+' °C';$('escalamax').textContent=escalaT[1]+' °C'+(escalaT[1]>70?' · ampliada a este resultado':'');}seleccionVoxel=null;limitesVista=null;poligonosPantalla=[];frames=resultado.fotogramas.map(f=>decodificar(f.T_f32));facesCache=null;$('tiempo').disabled=false;$('tiempo').max=frames.length-1;$('tiempo').value=frames.length-1;$('reproducir').disabled=false;
  const maxz=resultado.origen_m[2]+resultado.forma[2]*(resultado.pasos_m?.[2]||resultado.paso_m);$('corte').min=resultado.origen_m[2];$('corte').max=maxz;$('corte').value=maxz;$('corte').step=(resultado.pasos_m?.[2]||resultado.paso_m)/2;
+ configurarCorteVertical();
  $('contexto').textContent=(resultado.suelo_incluido?'Suelo incluido en el cálculo; esta vista muestra solo hormigón. ParaView: material=2 es suelo. ':'')+(resultado.nota_clima||'')+' '+(resultado.advertencias||[]).join(' ');
  $('material').textContent=resultado.material.material+' · '+resultado.material.estado.replaceAll('_',' ');
  $('pendiente').textContent=revision===revisionEjecutada?'Resultados actualizados con las entradas ejecutadas.':'Las entradas cambiaron durante el cálculo; los resultados corresponden al plan ejecutado.';
  const filas=$('volumenes');filas.replaceChildren();for(const v of resultado.volumenes){const tr=document.createElement('tr');for(const valor of [v.paso_m,v.paso_z_m||v.paso_m,v.vertida_id,v.ifc_m3.toFixed(3),v.voxel_m3.toFixed(3),(v.error_relativo*100).toFixed(3)]){const td=document.createElement('td');td.textContent=valor;tr.append(td);}filas.append(tr);}
- const b=resultado.balances.at(-1),den=Math.max(Math.abs(b.energia_J),Math.abs(b.colocacion_J)+Math.abs(b.hidratacion_J)+Math.abs(b.borde_J),1);$('balance').textContent=`Residuo energético final: ${b.residuo_J.toExponential(3)} J · relativo ${(Math.abs(b.residuo_J)/den).toExponential(3)}. IFC SHA-256: ${resultado.ifc_sha256}. Código: ${resultado.commit||'sin Git'}${resultado.codigo_modificado?' (con cambios locales)':''}.`;
+ const b=resultado.balances.at(-1),den=Math.max(Math.abs(b.energia_J),Math.abs(b.colocacion_J)+Math.abs(b.hidratacion_J)+Math.abs(b.borde_J)+Math.abs(b.agua_J??0)+Math.abs(b.tuberias_J??0),1);$('balance').textContent=`Residuo energético final: ${b.residuo_J.toExponential(3)} J · relativo ${(Math.abs(b.residuo_J)/den).toExponential(3)}. IFC SHA-256: ${resultado.ifc_sha256}. Código: ${resultado.commit||'sin Git'}${resultado.codigo_modificado?' (con cambios locales)':''}.`;
+ const agua=resultado.enfriamiento;
+ const detalleAgua=$('resultado-tuberias');detalleAgua.hidden=!agua&&!!resultado.tuberias?.length;
+ detalleAgua.textContent=agua
+  ? `Tuberías activadas · ${agua.circuitos} circuitos operados (${agua.longitud_m.toFixed(1)} m) · ${agua.energia_neta_J<0?'Calor neto devuelto al hormigón':'Calor neto extraído'}: ${(Math.abs(agua.energia_neta_J)/1e6).toFixed(1)} MJ · Agua de entrada al finalizar: ${agua.T_agua_final_C.toFixed(1)} °C.`
+  : 'Corrida sin enfriamiento por tuberías.';
  $('ruta').textContent='Carpeta de esta ejecución: '+carpeta;
  const intervalo3d=resultado.guardar_campos_cada_h;
  $('comparacion').textContent=Number.isFinite(intervalo3d)
@@ -269,7 +341,7 @@ function mostrar(carpeta){detener();{const tmin=resultado.fotogramas.map(f=>f.Tm
  prepararAnalisis();actualizar();}
 const numeroAnalisis=(v,dec=2)=>AnalisisTermico.finito(v)?v.toFixed(dec):'—';
 function tablaAnalisis(id,filas){const cuerpo=$(id);cuerpo.replaceChildren();for(const fila of filas){const tr=document.createElement('tr');for(const valor of fila){const td=document.createElement('td');td.textContent=String(valor);tr.append(td);}cuerpo.append(tr);}}
-function leyendaAnalisis(id,series,extra){const destino=$(id);destino.replaceChildren();for(const s of series){const span=document.createElement('span');span.style.color=s.color;span.textContent='━ '+s.nombre;destino.append(span);}if(extra){const span=document.createElement('span');span.style.color='#ff9b8b';span.textContent=extra;destino.append(span);}}
+function leyendaAnalisis(id,series,extra){const destino=$(id);destino.replaceChildren();for(const s of series){const span=document.createElement('span');span.style.color=s.color;span.textContent='━ '+s.nombre;destino.append(span);}if(extra){const span=document.createElement('span');span.style.color=extra.color??'#ff9b8b';span.textContent=extra.texto??extra;destino.append(span);}}
 function criterioAnalisis(valor,limite){if(!AnalisisTermico.finito(valor)||!AnalisisTermico.finito(limite))return 'Sin datos/criterio';return valor<=limite?'Cumple criterio docente':'Supera criterio docente';}
 function prepararAnalisis(){const a=resultado.indicadores,hay=!!a;$('fijarreferencia').disabled=!hay;$('exportarresumen').disabled=!hay;
  if(!hay){const fs=resultado.fotogramas,p=AnalisisTermico.pico(fs.map(f=>f.Tmax_C),fs.map(f=>f.tiempo_h));$('picoglobal').textContent=numeroAnalisis(p.valor_C)+' °C';$('picoglobalnota').textContent='Pico entre fotogramas guardados';for(const id of ['picodelta','ventanavertidas','edadultima'])$(id).textContent='—';$('alcanceindicadores').textContent='Resultado anterior a estos indicadores. Reejecuta el caso con el servidor actualizado para obtener diferencial, sondas y temperaturas previas.';tablaAnalisis('resumenvertidas',[]);tablaAnalisis('tablacolocaciones',[]);$('sondavertida').replaceChildren();return;}
@@ -290,10 +362,17 @@ function guardarReferencia(){try{if(referenciaEscenario)sessionStorage.setItem('
 function actualizarAnalisis(){if(!resultado)return;const a=resultado.indicadores,t=resultado.fotogramas[Number($('tiempo').value)].tiempo_h,edad=$('ejeanalisis').value==='edad',eventos=a?.colocaciones||[];
  const maximas=AnalisisTermico.seriesPorVertida(a,'maxima_C',edad),deltas=AnalisisTermico.seriesPorVertida(a,'delta_C',edad);leyendaAnalisis('leyendamaximas',maximas,AnalisisTermico.finito(a?.criterios.T_max_C)?'Límite '+a.criterios.T_max_C+' °C':null);leyendaAnalisis('leyendadelta',deltas,AnalisisTermico.finito(a?.criterios.delta_T_C)?'Límite '+a.criterios.delta_T_C+' K':null);
  AnalisisTermico.graficar($('graficomaximas'),maximas,{cursor:edad?null:t,umbral:a?.criterios.T_max_C,edad,eventos});AnalisisTermico.graficar($('graficodelta'),deltas,{cursor:edad?null:t,umbral:a?.criterios.delta_T_C,unidad:'K',edad,eventos});
- const vid=$('sondavertida').value,sondas=AnalisisTermico.seriesSondas(a,vid,edad),inicio=a?.series.por_vertida.find(v=>String(v.vertida_id)===vid)?.inicio_h||0;
+ const vid=$('sondavertida').value,sondas=AnalisisTermico.seriesSondas(a,vid,edad);
+ const moldaje=sondas.length?datosMoldajes().find(m=>String(m.vertida_id)===vid):null;
+ let marcaDesmolde=null;
+ if(AnalisisTermico.finito(moldaje?.retiro_h)&&moldaje.retiro_h<=resultado.fotogramas.at(-1).tiempo_h){
+  const tiempo_h=edad?moldaje.retiro_h-moldaje.inicio_h:moldaje.retiro_h;
+  const hora=tiempo_h.toLocaleString('es-CL',{maximumFractionDigits:3});
+  marcaDesmolde={tiempo_h,color:'#8ce3c2',texto:`● Desmolde V${vid} · ${hora} h ${edad?'de edad':'de obra'}`};
+ }
  $('posicionessondas').textContent=sondas.map(s=>`${s.nombre}: (${s.sonda.centro_m.map(v=>v.toFixed(3)).join(', ')}) m`).join(' · ');
  if(seleccionVoxel!==null){const id=resultado.vertida_id[seleccionVoxel],inicioSeleccion=a?.series.por_vertida.find(v=>v.vertida_id===id)?.inicio_h||0;sondas.push({nombre:'Voxel seleccionado V'+id,color:'#d6a2ff',puntos:resultado.fotogramas.map((f,i)=>[edad?f.tiempo_h-inicioSeleccion:f.tiempo_h,frames[i][seleccionVoxel]]).filter(p=>p[0]>=0)});}
- leyendaAnalisis('leyendasondas',sondas);AnalisisTermico.graficar($('graficosondas'),sondas,{cursor:edad?null:t,edad,eventos});
+ leyendaAnalisis('leyendasondas',sondas,marcaDesmolde);AnalisisTermico.graficar($('graficosondas'),sondas,{cursor:edad?null:t,edad,eventos,marca:marcaDesmolde});
  const comparacion=[],metrica=$('metricacomparacion').value;if(referenciaEscenario)comparacion.push({nombre:'Referencia',color:'#a7b7c2',puntos:AnalisisTermico.serieComparacion(referenciaEscenario.indicadores,metrica)});if(a)comparacion.push({nombre:'Actual',color:'#8ce3c2',puntos:AnalisisTermico.serieComparacion(a,metrica)});
  leyendaAnalisis('leyendacomparacion',comparacion);AnalisisTermico.graficar($('graficocomparacion'),comparacion,{cursor:t,unidad:metrica==='delta'?'K':'°C',umbral:metrica==='delta'?a?.criterios.delta_T_C:a?.criterios.T_max_C});}
 $('fijarreferencia').onclick=()=>{if(!resultado?.indicadores)return;referenciaEscenario=AnalisisTermico.referenciaCompacta(resultado,'Caso fijado · '+resultado.indicadores.resumen.duracion_h+' h · '+resultado.indicadores.resumen.numero_vertidas+' vertidas');guardarReferencia();pintarComparacion();actualizarAnalisis();};
@@ -333,16 +412,89 @@ function puntoEnPoligono(x,y,puntos){let dentro=false;for(let i=0,j=puntos.lengt
 function caraEnPunto(poligonos,x,y){for(let i=poligonos.length-1;i>=0;i--)if(puntoEnPoligono(x,y,poligonos[i].p))return poligonos[i];return null;}
 function datosVoxelSeleccionado(){if(!resultado||seleccionVoxel===null)return null;const i=seleccionVoxel,p=resultado.indices[i],d=resultado.pasos_m||[resultado.paso_m,resultado.paso_m,resultado.paso_m];if(!p)return null;
  return {indice:p,vertida:resultado.vertida_id[i],centro:p.map((v,j)=>resultado.origen_m[j]+(v+.5)*d[j]),temperatura:frames[Number($('tiempo').value)][i]};}
-function actualizarVoxel(){const v=datosVoxelSeleccionado();$('limpiarvoxel').disabled=!v;if(!v){$('voxeltemperatura').textContent='— °C';$('voxeldetalle').textContent='Haz clic en una cara visible en los modos Voxeles · temperatura o Voxeles · vertida.';$('voxelinstante').textContent='';return;}
+function actualizarVoxel(){const v=datosVoxelSeleccionado();$('limpiarvoxel').disabled=!v;if(!v){$('voxeltemperatura').textContent='— °C';$('voxeldetalle').textContent='Haz clic en un voxel visible para consultar su temperatura.';$('voxelinstante').textContent='';return;}
  $('voxeltemperatura').textContent=Number.isFinite(v.temperatura)?v.temperatura.toFixed(2)+' °C':'Todavía no vertido';
  $('voxeldetalle').textContent=`V${v.vertida} · voxel [${v.indice.join(', ')}] · centro (x, y, z): ${v.centro.map(x=>x.toFixed(3)).join(', ')} m`;
- const f=resultado.fotogramas[Number($('tiempo').value)],oculto=!visibles().has(v.vertida),cortado=v.centro[2]>Number($('corte').value)+1e-8;
+ const f=resultado.fotogramas[Number($('tiempo').value)],oculto=!visibles().has(v.vertida);
+ const cortado=$('modo').value==='vertical'?v.indice[Number($('ejevertical').value)]!==Number($('cortevertical').value):v.centro[2]>Number($('corte').value)+1e-8;
  $('voxelinstante').textContent=(f.fecha_hora?f.fecha_hora.replace('T',' ')+' · ':'')+f.tiempo_h+' h · mismo voxel durante toda la reproducción'+(oculto||cortado?' · fuera de la vista actual':'');}
 function seleccionarEnVista(x,y){if(!resultado)return;const cara=caraEnPunto(poligonosPantalla,x,y);if(!cara)return;if(!Number.isInteger(cara.voxel)){$('voxeldetalle').textContent='Para seleccionar un voxel, cambia Mostrar a Voxeles · temperatura o Voxeles · vertida.';return;}seleccionVoxel=cara.voxel;actualizarVoxel();dibujar();actualizarAnalisis();}
 function prepararCanvas(c){const rect=c.getBoundingClientRect(),dpr=Math.min(devicePixelRatio||1,2);c.width=Math.round(rect.width*dpr);c.height=Math.round(rect.height*dpr);const contexto=c.getContext('2d');contexto.setTransform(dpr,0,0,dpr,0,0);return [contexto,rect.width,rect.height];}
-function encuadrarHormigon(){if(limitesVista)return limitesVista;const d=resultado.pasos_m||[resultado.paso_m,resultado.paso_m,resultado.paso_m],min=[Infinity,Infinity,Infinity],max=[-Infinity,-Infinity,-Infinity];for(const p of resultado.indices)for(let j=0;j<3;j++){min[j]=Math.min(min[j],resultado.origen_m[j]+p[j]*d[j]);max[j]=Math.max(max[j],resultado.origen_m[j]+(p[j]+1)*d[j]);}limitesVista={min,max};return limitesVista;}
 function mostrarTuberias(f){const tub=resultado.tuberias||[],pt=resultado.potencia_tuberias;if(!tub.length||!pt){$('tubosresultado').textContent='';return;}let i=0;for(let j=0;j<pt.tiempos_h.length;j++)if(pt.tiempos_h[j]<=f.tiempo_h+1e-6)i=j;const P=pt.potencia_W[i]/1e3,Pmax=Math.max(...pt.potencia_W)/1e3,E=tub.reduce((s,t)=>s+t.energia_J,0)/1e9,L=tub.reduce((s,t)=>s+t.longitud_m,0);$('tubosresultado').textContent=`Tuberías (${tub.length} circuitos, ${L.toFixed(0)} m, agua a ${tub[0].T_agua_C} °C): extraen ${P.toFixed(0)} kW en este instante (máx. ${Pmax.toFixed(0)} kW) · energía total ${E.toFixed(1)} GJ.`;}
+function encuadrarHormigon(){if(limitesVista)return limitesVista;
+ const d=resultado.pasos_m||[resultado.paso_m,resultado.paso_m,resultado.paso_m];
+ const primerIndice=[Infinity,Infinity,Infinity],ultimoIndice=[-Infinity,-Infinity,-Infinity];
+ for(const p of resultado.indices)for(let j=0;j<3;j++){
+  primerIndice[j]=Math.min(primerIndice[j],p[j]);ultimoIndice[j]=Math.max(ultimoIndice[j],p[j]);
+ }
+ const min=primerIndice.map((v,j)=>resultado.origen_m[j]+v*d[j]);
+ const max=ultimoIndice.map((v,j)=>resultado.origen_m[j]+(v+1)*d[j]);
+ limitesVista={min,max,primerIndice,ultimoIndice};return limitesVista;
+}
+function configurarCorteVertical(){
+ const control=$('cortevertical');control.disabled=!resultado?.indices.length;
+ if(control.disabled){$('posicionvertical').textContent='Sin voxeles de hormigón';return;}
+ const eje=Number($('ejevertical').value),caja=encuadrarHormigon();
+ const primero=caja.primerIndice[eje],ultimo=caja.ultimoIndice[eje];
+ control.min=primero;control.max=ultimo;control.value=Math.floor((primero+ultimo)/2);
+}
+function actualizarModoVista(){
+ const modo=$('modo').value,vertical=modo==='vertical';
+ $('controles-corte-vertical').hidden=!vertical;
+ for(const id of ['cortehorizontal','controles-moldaje','camara'])$(id).hidden=vertical;
+ $('escalatermica').hidden=modo==='ifc'||modo==='vertida';
+ canvas.dataset.vista=modo;
+ canvas.setAttribute('aria-label',vertical?'Corte vertical de la fundación por temperatura':'Visualización 3D de la fundación');
+ $('ayudavista').textContent=vertical
+  ? 'Desliza el corte para recorrer la fundación. Haz clic en un voxel para consultar su temperatura.'
+  : 'Clic en un voxel para ver su temperatura · arrastra para girar · rueda para acercar. En modo IFC se ocultan triángulos completos.';
+}
+function dibujarCorteVertical(c,w,h){
+ if(!resultado.indices.length)return;
+ const eje=Number($('ejevertical').value),columna=Number($('cortevertical').value),horizontal=1-eje;
+ const origen=resultado.origen_m,d=resultado.pasos_m||[resultado.paso_m,resultado.paso_m,resultado.paso_m];
+ const posicion=origen[eje]+(columna+.5)*d[eje];
+ $('posicionvertical').textContent=`${'XY'[eje]} = ${posicion.toFixed(2)} m`;
+ const {min,max}=encuadrarHormigon(),ancho=max[horizontal]-min[horizontal],alto=max[2]-min[2];
+ const escala=Math.min(Math.max(w-84,1)/ancho,Math.max(h-96,1)/alto);
+ const x0=(w+20-ancho*escala)/2,y0=(h+alto*escala)/2-8;
+ const T=frames[Number($('tiempo').value)],vertidas=visibles();
+ const dx=d[horizontal]*escala,dz=d[2]*escala;
+ let seleccionado=null;
+ for(let i=0;i<resultado.indices.length;i++){
+  const p=resultado.indices[i];
+  if(p[eje]!==columna||!Number.isFinite(T[i])||!vertidas.has(resultado.vertida_id[i]))continue;
+  const x=x0+(origen[horizontal]+p[horizontal]*d[horizontal]-min[horizontal])*escala;
+  const y=y0-(origen[2]+(p[2]+1)*d[2]-min[2])*escala;
+  c.fillStyle=`rgb(${colorT(T[i]).map(Math.round).join(',')})`;c.fillRect(x,y,dx,dz);
+  poligonosPantalla.push({voxel:i,p:[[x,y],[x+dx,y],[x+dx,y+dz],[x,y+dz]]});
+  if(i===seleccionVoxel)seleccionado=[x,y];
+ }
+ if(seleccionado){c.strokeStyle='#fff4cc';c.lineWidth=2;c.strokeRect(...seleccionado,dx,dz);}
+ dibujarEjesCorte(c,x0,y0,ancho*escala,alto*escala,min,max,horizontal);
+ if(!poligonosPantalla.length){
+  c.textAlign='center';c.fillStyle='#aec0cb';c.fillText('Sin hormigón visible en este corte a esta hora.',w/2,28,Math.max(w-20,1));
+ }
+}
+function dibujarEjesCorte(c,x0,y0,w,h,min,max,horizontal){
+ c.strokeStyle='#527181';c.fillStyle='#aec0cb';c.lineWidth=1;c.font='11px system-ui';
+ c.beginPath();c.moveTo(x0-5,y0-h);c.lineTo(x0-5,y0+5);c.lineTo(x0+w,y0+5);
+ const nx=Math.max(1,Math.min(4,Math.floor(w/70))),nz=Math.max(1,Math.min(4,Math.floor(h/28)));
+ c.textAlign='center';
+ for(let i=0;i<=nx;i++){
+  const x=x0+w*i/nx,v=min[horizontal]+(max[horizontal]-min[horizontal])*i/nx;
+  c.moveTo(x,y0+5);c.lineTo(x,y0+10);c.fillText(v.toFixed(2),x,y0+23);
+ }
+ c.fillText(`${'XY'[horizontal]} [m]`,x0+w/2,y0+40);
+ c.textAlign='right';
+ for(let i=0;i<=nz;i++){
+  const y=y0-h*i/nz,v=min[2]+(max[2]-min[2])*i/nz;
+  c.moveTo(x0-5,y);c.lineTo(x0-10,y);c.fillText(v.toFixed(2),x0-13,y+4);
+ }
+ c.fillText('Z [m]',x0-8,y0-h-10);c.stroke();
+}
 function dibujar(){const [contexto,w,h]=prepararCanvas(canvas);ancho=w;alto=h;poligonosPantalla=[];contexto.clearRect(0,0,w,h);if(!resultado){contexto.fillStyle='#aec0cb';contexto.textAlign='center';contexto.fillText('Ejecuta la simulación para visualizar el IFC y la grilla 3D.',w/2,h/2);return;}
+ if($('modo').value==='vertical'){dibujarCorteVertical(contexto,w,h);return;}
  const caja=encuadrarHormigon(),centro=caja.min.map((v,j)=>(v+caja.max[j])/2),span=Math.max(...caja.max.map((v,j)=>v-caja.min[j]));
  function girar(p){const [x,y,z]=p.map((v,j)=>v-centro[j]),a=Math.cos(yaw)*x-Math.sin(yaw)*y,b=Math.sin(yaw)*x+Math.cos(yaw)*y;return [a,Math.sin(pitch)*b-Math.cos(pitch)*z,Math.cos(pitch)*b+Math.sin(pitch)*z];}
  const extremos=[];for(let i=0;i<8;i++)extremos.push(girar(caja.min.map((v,j)=>i&(1<<j)?caja.max[j]:v)));
@@ -363,10 +515,13 @@ function actualizar(){if(!resultado)return;facesCache=null;const f=resultado.fot
 function detener(){clearInterval(animacion);animacion=null;$('reproducir').textContent='▶ Reproducir';}
 let relojReproduccion=0;
 $('reproducir').onclick=()=>{if(animacion){detener();return;}if(Number($('tiempo').value)>=frames.length-1)$('tiempo').value=0;$('reproducir').textContent='⏸ Pausar';actualizar();let anterior=performance.now();relojReproduccion=resultado.fotogramas[Number($('tiempo').value)].tiempo_h;animacion=setInterval(()=>{const ahora=performance.now();relojReproduccion+=(ahora-anterior)/1000*Number($('velocidad').value);anterior=ahora;let i=Number($('tiempo').value);while(i<frames.length-1&&resultado.fotogramas[i+1].tiempo_h<=relojReproduccion)i++;if(i!==Number($('tiempo').value)){$('tiempo').value=i;actualizar();}if(i>=frames.length-1)detener();},100);};
-$('tiempo').oninput=()=>{detener();actualizar();};$('modo').onchange=actualizar;$('corte').oninput=actualizar;
-canvas.onpointerdown=e=>{if(e.button!==0)return;arrastre={x:e.clientX,y:e.clientY,inicioX:e.clientX,inicioY:e.clientY,movido:false,pointerId:e.pointerId};canvas.setPointerCapture(e.pointerId);};canvas.onpointermove=e=>{if(!arrastre||e.pointerId!==arrastre.pointerId)return;arrastre.movido ||= Math.hypot(e.clientX-arrastre.inicioX,e.clientY-arrastre.inicioY)>5;if(arrastre.movido){yaw+=(e.clientX-arrastre.x)*.008;pitch=Math.max(-1.4,Math.min(1.4,pitch+(e.clientY-arrastre.y)*.008));requestAnimationFrame(dibujar);}arrastre.x=e.clientX;arrastre.y=e.clientY;};canvas.onpointerup=e=>{if(!arrastre||e.pointerId!==arrastre.pointerId)return;const clic=!arrastre.movido&&Math.hypot(e.clientX-arrastre.inicioX,e.clientY-arrastre.inicioY)<=5;arrastre=null;if(clic){const rect=canvas.getBoundingClientRect();seleccionarEnVista(e.clientX-rect.left,e.clientY-rect.top);}};canvas.onpointercancel=()=>arrastre=null;
+$('tiempo').oninput=()=>{detener();actualizar();};$('modo').onchange=()=>{actualizarModoVista();actualizar();};$('corte').oninput=actualizar;
+$('ejevertical').onchange=()=>{configurarCorteVertical();actualizarVoxel();dibujar();};
+$('cortevertical').oninput=()=>{actualizarVoxel();dibujar();};
+canvas.onpointerdown=e=>{if(e.button!==0)return;arrastre={x:e.clientX,y:e.clientY,inicioX:e.clientX,inicioY:e.clientY,movido:false,pointerId:e.pointerId};canvas.setPointerCapture(e.pointerId);};canvas.onpointermove=e=>{if(!arrastre||e.pointerId!==arrastre.pointerId)return;arrastre.movido ||= Math.hypot(e.clientX-arrastre.inicioX,e.clientY-arrastre.inicioY)>5;if(arrastre.movido&&$('modo').value!=='vertical'){yaw+=(e.clientX-arrastre.x)*.008;pitch=Math.max(-1.4,Math.min(1.4,pitch+(e.clientY-arrastre.y)*.008));requestAnimationFrame(dibujar);}arrastre.x=e.clientX;arrastre.y=e.clientY;};canvas.onpointerup=e=>{if(!arrastre||e.pointerId!==arrastre.pointerId)return;const clic=!arrastre.movido&&Math.hypot(e.clientX-arrastre.inicioX,e.clientY-arrastre.inicioY)<=5;arrastre=null;if(clic){const rect=canvas.getBoundingClientRect();seleccionarEnVista(e.clientX-rect.left,e.clientY-rect.top);}};canvas.onpointercancel=()=>arrastre=null;
 $('limpiarvoxel').onclick=()=>{seleccionVoxel=null;actualizarVoxel();dibujar();actualizarAnalisis();};
-canvas.addEventListener('wheel',e=>{e.preventDefault();zoom=Math.max(.3,Math.min(5,zoom*Math.exp(-e.deltaY*.001)));dibujar();},{passive:false});$('camara').onclick=()=>{yaw=-.65;pitch=.8;zoom=1;dibujar();};
+canvas.addEventListener('wheel',e=>{if($('modo').value==='vertical')return;e.preventDefault();zoom=Math.max(.3,Math.min(5,zoom*Math.exp(-e.deltaY*.001)));dibujar();},{passive:false});$('camara').onclick=()=>{yaw=-.65;pitch=.8;zoom=1;dibujar();};
 $('exportar').onclick=()=>{if(!$('entradas').reportValidity())return;const b=new Blob([JSON.stringify(leerPlan(),null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='plan_e08.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);};
-new ResizeObserver(()=>{dibujar();dibujarCurva();actualizarAnalisis();}).observe(canvas);iniciar();
+if(new URLSearchParams(location.search).get('vista')==='corte-vertical')$('modo').value='vertical';
+actualizarModoVista();new ResizeObserver(()=>{dibujar();dibujarCurva();actualizarAnalisis();}).observe(canvas);iniciar();
 </script></body></html>
