@@ -1,6 +1,6 @@
 # Búsqueda local de una alternativa térmica · defensa P02-MCOC
 
-Estado: **pausado por petición del usuario el 17-nov-2026 a las 00:10, America/Santiago**. Se detuvieron las simulaciones largas. Este documento no sustituye la conclusión del PDF congelado anterior: no hay aún una alternativa nueva aceptada en resolución final.
+**Estado al 17 de noviembre de 2026.** El estudio extendido tiene 35 corridas verificadas y cero filas pendientes. El grupo presentará **EPS 200 mm con colocación a 12 °C** como candidato condicionado. La matriz fina de activación conjunta dio 0% de excedencia en los seis escenarios ponderados. La comprobación adicional de una fila a 0,20 m dejó un margen de **0,178 °C**, con convergencia espacial todavía sin demostrar. El barrido inicial de diez planes conserva su conclusión y se documenta aparte. [Comparación base](defensa.md) · [Confirmación fina](#confirmación-fina)
 
 ## Qué se cambió
 
@@ -14,9 +14,9 @@ El mínimo persistente estaba en x− de la primera vertida, cerca del suelo. Au
 
 A 12 °C, el plan supone suministro de hormigón ya acondicionado disponible desde el inicio común y capaz de sostener 40 m³/h. Enfriar 6 K el volumen completo requiere idealmente ρ cₚ V ΔT = 8,894 GJ de extracción térmica (2.471 kWh térmicos), equivalente a 155,2 kW térmicos durante el suministro. Son mínimos ideales sin pérdidas; no potencia eléctrica ni dimensionamiento de una planta. La disponibilidad debe confirmarse. Si el enfriamiento retrasa la primera colocación, ese retraso se suma a D y hay que rehacer el cronograma y clima; no puede ocultarse antes de t0.
 
-D = V/r = 15,919 h es una cota inferior bajo esa capacidad y una sola línea. Un candidato que cumpla y alcance esa cota es el más rápido en esta familia bajo los recursos declarados; no prueba optimalidad frente a otra capacidad. La activación conjunta idealiza la operación de 15,919 h; la sensibilidad con activación sucesiva se conserva como comprobación pendiente.
+D = V/r = 15,919 h es la cota inferior bajo esa capacidad y una sola línea. La activación conjunta idealiza esa operación. La activación sucesiva por sólidos conserva la duración física y se comprobó en los seis escenarios de barrido. Para una decisión de ejecución, queda por probar esa representación en malla fina y confirmar la capacidad de suministro.
 
-## Cómo se verificará
+## Criterios de verificación
 
 1. Seis escenarios por control con máximos e indicadores marginales y unión exacta. Cero fallas es P_F = 0% del modelo discreto, no garantía de confiabilidad real.
 2. 336 h de base; extensión a 672 h si hay señal tardía. Nuevas colas históricas ERA5 hasta 20-dic, sin modificar el prefijo de 480 horas usado antes. Ninguna repetición artificial del último día.
@@ -24,21 +24,20 @@ D = V/r = 15,919 h es una cota inferior bajo esa capacidad y una sola línea. Un
 4. Separar reducción del paso temporal y frecuencia de registro. Revisar balance energético y ubicación de máximos; aplicar el umbral sin redondear.
 5. Comprobar la representación de colocación sucesiva sin esperas y el mismo D físico. No declarar un control disponible ni una medida de retiro validada sin evidencia.
 
-## Reproducción
+## Reproducción sin nuevas simulaciones
 
-Desde la raíz:
+Desde la raíz, extraer el ZIP en una carpeta de resultados vacía. Si ya hay resultados, conservarlos y comprobar sus claves antes de copiar.
 
 ```powershell
-proyecto/.venv/Scripts/python.exe proyecto/scripts/explorar_defensa.py --estudio proyecto/configs/defensa_extension_clima.yaml --salida proyecto/results/defensa_extension_larga --plan eps200_T12 --horizonte-extendido 672 --procesos 1
+Expand-Archive -LiteralPath proyecto/docs/evidencia_extension_defensa/corridas.zip -DestinationPath proyecto/results/defensa_extension_larga
 proyecto/.venv/Scripts/python.exe proyecto/scripts/explorar_defensa.py --estudio proyecto/configs/defensa_extension_clima.yaml --salida proyecto/results/defensa_extension_larga --plan eps200_T12 --nivel fino --horizonte-extendido 672 --procesos 1
-proyecto/.venv/Scripts/python.exe proyecto/scripts/resumir_extension_defensa.py
 ```
 
-El modo de un proceso evita colas de multiprocessing de Windows. Las claves permiten reanudar sin repetir corridas completas compatibles. Para pausar nuevos cálculos, crear `PAUSAR` en la carpeta de resultados. Los JSON completos son la fuente de la evidencia; no aceptar archivos temporales.
+El resultado esperado es **6 seleccionadas, 0 pendientes** y una tabla regenerada en la carpeta de salida. El modo de un proceso evita las colas de multiprocessing de Windows. Para pausar nuevos cálculos, crear `PAUSAR` en la carpeta de resultados. Para las tablas de la defensa, usar los JSON completos y los CSV publicados.
 
-Los resultados anteriores permanecen intactos en `docs/evidencia_defensa`. La extensión se conserva aparte en `docs/evidencia_extension_defensa`; los pilotos y confirmaciones de 100 mm están en `docs/evidencia_extension_pilotos`. El usuario autorizó publicar el cierre en `codex/defensa-final` y enviar correo; comprobar el SHA remoto en el registro de sesión.
+Los resultados anteriores se conservan en `docs/evidencia_defensa`. La extensión está en `docs/evidencia_extension_defensa` y los pilotos de 100 mm en `docs/evidencia_extension_pilotos`. El SHA de la campaña original es `fc95932` y el de la confirmación de la extensión es `aede6bf`.
 
-## Resultado observado al pausar
+## Registro histórico de la pausa · 17 de noviembre, 00:10
 
 - **Punto 1, búsqueda:** terminado para la familia explorada. Solo aumentar EPS a 18 °C no resolvió el piloto. El suministro a 12 °C con EPS de 100 y 200 mm produjo candidatos en malla de barrido.
 - **EPS 100 mm / 12 °C:** descartado. La malla fina dio 19,24495; 19,93820; **20,14980 °C** en los tres escenarios SS. La falla de ERA5 2025 ya aporta P_F ≥ 25% con pesos principales, o ≥ 16,67% con pesos alternativos. No puede aceptarse por haber dado cero fallas en barrido/cribado.
@@ -50,9 +49,9 @@ Los resultados anteriores permanecen intactos en `docs/evidencia_defensa`. La ex
 
 Se conservaron **41 corridas completas nuevas**: 27 en el paquete extendido y 14 en pilotos. Los ZIP, huellas de insumos, claves/configuración, balance y diferencial simultáneo se verificaron. Residuo energético relativo máximo del paquete extendido: 9,04 × 10⁻¹⁶. Las 79 corridas históricas no se modificaron.
 
-## Confirmación fina (17-nov, 01:21–01:50)
+## Confirmación fina
 
-Las ocho filas pendientes terminaron con código 0 y horizonte cerrado; ninguna supera 70 °C (T_max ≤ 49,64 °C). Se combinaron con las 27 corridas previas: **35 corridas verificadas**, residuo relativo máximo 9,04 × 10⁻¹⁶.
+Las ocho filas pendientes terminaron entre 01:21 y 01:50 del 17 de noviembre, con código 0 y horizonte cerrado. La temperatura máxima observada fue 49,64 °C. Se combinaron con las 27 corridas previas para un total de **35 corridas verificadas**, con residuo relativo máximo de 9,04 × 10⁻¹⁶.
 
 | Fila EPS 200 / 12 °C | Δ [°C] | Tiempo [s] |
 |---|---|---|
@@ -64,16 +63,8 @@ Las ocho filas pendientes terminaron con código 0 y horizonte cerrado; ninguna 
 | sucesiva, barrido 22A / ERA5 2025 | 11,3878 | 70 |
 
 - Matriz fina completa: P_T = P_Δ = P_F = 0 % con ambos juegos de pesos. Activación sucesiva: 6/6 en barrido, sin excedencias.
-- **Salvedad de malla:** en SS/ERA5 2025, Δ sube con cada refinamiento horizontal: 18,634 (0,5 m) → 19,441 (0,25 m) → 19,822 °C (0,20 m). El último incremento (+0,38 °C por 0,05 m) es proporcionalmente mayor que el anterior (+0,81 °C por 0,25 m), así que no hay régimen asintótico que permita extrapolar un valor convergido. El margen a 0,20 m es 0,18 °C. EPS 200 / 12 °C **cumple en todas las mallas calculadas**, pero no se puede afirmar que el valor convergido quede bajo 20 °C.
+- **Salvedad de malla:** en SS/ERA5 2025, Δ sube con cada refinamiento horizontal: 18,634 (0,5 m) → 19,441 (0,25 m) → 19,822 °C (0,20 m). El último incremento (+0,38 °C por 0,05 m) es proporcionalmente mayor que el anterior (+0,81 °C por 0,25 m). Estas tres mallas dejan sin verificar el régimen asintótico y el valor convergido. El margen a 0,20 m es 0,18 °C. Ahí se cumple el límite de 20 °C para esa única fila.
 
-## Retomar sin repetir toda la búsqueda
+## Si se amplía el estudio después de la defensa
 
-> Actualización 17-nov 01:50: las ocho filas de `pendientes.json` ya están completas (sección anterior). Lo que sigue aplica solo si se agregan filas nuevas.
-
-Primero revisar `docs/evidencia_extension_defensa/pendientes.json`. El siguiente cálculo prioritario es solo SS/ERA5 2025 en fino para EPS 200 / 12 °C. Retirar el marcador `PAUSAR` únicamente cuando se quiera reanudar. No lanzar simultáneamente todas las confirmaciones como en esta sesión: medir primero una corrida. Si esa fila falla, replantear el control antes de completar las demás.
-
-```powershell
-proyecto/.venv/Scripts/python.exe proyecto/scripts/explorar_defensa.py --estudio proyecto/configs/defensa_extension_clima.yaml --salida proyecto/results/defensa_extension_larga --plan eps200_T12 --nivel fino --curva M1_SS --clima era5_2025 --horizonte-extendido 672 --procesos 1
-```
-
-Las corridas interrumpidas no conservan estado temporal: cada fila pendiente reinicia desde t0. Las filas completas compatibles sí se reutilizan. Mantener pendiente la recomendación y actualizar el PDF solo después de cerrar la verificación y los supuestos de suministro/protección.
+Las ocho filas del corte histórico ya están completas. La decisión de la defensa es presentar el candidato con la salvedad de malla y conservar las corridas vigentes. Si se requiere validación adicional para obra, la prioridad es comprobar el escenario crítico con activación sucesiva y un refinamiento espacial que permita evaluar el margen, y confirmar suministro, protección y régimen de retiro. Las corridas interrumpidas reinician desde t0 y las completas compatibles se reutilizan por clave.

@@ -6,7 +6,6 @@ import csv
 import json
 import os
 from pathlib import Path
-import subprocess
 
 from reportlab.lib.colors import HexColor, white
 from reportlab.lib.utils import ImageReader
@@ -17,6 +16,8 @@ from reportlab.pdfgen.canvas import Canvas
 RAIZ = Path(__file__).resolve().parents[2]
 EVIDENCIA = RAIZ / "proyecto/docs/evidencia_defensa"
 EXTENSION = RAIZ / "proyecto/docs/evidencia_extension_defensa"
+SHA_BASE = "fc95932"
+SHA_EXTENSION = "aede6bfb38b4e69c92511c598fa62fecdfd6e427"
 FIGURAS = Path(__file__).resolve().parent / "figuras"
 SALIDA = RAIZ / "Defensa final/Defensa final - Grupo 1.pdf"
 W, H = 960, 540
@@ -160,17 +161,15 @@ def main():
     malla = {r["nivel"]: float(r["delta_C"]) for r in ext_esc
              if (r["plan"], r["curva"], r["clima"]) == ("eps200_T12", "M1_SS", "era5_2025")}
     margen = 20 - malla["confirmacion"]
-    resultado = f"Continua + EPS 200 mm y hormigón a 12 °C cumple en {numero(ext['D_h'])} h, con margen estrecho."
-    salvedad = (f"Peor diferencial {numero(malla['fino'])} °C a 0,25 m y {numero(malla['confirmacion'])} °C a 0,20 m: "
-                f"margen {numero(margen)} °C, sin convergencia de malla demostrada.")
-    sha = estado.get("commit_modelo") or subprocess.check_output(
-        ["git", "-C", str(RAIZ), "rev-parse", "HEAD"], text=True
-    ).strip()
+    resultado = "Candidato condicionado: colocación continua, EPS 200 mm y hormigón a 12 °C."
+    salvedad = (f"Una corrida adicional a 0,20 m dio {numero(malla['confirmacion'])} °C "
+                f"y dejó un margen de {numero(margen)} °C. La convergencia de malla sigue abierta.")
     deck = Presentacion()
 
     deck.pagina("Control térmico en la fundación de Taltal", "Decisión · 0:30")
     deck.texto(resultado, 45, 383, 35, ACENTO, True, 850)
-    deck.texto(f"0% de excedencia conjunta en los 6 escenarios con malla fina (límite 5%). {salvedad}",
+    deck.texto(f"{numero(ext['D_h'])} h con una línea de 40 m³/h. Excedencia observada de 0% "
+               f"en los seis escenarios a 0,25 m. {salvedad}",
                45, 270, 21, ancho=840)
     deck.texto("636,8 m³ de hormigón · 15,92 h como mínimo físico supuesto · ninguno de los 10 planes originales cumple",
                45, 161, 17, SEC, ancho=850)
@@ -198,7 +197,7 @@ def main():
     deck.pagina("Cada escenario aporta una sola falla", "Probabilidad · 0:45")
     deck.texto("2 curvas M1 × 3 historias ERA5 = 6 escenarios por alternativa.", 45, 389, 24, ACENTO, True)
     deck.parrafo("Pesos", "M1_SS 75% y M1_22A 25%. Cada historia aporta un tercio. El producto supone independencia.", 45, 326)
-    deck.parrafo("Evento conjunto", "Una falla cuenta una vez si T máxima > 70 °C, si el diferencial supera 20 °C o si ocurre ambas cosas.", 500, 326)
+    deck.parrafo("Evento conjunto", "Una falla cuenta una vez si T máxima > 70 °C, si el diferencial supera 20 °C o si ocurren ambas cosas.", 500, 326)
     ejemplo = next(r for r in escenario if (r["plan"], r["nivel"], r["curva"], r["clima"])
                    == ("unica", nivel, "M1_SS", "era5_2025"))
     deck.tabla(("Ejemplo real", "Peso", "T máxima", "Diferencial", "Falla"),
@@ -221,11 +220,11 @@ def main():
                45, 65, 14, SEC)
     deck.fin()
 
-    deck.pagina("Aislar más y enfriar la mezcla cierra el diferencial", "Control adicional · 0:50")
+    deck.pagina("La aislación y el preenfriamiento reducen el diferencial", "Control adicional · 0:50")
     deck.figura(EXTENSION / "figuras/comparacion_control.png", 36, 92, 610, 320)
-    y = deck.parrafo("Control", "EPS 200 mm en caras expuestas desde la colocación y hormigón a 12 °C. Mismo volumen, caudal y duración.", 662, 392, 258)
-    deck.parrafo("Malla fina, 6 escenarios", f"P conjunta {numero(float(ext['P_F']) * 100, 0)}% (también con pesos 50/50). "
-                 f"T máx ≤ {numero(max(float(r['T_max_C']) for r in ext_fino), 1)} °C. "
+    y = deck.parrafo("Control", "EPS de 200 mm en caras superiores y laterales, desde la colocación. Mezcla a 12 °C.", 662, 392, 258)
+    deck.parrafo("Activación conjunta, malla fina", f"P conjunta {numero(float(ext['P_F']) * 100, 0)}% en seis escenarios (también con pesos 50/50). "
+                 f"T máxima {numero(max(float(r['T_max_C']) for r in ext_fino))} °C. "
                  f"Peor Δ {numero(float(peor['delta_C']))} °C ({peor['curva']} · {peor['clima'].replace('era5_', 'ERA5 ')}).", 662, y, 258)
     deck.texto("EPS 100 mm a 12 °C se descartó: cruzó 20 °C (20,15 °C) solo al refinar la malla.", 45, 65, 15, SEC)
     deck.fin()
@@ -244,8 +243,8 @@ def main():
 
     deck.pagina("Decisión y control en obra", "Cierre · 0:40")
     deck.texto(resultado, 45, 377, 30, ACENTO, True, 850)
-    y = deck.parrafo("Antes de ejecutar", f"Confirmar suministro a 12 °C desde el inicio y EPS 200 mm disponible. Con margen de {numero(margen)} °C, refinar más la malla o sumar margen (más aislación o mezcla más fría).", 45, 278)
-    deck.parrafo("Contingencia", "Si hay desviación, comprobar sensores y ambos indicadores antes de ajustar la siguiente colocación o el retiro de protección.", 498, 278)
+    y = deck.parrafo("Antes de ejecutar", "Confirmar 40 m³/h a 12 °C desde el inicio y disponibilidad de EPS. Cualquier retraso de suministro se suma a D.", 45, 278)
+    deck.parrafo("Validación pendiente", f"Comprobar la activación sucesiva en malla fina y resolver el margen de {numero(margen)} °C. Antes de cambiar protecciones, revisar ambos indicadores.", 498, 278)
     deck.texto("El riesgo está condicionado a las curvas, historias y pesos declarados, y a la resolución de la malla.", 45, min(100, y), 17, SEC)
     deck.fin()
 
@@ -270,26 +269,26 @@ def main():
     deck.pagina("El margen del candidato depende de la malla", "Respaldo · verificación de la extensión")
     deck.figura(EXTENSION / "figuras/sensibilidad_numerica.png", 40, 92, 560, 300)
     y = deck.parrafo("Lo que se observa", f"SS · ERA5 2025: {numero(malla['barrido'])} → {numero(malla['cribado'])} → {numero(malla['fino'])} → "
-                     f"{numero(malla['confirmacion'])} °C al refinar. El paso temporal y el registro cambian < 0,01 °C.", 618, 380, 300)
-    deck.parrafo("Cómo leerlo", f"Cumple en todas las mallas calculadas, pero el diferencial sigue subiendo: con margen {numero(margen)} °C no se puede asegurar el valor convergido.", 618, y, 300)
+                     f"{numero(malla['confirmacion'])} °C al refinar. En la prueba de registro también cambió la integración.", 618, 380, 300)
+    deck.parrafo("Alcance de la confirmación", f"A 0,20 m se verificó una sola fila. El diferencial crece con el refinamiento y deja {numero(margen)} °C de margen. La activación sucesiva se comprobó solo en barrido.", 618, y, 300)
     deck.fin()
 
     deck.pagina("Supuestos y alcance de la evidencia", "Respaldo · limitaciones")
     deck.parrafo("Riesgo condicionado", "Familia original con pesos 50/50: P conjunta 50–100%. EPS 200 mm / 12 °C: 0% con ambos pesos. Las dos campañas M1 son escenarios de modelo.", 45, 389)
     deck.parrafo("Horizonte", "Familia original: 336 h ampliadas a 420 h; P observada es cota inferior, ya mayor que 5%. Extensión: horizontes cerrados hasta 672 h.", 500, 389)
-    deck.parrafo("Verificación y validación", "Caso adiabático: error 7,11 × 10⁻¹⁵ °C. Balance relativo < 3 × 10⁻¹⁶ en referencias. No hay mediciones independientes de la fundación.", 45, 222)
+    deck.parrafo("Verificación y validación", "Caso adiabático: error 7,11 × 10⁻¹⁵ °C. Residuo relativo máximo de la extensión 9,04 × 10⁻¹⁶. Falta contrastar con mediciones de la fundación.", 45, 222)
     deck.parrafo("Datos de obra", "Capacidad, EPS 200 mm, suministro a 12 °C y pesos son supuestos docentes. Confirmarlos antes de recomendar ejecución. El criterio térmico no calcula fisuración.", 500, 222)
     deck.fin()
 
     deck.pagina("Datos y reproducción sin internet", "Respaldo · fuentes")
     deck.parrafo("Entradas versionadas", "IFC oficial, fuente Q(t), tres archivos ERA5 con metadatos, configuración de escenarios y pesos, y cronogramas.", 45, 392)
     deck.parrafo("Resultados", "Las filas por escenario contienen máximos, ubicación y balance. La tabla de comparación incluye la sensibilidad de pesos 50/50.", 500, 392)
-    deck.texto(f"Evidencia congelada en Git   {sha}", 45, 224, 15, ACENTO, True)
+    deck.texto(f"Campaña base {SHA_BASE}  ·  Confirmación de la extensión {SHA_EXTENSION}", 45, 224, 15, ACENTO, True)
     deck.texto("Rama: codex/defensa-final · github.com/magdalenafr-uandes/P02-MCOC", 45, 195, 16)
-    deck.texto("Caso: defensa.py --nivel barrido --plan unica --curva M1_SS --clima era5_2025", 45, 155, 16)
-    deck.texto("Extensión: explorar_defensa.py --estudio configs/defensa_extension_clima.yaml --plan eps200_T12 --nivel fino", 45, 122, 16)
-    deck.texto("Ejecutar desde raíz con proyecto/.venv/Scripts/python.exe proyecto/scripts/…", 45, 92, 14, SEC)
-    deck.texto("Fuentes: IFC y archivo del curso · Open-Meteo ERA5 · Guía técnica en proyecto/docs/defensa.md", 45, 69, 14, SEC)
+    deck.texto("Desde la raíz, extraer los ZIP en carpetas de resultados vacías.", 45, 157, 17)
+    deck.texto("Campaña base: pasos y comando en proyecto/docs/defensa.md.", 45, 130, 16)
+    deck.texto("Extensión: comando verificado con horizonte de 672 h en proyecto/docs/extension_defensa.md.", 45, 105, 16)
+    deck.texto("Fuentes: IFC y archivo del curso · Open-Meteo ERA5.", 45, 69, 14, SEC)
     deck.fin()
     deck.c.save()
     print(SALIDA)

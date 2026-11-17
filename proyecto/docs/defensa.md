@@ -2,6 +2,8 @@
 
 La configuración de este estudio representa una obra docente en Parque Eólico Wayra, Taltal. El objetivo es minimizar las horas hasta terminar la última colocación, con una probabilidad de excedencia conjunta de hasta 5% en el conjunto discreto de escenarios. Los límites docentes son 70 °C de temperatura máxima y 20 °C de diferencial global. La decisión se limita a los insumos, controles y alternativas evaluadas.
 
+Este informe conserva la familia inicial de diez planes. Para el candidato condicionado que se presenta en la defensa, EPS 200 mm y colocación a 12 °C, consultar la [extensión verificada y su salvedad de malla](extension_defensa.md).
+
 ## Geometría, obra e insumos
 
 - El IFC contiene 636,775 m³ de hormigón en cinco sólidos. Las mismas geometrías e identificadores se voxelizan en todos los planes. En la representación de vertida única se activan los cinco sólidos a la vez, con las mismas propiedades y protecciones. Las caras compartidas quedan como interfaces de conducción y en el cronograma se conserva la colocación física continua de 15,92 h. La alternativa de activación sucesiva con espera cero representa la misma operación física por tramos y comprueba cuánto cambia la respuesta al distribuir la edad de colocación.
