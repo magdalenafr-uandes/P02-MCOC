@@ -252,3 +252,7 @@ simulación de 48 h, exportación VTK y clipping PyVista con núcleo térmico.
 `docs/guia_estudio.md` (E01–E02), `docs/guia_e04.md` y `docs/e04_e05.md`
 (solver y bordes), `docs/e06.md`, `docs/e07_e08.md` (pipeline, hidratación,
 clima, preguntas E07), `docs/e08.md` (comandos de la demo).
+
+## Extensión local de controles de defensa
+
+`proyecto/scripts/explorar_defensa.py`, función `preparar_extension`: controles adicionales de espesor de aislación y temperatura de colocación. El marcador `defensa-controles` identifica la preparación; se reutiliza el solver sin cambios y cada corrida conserva su configuración completa. Familia fijada en `configs/defensa_extension.yaml`. No cambia mezcla, geometría, caudal ni pesos.

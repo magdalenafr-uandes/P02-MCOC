@@ -1,0 +1,11 @@
+# Familia adicional fijada antes de sus pilotos. Sin tuberías ni cambio de mezcla.
+# Mismos 40 m³/h, geometría, escenarios y pesos que defensa.yaml.
+# R=e/0.035. Disponibilidad y continuidad de la aislación son supuestos de obra.
+# 12 °C requiere preenfriamiento; no se afirma que esté disponible en obra.
+planes:
+  eps100_T18: {espesor_m: 0.10, T_colocacion_C: 18, activacion: conjunta}
+  eps150_T18: {espesor_m: 0.15, T_colocacion_C: 18, activacion: conjunta}
+  eps200_T18: {espesor_m: 0.20, T_colocacion_C: 18, activacion: conjunta}
+  eps300_T18: {espesor_m: 0.30, T_colocacion_C: 18, activacion: conjunta}
+  eps100_T12: {espesor_m: 0.10, T_colocacion_C: 12, activacion: conjunta}
+  eps200_T12: {espesor_m: 0.20, T_colocacion_C: 12, activacion: conjunta}

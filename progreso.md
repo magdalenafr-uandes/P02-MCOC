@@ -136,3 +136,18 @@ Estado: paso 9 verificado bajo los supuestos declarados; paso 10 verificado en P
 - Comprobación adicional del paquete: diez planes × seis escenarios ERA5 = 60 filas principales y ZIP íntegro de 79 corridas. Un conteo exploratorio por nivel dio 61 porque incluía el contraste de pronóstico de peso cero; al seleccionar los climas principales se verificó la matriz 60/60. No se eliminó el contraste ni se alteraron pesos.
 - Saldo al iniciar el cierre: **88%** de la ventana de cinco horas.
 - Antes del commit documental final: suites raíz y proyecto aprobadas nuevamente (5 y 264, código 0). Se conserva la evidencia anterior; no hay fallos de pruebas sin resolver.
+
+## 16 de noviembre de 2026 · 21:40, America/Santiago · Reapertura local de pasos 8–9
+
+Estado: en curso; nueva búsqueda solicitada por el usuario. Instrucción posterior: **no subir nada**. No hacer push ni enviar correos/archivos; los avances y commits serán exclusivamente locales.
+
+- Inicio en `codex/defensa-final`, `ec94f89`, sin cambios rastreados. La carpeta `tmp/` previa se conserva.
+- Saldo inicial: 99% restante de la ventana de cinco horas.
+- Diagnóstico: poliestireno de 100 mm falla por diferencial de 22,4–23,3 °C, con mínimo en cara x− de la vertida 1 junto al suelo; algunos picos son tardíos. El espesor no corta el intercambio conductivo con el suelo.
+- Familia fijada antes del piloto: EPS 100/150/200/300 mm a 18 °C y EPS 100/200 mm a 12 °C, activación conjunta, aislación superior/lateral desde colocación. Se mantienen IFC, caudal 40 m³/h, recursos de colocación, curvas M1 y pesos, sin tuberías. Preenfriamiento y disponibilidad de protección son supuestos que requieren confirmación; no se afirma ejecución aprobada.
+- Implementación: `configs/defensa_extension.yaml` y `scripts/explorar_defensa.py`. Reutiliza solver y métricas existentes sin modificarlos; JSON completos y claves en `results/defensa_extension`. Se conservan intactas las 79 corridas anteriores.
+- Comprobación dirigida: pasó `test_extension_defensa.py`, verificando controles efectivos del plan IFC, mantenimiento después del desmolde y ausencia de aislación bajo el suelo. Pilotos seleccionados antes de comparar: seis controles con M1_SS / ERA5 2024, nivel barrido, 336 h y extensión automática a 448 h dentro de cobertura real disponible.
+- Siguiente acción: completar seis escenarios de los candidatos prometedores; confirmar espacio/tiempo/muestreo y activación sucesiva, capturar picos y declarar indeterminado si falta evidencia.
+- Pilotos terminados: EPS 100/150/200/300 mm a 18 °C dieron Δ = 23,0199 / 22,3320 / 21,9992 / 21,7614 °C; ninguno cumple ese escenario. EPS 100/200 mm a 12 °C dieron 19,2022 / 18,2382 °C. Son candidatos, todavía no planes aceptados; el de 200 mm sigue con horizonte abierto a 448 h.
+- Verificación del cambio antes del primer commit local: suite raíz 5/5, proyecto 264/264 y prueba nueva de integración 1/1; comprobación dirigida adicional de integración/mapa 3/3. Saldo consultado después del primer avance: 96% restante.
+- Siguiente acción: completar las seis combinaciones de EPS 100 mm a 12 °C y contrastar con resolución fina. Conserva 15,919 h de colocación; el costo/recursos de preenfriamiento no se han confirmado.
