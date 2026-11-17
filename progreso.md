@@ -1,8 +1,10 @@
 # Progreso de la defensa final · P02-MCOC, Grupo 1
 
-Actualizado el 17 de noviembre de 2026 · 09:55 · America/Santiago.
+Actualizado el 17 de noviembre de 2026 · 19:13 · America/Santiago.
 
 **Paso actual:** 10 de 10. Material y reproducción sin conexión verificados. Falta el ensayo cronometrado del grupo y siguen abiertas las confirmaciones de obra y el plazo de F01.
+
+**Guía de consulta:** [Guía visual de la entrega final](Gu%C3%ADa%20de%20la%20entrega%20final/P02-MCOC%20-%20Gu%C3%ADa%20visual%20de%20la%20entrega%20final.pdf). Reúne resultados, pruebas y los requisitos de E13, defensa y F01. El PDF de exposición se enlaza abajo.
 
 **Para retomar:** abrir el [PDF de defensa](Defensa%20final/Defensa%20final%20-%20Grupo%201.pdf) y ensayar con el [guion y la tabla de tiempos](Archivos%20Extra/Defensa%20final/guion.md). Anotar los tiempos reales de cierre de las páginas 3, 6 y 9 y las correcciones surgidas en los 5 minutos de preguntas. Llevar a E13 las consultas de suministro y protección del candidato. Consultar Canvas por el plazo de F01. El registro de las 09:55 al final documenta qué evidencia se puede reutilizar.
 
@@ -253,3 +255,10 @@ Estado: **repaso concluido**. El ensayo grupal sigue pendiente. Se mantiene la d
 - **Pruebas antes de guardar.** Raíz: 5 aprobadas. Proyecto: 265 aprobadas en la repetición completa, después de que el primer intento terminara con 264 aprobadas y una conexión local interrumpida (WinError 10053) en la prueba del visor E08. Esa prueba aprobó también al repetirse sola. Los dos scripts de presentación y figura pasan la compilación de Python.
 - **Uso y publicación.** 100% restante al inicio y 82% en la comprobación de cierre de las pruebas. El cierre es por término del trabajo que se podía verificar en esta sesión. Rama de publicación `codex/defensa-final`; el SHA de este repaso corresponde al commit que contiene esta entrada. Para verificarlo, comparar el commit local con la referencia en GitHub antes del correo.
 - **Siguiente acción.** Ensayar los tres integrantes y registrar los tiempos reales y las preguntas. Confirmar en E13 u obra la entrega de hormigón a 12 °C desde el inicio a 40 m³/h y la disponibilidad de EPS de 200 mm. Si el suministro retrasa el inicio, incorporar el retraso a la duración y actualizar el clima del cronograma. Confirmar el plazo de F01 en Canvas. Si los supuestos se mantienen, reutilizar las corridas y las tablas publicadas.
+
+## 17 de noviembre de 2026 · 19:13, America/Santiago · Guía visual de consulta · paso 10
+
+- **Cambio.** Se creó una guía PDF de 12 páginas con cronograma, ocho curvas de hidratación, modelo y métricas, diez planes base, seis escenarios finos, sensibilidad del candidato, perfiles térmicos de la corrida crítica, pruebas, entregables y reproducción. La guía identifica `baacb33` como el paquete revisado de exposición y conserva los SHA originales de las corridas. La fuente editable está en `Archivos Extra/Guía de la entrega final/generar_guia.py`.
+- **Verificación.** Se renderizaron e inspeccionaron las 12 páginas. La revisión inicial detectó dos símbolos de la fórmula que la fuente tipográfica no representaba y una etiqueta que cruzaba una curva. Se corrigieron y se revisó la nueva renderización. La extracción de texto verificó las cifras principales y el PDF tiene 12 marcadores y 20 enlaces. Pasaron 265 pruebas del proyecto y 5 de raíz.
+- **Evidencia.** [PDF de consulta](Gu%C3%ADa%20de%20la%20entrega%20final/P02-MCOC%20-%20Gu%C3%ADa%20visual%20de%20la%20entrega%20final.pdf), SHA-256 `81d15518e1be161193c5beecc7afee717ab0117c99e7a7549a837e9e52e47e34`. Ventana de 5 h: 98% al empezar, 94% en la revisión intermedia y 91% en el cierre de las pruebas.
+- **Siguiente acción.** Usar las páginas 8 a 11 para ensayar preguntas, comprobar el respaldo sin conexión en el equipo que se llevará y verificar los pendientes de obra y F01. El ensayo grupal sigue pendiente.
