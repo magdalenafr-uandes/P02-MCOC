@@ -1,13 +1,14 @@
 {
-  "fecha": "2026-11-16",
+  "fecha": "2026-11-17",
   "zona": "America/Santiago",
   "archivo": "Defensa final/Defensa final - Grupo 1.pdf",
-  "sha256": "59d5115e2a0537bb845d24ba0bbaa002f773594f803a03950a17ef680b792e30",
-  "paginas": 12,
-  "exposicion": 8,
-  "respaldo": 4,
-  "revision_visual": "12 páginas inspeccionadas; ecuación y leyenda corregidas y renderizadas de nuevo",
-  "resultado": "sin recortes ni símbolos faltantes observados",
+  "sha256": "ee163cf5dc624f36567625bd1f30bbb8ff02d9e7eddc658b0cdbe545897750f5",
+  "paginas": 14,
+  "exposicion": 9,
+  "respaldo": 5,
+  "revision_visual": "14 páginas renderizadas con PyMuPDF; revisadas las nuevas (6 control adicional, 12 malla) y las modificadas (1, 3, 9, 11, 13, 14); página 13 corregida y vuelta a revisar",
+  "resultado": "sin recortes ni caracteres de sustitución (pypdf); SHA de evidencia presente",
   "ensayo_grupal": "pendiente",
-  "commit_evidencia": "fc95932a4fd3d08652679052c342b63e71858b9c"
+  "commit_evidencia": "aede6bfb38b4e69c92511c598fa62fecdfd6e427",
+  "recomendacion": "eps200_T12: cumple en malla fina (P_F 0%), margen 0,18 °C a 0,20 m sin convergencia demostrada"
 }
