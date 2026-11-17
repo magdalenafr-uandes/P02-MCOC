@@ -1,0 +1,7 @@
+plan,nivel,pesos,D_h,P_T,P_delta,P_F,cumple,escenarios_horizonte_abierto
+eps100_T12,barrido,curvas,15.919378785525588,0.0,0.0,0.0,si,0
+eps100_T12,barrido,pesos_alternativos_curvas,15.919378785525588,0.0,0.0,0.0,si,0
+eps100_T12,cribado,curvas,15.919378785525588,0.0,0.0,0.0,si,0
+eps100_T12,cribado,pesos_alternativos_curvas,15.919378785525588,0.0,0.0,0.0,si,0
+eps200_T12,barrido,curvas,15.919378785525588,0.0,0.0,0.0,si,0
+eps200_T12,barrido,pesos_alternativos_curvas,15.919378785525588,0.0,0.0,0.0,si,0

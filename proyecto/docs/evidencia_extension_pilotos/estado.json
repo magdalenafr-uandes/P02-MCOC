@@ -1,0 +1,7 @@
+{
+  "corridas": 14,
+  "horizonte_extendido_h": 448.0,
+  "max_residuo_relativo": 7.62632055359776e-16,
+  "solver": "6cf77f8469d64f1f33289d9a2d87474df8d2dc84b0c6593064460d7e42b1bd26",
+  "nota": "Sólo agrega matrices completas por plan/nivel. Revisar horizontes abiertos y resolución antes de recomendar."
+}

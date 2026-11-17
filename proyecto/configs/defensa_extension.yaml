@@ -9,3 +9,6 @@ planes:
   eps300_T18: {espesor_m: 0.30, T_colocacion_C: 18, activacion: conjunta}
   eps100_T12: {espesor_m: 0.10, T_colocacion_C: 12, activacion: conjunta}
   eps200_T12: {espesor_m: 0.20, T_colocacion_C: 12, activacion: conjunta}
+  # Confirmación de la idealización: misma colocación continua de 15,919 h,
+  # activando cada sólido al comenzar su colocación, sin esperas.
+  eps200_T12_sucesiva: {espesor_m: 0.20, T_colocacion_C: 12, activacion: sucesiva}

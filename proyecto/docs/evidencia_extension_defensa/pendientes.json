@@ -1,0 +1,67 @@
+{
+  "fecha": "2026-11-17",
+  "hora": "00:10",
+  "zona": "America/Santiago",
+  "motivo": "Pausa explícita del usuario por demora",
+  "corridas_largas_completas": 27,
+  "pendientes": [
+    {
+      "plan": "eps200_T12",
+      "nivel": "fino",
+      "curva": "M1_SS",
+      "clima": "era5_2023",
+      "estado": "pendiente_sin_resultado_completo"
+    },
+    {
+      "plan": "eps200_T12",
+      "nivel": "fino",
+      "curva": "M1_SS",
+      "clima": "era5_2024",
+      "estado": "pendiente_sin_resultado_completo"
+    },
+    {
+      "plan": "eps200_T12",
+      "nivel": "fino",
+      "curva": "M1_SS",
+      "clima": "era5_2025",
+      "estado": "pendiente_sin_resultado_completo"
+    },
+    {
+      "plan": "eps200_T12",
+      "nivel": "fino",
+      "curva": "M1_22A",
+      "clima": "era5_2023",
+      "estado": "pendiente_sin_resultado_completo"
+    },
+    {
+      "plan": "eps200_T12",
+      "nivel": "fino",
+      "curva": "M1_22A",
+      "clima": "era5_2024",
+      "estado": "pendiente_sin_resultado_completo"
+    },
+    {
+      "plan": "eps200_T12",
+      "nivel": "fino",
+      "curva": "M1_22A",
+      "clima": "era5_2025",
+      "estado": "pendiente_sin_resultado_completo"
+    },
+    {
+      "plan": "eps200_T12",
+      "nivel": "confirmacion",
+      "curva": "M1_SS",
+      "clima": "era5_2025",
+      "estado": "pendiente_sin_resultado_completo"
+    },
+    {
+      "plan": "eps200_T12_sucesiva",
+      "nivel": "barrido",
+      "curva": "M1_22A",
+      "clima": "era5_2025",
+      "estado": "pendiente_sin_resultado_completo"
+    }
+  ],
+  "seleccion": "indeterminada_hasta_verificar_malla_fina",
+  "reinicio": "Los cálculos interrumpidos no tienen checkpoint temporal: recomenzar cada fila pendiente desde t0. Las filas completas se reutilizan por clave."
+}

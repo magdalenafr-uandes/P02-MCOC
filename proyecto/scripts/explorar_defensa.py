@@ -6,7 +6,7 @@ el caso completo y su clave. Los resultados de esta familia se guardan aparte.
 from __future__ import annotations
 
 import argparse
-from concurrent.futures import ProcessPoolExecutor, as_completed
+from concurrent.futures import FIRST_COMPLETED, ProcessPoolExecutor, wait
 from copy import deepcopy
 from datetime import datetime, timedelta
 from itertools import product
@@ -81,13 +81,36 @@ def main():
                             for f in filas)
     pendientes = [t for t in tareas if leer_previo(t) is None]
     print(f"Seleccionadas {len(tareas)}; pendientes {len(pendientes)}.", flush=True)
-    with ProcessPoolExecutor(max_workers=args.procesos) as pool:
-        for futuro in as_completed([pool.submit(calcular, t) for t in pendientes]):
-            r = futuro.result()
-            print(f"{r['plan']}/{r['nivel']}/{r['curva']}/{r['clima']}: "
-                  f"T={r['T_max_C']:.4f}, delta={r['delta_C']:.4f}, "
-                  f"horizonte={r['horizonte_h']}, abierto={r['pico_tardio']}, {r['segundos']:.1f}s", flush=True)
+    def informar(r):
+        print(f"{r['plan']}/{r['nivel']}/{r['curva']}/{r['clima']}: "
+              f"T={r['T_max_C']:.4f}, delta={r['delta_C']:.4f}, "
+              f"horizonte={r['horizonte_h']}, abierto={r['pico_tardio']}, {r['segundos']:.1f}s", flush=True)
+
+    pausa = args.salida / "PAUSAR"
+    if args.procesos == 1:
+        # Sin colas de multiprocessing: alternativa ante WinError 6 de Windows.
+        for tarea in pendientes:
+            if pausa.exists():
+                break
+            informar(calcular(tarea))
+    else:
+        with ProcessPoolExecutor(max_workers=args.procesos) as pool:
+            restantes, en_curso = iter(pendientes), set()
+            while True:
+                while len(en_curso) < args.procesos and not pausa.exists():
+                    tarea = next(restantes, None)
+                    if tarea is None:
+                        break
+                    en_curso.add(pool.submit(calcular, tarea))
+                if not en_curso:
+                    break
+                terminadas, en_curso = wait(en_curso, return_when=FIRST_COMPLETED)
+                for futuro in terminadas:
+                    informar(futuro.result())
     resultados = [leer_previo(t) for t in tareas]
+    if pausa.exists():
+        print("Pausa solicitada; corridas terminadas conservadas.", flush=True)
+        return
     if any(r is None for r in resultados):
         raise ValueError("Faltan corridas seleccionadas.")
     escribir_tablas(args.salida, resultados, estudio)

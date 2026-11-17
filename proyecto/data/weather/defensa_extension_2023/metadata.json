@@ -1,0 +1,31 @@
+{
+  "source": "Open-Meteo historico",
+  "kind": "observación / reanálisis",
+  "model": "era5",
+  "retrieved_at": "2026-11-17T01:01:28.682659+00:00",
+  "latitude": -24.95283,
+  "longitude": -70.004838,
+  "latitude_grid": -25.0,
+  "longitude_grid": -70.0,
+  "timezone": "America/Santiago",
+  "variables": [
+    "temperature_2m",
+    "wind_speed_10m",
+    "shortwave_radiation"
+  ],
+  "units": {
+    "temperature_2m": "°C",
+    "wind_speed_10m": "m/s",
+    "shortwave_radiation": "W/m²"
+  },
+  "url": "https://archive-api.open-meteo.com/v1/archive?latitude=-24.95283&longitude=-70.00484&hourly=temperature_2m%2Cwind_speed_10m%2Cshortwave_radiation&wind_speed_unit=ms&timezone=auto&start_date=2023-11-18&end_date=2023-12-20&models=era5",
+  "extension_de": "defensa_2023",
+  "prefijo_conservado_h": 480,
+  "diferencias_descarga_en_prefijo": {
+    "temperature_2m": 0,
+    "wind_speed_10m": 0,
+    "shortwave_radiation": 0
+  },
+  "sha256_prefijo": "f80608501d04d80ef468168e7da9c9cc5d77010a27d5979ff57a674ac547a0fb",
+  "nota_extension": "Prefijo original conservado sin cambios; cola ERA5 real hasta 20-dic. Traslado anual igual al estudio base."
+}
