@@ -50,7 +50,25 @@ Los resultados anteriores permanecen intactos en `docs/evidencia_defensa`. La ex
 
 Se conservaron **41 corridas completas nuevas**: 27 en el paquete extendido y 14 en pilotos. Los ZIP, huellas de insumos, claves/configuración, balance y diferencial simultáneo se verificaron. Residuo energético relativo máximo del paquete extendido: 9,04 × 10⁻¹⁶. Las 79 corridas históricas no se modificaron.
 
+## Confirmación fina (17-nov, 01:21–01:50)
+
+Las ocho filas pendientes terminaron con código 0 y horizonte cerrado; ninguna supera 70 °C (T_max ≤ 49,64 °C). Se combinaron con las 27 corridas previas: **35 corridas verificadas**, residuo relativo máximo 9,04 × 10⁻¹⁶.
+
+| Fila EPS 200 / 12 °C | Δ [°C] | Tiempo [s] |
+|---|---|---|
+| fino SS / ERA5 2023 | 18,4703 | 550 |
+| fino SS / ERA5 2024 | 19,2890 | 550 |
+| fino SS / ERA5 2025 | **19,4409** | 426 (sola) |
+| fino 22A / ERA5 2023 · 2024 · 2025 | 11,06 · 11,60 · 11,74 | 187 · 548 · 491 |
+| confirmación 0,20 m, SS / ERA5 2025 | **19,8215** | 689 |
+| sucesiva, barrido 22A / ERA5 2025 | 11,3878 | 70 |
+
+- Matriz fina completa: P_T = P_Δ = P_F = 0 % con ambos juegos de pesos. Activación sucesiva: 6/6 en barrido, sin excedencias.
+- **Salvedad de malla:** en SS/ERA5 2025, Δ sube con cada refinamiento horizontal: 18,634 (0,5 m) → 19,441 (0,25 m) → 19,822 °C (0,20 m). El último incremento (+0,38 °C por 0,05 m) es proporcionalmente mayor que el anterior (+0,81 °C por 0,25 m), así que no hay régimen asintótico que permita extrapolar un valor convergido. El margen a 0,20 m es 0,18 °C. EPS 200 / 12 °C **cumple en todas las mallas calculadas**, pero no se puede afirmar que el valor convergido quede bajo 20 °C.
+
 ## Retomar sin repetir toda la búsqueda
+
+> Actualización 17-nov 01:50: las ocho filas de `pendientes.json` ya están completas (sección anterior). Lo que sigue aplica solo si se agregan filas nuevas.
 
 Primero revisar `docs/evidencia_extension_defensa/pendientes.json`. El siguiente cálculo prioritario es solo SS/ERA5 2025 en fino para EPS 200 / 12 °C. Retirar el marcador `PAUSAR` únicamente cuando se quiera reanudar. No lanzar simultáneamente todas las confirmaciones como en esta sesión: medir primero una corrida. Si esa fila falla, replantear el control antes de completar las demás.
 

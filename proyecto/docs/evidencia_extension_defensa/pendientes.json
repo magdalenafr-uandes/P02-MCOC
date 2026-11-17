@@ -1,67 +1,21 @@
 {
   "fecha": "2026-11-17",
-  "hora": "00:10",
+  "hora": "01:50",
   "zona": "America/Santiago",
-  "motivo": "Pausa explícita del usuario por demora",
-  "corridas_largas_completas": 27,
-  "pendientes": [
-    {
-      "plan": "eps200_T12",
-      "nivel": "fino",
-      "curva": "M1_SS",
-      "clima": "era5_2023",
-      "estado": "pendiente_sin_resultado_completo"
-    },
-    {
-      "plan": "eps200_T12",
-      "nivel": "fino",
-      "curva": "M1_SS",
-      "clima": "era5_2024",
-      "estado": "pendiente_sin_resultado_completo"
-    },
-    {
-      "plan": "eps200_T12",
-      "nivel": "fino",
-      "curva": "M1_SS",
-      "clima": "era5_2025",
-      "estado": "pendiente_sin_resultado_completo"
-    },
-    {
-      "plan": "eps200_T12",
-      "nivel": "fino",
-      "curva": "M1_22A",
-      "clima": "era5_2023",
-      "estado": "pendiente_sin_resultado_completo"
-    },
-    {
-      "plan": "eps200_T12",
-      "nivel": "fino",
-      "curva": "M1_22A",
-      "clima": "era5_2024",
-      "estado": "pendiente_sin_resultado_completo"
-    },
-    {
-      "plan": "eps200_T12",
-      "nivel": "fino",
-      "curva": "M1_22A",
-      "clima": "era5_2025",
-      "estado": "pendiente_sin_resultado_completo"
-    },
-    {
-      "plan": "eps200_T12",
-      "nivel": "confirmacion",
-      "curva": "M1_SS",
-      "clima": "era5_2025",
-      "estado": "pendiente_sin_resultado_completo"
-    },
-    {
-      "plan": "eps200_T12_sucesiva",
-      "nivel": "barrido",
-      "curva": "M1_22A",
-      "clima": "era5_2025",
-      "estado": "pendiente_sin_resultado_completo"
-    }
+  "motivo": "Las ocho filas pendientes del 17-nov 00:10 terminaron y se agregaron a las 27 corridas previas (35 en total).",
+  "corridas_largas_completas": 35,
+  "pendientes": [],
+  "completadas": [
+    {"plan": "eps200_T12", "nivel": "fino", "curva": "M1_SS", "clima": "era5_2023", "delta_C": 18.4703, "segundos": 550},
+    {"plan": "eps200_T12", "nivel": "fino", "curva": "M1_SS", "clima": "era5_2024", "delta_C": 19.2890, "segundos": 550},
+    {"plan": "eps200_T12", "nivel": "fino", "curva": "M1_SS", "clima": "era5_2025", "delta_C": 19.4409, "segundos": 426},
+    {"plan": "eps200_T12", "nivel": "fino", "curva": "M1_22A", "clima": "era5_2023", "delta_C": 11.0557, "segundos": 187},
+    {"plan": "eps200_T12", "nivel": "fino", "curva": "M1_22A", "clima": "era5_2024", "delta_C": 11.6009, "segundos": 548},
+    {"plan": "eps200_T12", "nivel": "fino", "curva": "M1_22A", "clima": "era5_2025", "delta_C": 11.7366, "segundos": 491},
+    {"plan": "eps200_T12", "nivel": "confirmacion", "curva": "M1_SS", "clima": "era5_2025", "delta_C": 19.8215, "segundos": 689},
+    {"plan": "eps200_T12_sucesiva", "nivel": "barrido", "curva": "M1_22A", "clima": "era5_2025", "delta_C": 11.3878, "segundos": 70}
   ],
-  "seleccion": "indeterminada_hasta_verificar_malla_fina",
-  "reinicio": "Los cálculos interrumpidos no tienen checkpoint temporal: recomenzar cada fila pendiente desde t0. Las filas completas se reutilizan por clave."
+  "seleccion": "eps200_T12_cumple_en_todas_las_mallas_calculadas_sin_convergencia_demostrada",
+  "advertencia": "En SS/ERA5 2025 el diferencial sube con cada refinamiento horizontal (0,5 m 18,634; 0,25 m 19,441; 0,20 m 19,822 °C) y el último incremento no decrece lo suficiente para extrapolar un valor convergido. Margen a 0,20 m: 0,18 °C. No se declara verificado sin esa salvedad.",
+  "reinicio": "No quedan filas pendientes de este estudio. Las filas completas se reutilizan por clave."
 }

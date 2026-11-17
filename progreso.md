@@ -1,10 +1,12 @@
 # Progreso de la defensa final · P02-MCOC, Grupo 1
 
-Actualizado el 16 de noviembre de 2026 · America/Santiago.
+Actualizado el 17 de noviembre de 2026 · 01:55 · America/Santiago.
 
-**Paso actual:** 8 de 10 reabierto, **en pausa por petición del usuario** (17-nov, 00:10). Se conservan 41 corridas nuevas completas. EPS 100 mm / 12 °C queda descartado en fino; EPS 200 mm / 12 °C es provisional, pendiente de malla fina. El usuario autorizó push y correo para el cierre.
+**Paso actual:** 8 de 10. **Cálculos completos** (17-nov, 01:50): las 8 filas pendientes terminaron y el paquete extendido tiene 35 corridas verificadas. EPS 200 mm / 12 °C cumple en todas las mallas calculadas (P_F = 0 % en fino), pero con salvedad de convergencia: Δ SS/ERA5 2025 = 19,44 °C a 0,25 m y 19,82 °C a 0,20 m. Falta decidir la recomendación con esa salvedad y actualizar el PDF (paso 9).
 
-**Para retomar:** (17-nov, 00:45) la confirmación fina SS/ERA5 2025 de EPS 200 / 12 °C está lista para ejecutarse en Windows con un doble clic en `Confirmar EPS200 fino.cmd` (carpeta Cloude de Mauricio); ver la entrada de las 00:45. Además: leer `proyecto/docs/extension_defensa.md` y `proyecto/docs/evidencia_extension_defensa/pendientes.json`. Reanudar primero solo EPS 200 / 12 °C, SS / ERA5 2025 en fino, retirando PAUSAR cuando se autorice continuar. No repetir las 41 filas completas ni el barrido histórico. La recomendación y actualización del PDF quedan pendientes.
+**Para retomar (vigente, 01:55):** ver la entrada del 17-nov 01:55 al final. No quedan corridas pendientes en `pendientes.json`. Siguiente acción: decidir con el grupo cómo presentar EPS 200 / 12 °C (cumple con margen 0,18 °C sin convergencia demostrada) y actualizar el PDF y el guion.
+
+**Para retomar (histórico):** (17-nov, 00:45) la confirmación fina SS/ERA5 2025 de EPS 200 / 12 °C está lista para ejecutarse en Windows con un doble clic en `Confirmar EPS200 fino.cmd` (carpeta Cloude de Mauricio); ver la entrada de las 00:45. Además: leer `proyecto/docs/extension_defensa.md` y `proyecto/docs/evidencia_extension_defensa/pendientes.json`. Reanudar primero solo EPS 200 / 12 °C, SS / ERA5 2025 en fino, retirando PAUSAR cuando se autorice continuar. No repetir las 41 filas completas ni el barrido histórico. La recomendación y actualización del PDF quedan pendientes.
 
 ## Corte del 16 de noviembre de 2026 · 19:07, America/Santiago
 
@@ -211,3 +213,21 @@ Estado: paso 8 sigue **en pausa / bloqueado**; la siguiente fila no se pudo ejec
 - Pruebas en esta sesión: no se modificó código. Las suites completas vigentes son las del cierre de las 00:10 (proyecto 265/265, raíz 5/5).
 - Uso de la ventana de 5 horas: no consultable por este agente.
 - Siguiente acción exacta: doble clic en `Confirmar EPS200 fino.cmd` (≈ 30–60 min estimados, sin medir). Si EXIT=0, copiar el JSON nuevo de `proyecto/results/defensa_extension_larga` junto a las 27 corridas del ZIP antes de reempaquetar. Si Δ > 20 °C, el candidato queda descartado y hay que replantear el control antes de correr las otras cinco filas finas.
+
+## 17 de noviembre de 2026 · 01:55, America/Santiago · Relevo de Mauricio (Claude) · paso 8, confirmación fina completa
+
+Estado: paso 8 con **todos los cálculos pendientes completos**. EPS 200 mm / 12 °C cumple en todas las mallas calculadas, con salvedad de convergencia. El paso 9 (recomendación y PDF) sigue pendiente.
+
+- Inicio: `codex/defensa-final` en `e7b5976`, al día con `origin` y árbol limpio salvo `e11_clima.png`. Sin otras simulaciones corriendo y sin marcador `PAUSAR`. Saldo inicial de la ventana de 5 h: 57 % restante.
+- Fila prioritaria, ejecutada sola (01:21:31–01:28:41): EPS 200 / 12 °C, fino, SS/ERA5 2025, 672 h. **Δ = 19,4409 °C**, T_max = 49,64 °C, horizonte cerrado. **Duración: 430 s de reloj** (426 s de solver), muy por debajo de los 30–60 min estimados. Cumple con margen 0,56 °C, así que se continuó con el resto.
+- Saldo antes de las demás corridas: 55 % restante. Se lanzaron 3 procesos independientes con `--procesos 1`, porque el pool múltiple había fallado antes con WinError 6. Todos terminaron con código 0 a las 01:50:
+  - fino SS: ERA5 2023 18,4703 °C (550 s); ERA5 2024 19,2890 °C (550 s).
+  - fino 22A: ERA5 2023 11,0557 °C (187 s; cerró a 336 h); 2024 11,6009 °C (548 s); 2025 11,7366 °C (491 s).
+  - confirmación 0,20 m / 0,05 m, SS/ERA5 2025: **19,8215 °C** (689 s).
+  - activación sucesiva, barrido 22A/ERA5 2025: 11,3878 °C (70 s). Completa la matriz sucesiva (6/6) sin excedencias.
+- Empaquetado: se extrajeron las 27 corridas de `corridas.zip` junto a las 8 nuevas, sin sobrescribir nada, y `resumir_extension_defensa.py` verificó **35 corridas**. Claves, huellas de solver, IFC, hidratación y clima, diferencial como resta simultánea, indicadores y balance: residuo relativo máximo 9,04e-16. ZIP íntegro con 35 archivos. `comparacion.csv`: eps200_T12 fino P_T = P_Δ = P_F = 0 % con ambos juegos de pesos.
+- Figuras regeneradas con `graficar_extension_defensa.py`, usando las corridas históricas (79) y los pilotos (14) extraídos de sus ZIP en `results/`, sin modificar los ZIP. La comparación usa ahora la fila fina de 200 mm, ya no la provisional, y la sensibilidad incluye la confirmación de 0,20 m.
+- **Salvedad de malla (no ocultar en la defensa):** en SS/ERA5 2025, Δ sube con cada refinamiento horizontal: 18,634 (0,5 m) → 19,441 (0,25 m) → 19,822 °C (0,20 m). El último incremento es proporcionalmente mayor que el anterior; con estas tres mallas no se puede extrapolar un valor convergido ni acotar el error. Margen a 0,20 m: 0,18 °C. Es el mismo patrón que llevó a descartar EPS 100 / 12 °C, que cruzó 20 °C solo en fino. Conclusión honesta: EPS 200 / 12 °C cumple en todas las resoluciones calculadas, pero es marginal y no está demostrado que el valor convergido quede bajo 20 °C.
+- Actualizados: `pendientes.json` (ya sin pendientes, con las 8 filas y la advertencia) y `proyecto/docs/extension_defensa.md` (sección «Confirmación fina»).
+- Verificación antes del commit (01:58): raíz **5/5**; proyecto **264 aprobadas + 1 omitida** (prueba opcional del renderer JS, que se omite si Node no está instalado), código 0. `git diff --check` sin errores.
+- Siguiente acción: decidir con el grupo la recomendación. Opciones: (a) presentar EPS 200 / 12 °C como el mejor candidato hallado, con margen de 0,18 °C y la salvedad de malla; o (b) buscar más margen (por ejemplo EPS 300 mm a 12 °C o colocación a 10 °C) en barrido y fino, a unos 7–10 min por fila. Después actualizar el PDF y el guion (paso 9) y ensayar (paso 10). Los supuestos de obra (suministro a 12 °C desde t0, EPS disponible) siguen sin confirmar.
