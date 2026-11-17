@@ -4,7 +4,7 @@ Actualizado el 16 de noviembre de 2026 · America/Santiago.
 
 **Paso actual:** 8 de 10 reabierto, **en pausa por petición del usuario** (17-nov, 00:10). Se conservan 41 corridas nuevas completas. EPS 100 mm / 12 °C queda descartado en fino; EPS 200 mm / 12 °C es provisional, pendiente de malla fina. El usuario autorizó push y correo para el cierre.
 
-**Para retomar:** leer `proyecto/docs/extension_defensa.md` y `proyecto/docs/evidencia_extension_defensa/pendientes.json`. Reanudar primero solo EPS 200 / 12 °C, SS / ERA5 2025 en fino, retirando PAUSAR cuando se autorice continuar. No repetir las 41 filas completas ni el barrido histórico. La recomendación y actualización del PDF quedan pendientes.
+**Para retomar:** (17-nov, 00:45) la confirmación fina SS/ERA5 2025 de EPS 200 / 12 °C está lista para ejecutarse en Windows con un doble clic en `Confirmar EPS200 fino.cmd` (carpeta Cloude de Mauricio); ver la entrada de las 00:45. Además: leer `proyecto/docs/extension_defensa.md` y `proyecto/docs/evidencia_extension_defensa/pendientes.json`. Reanudar primero solo EPS 200 / 12 °C, SS / ERA5 2025 en fino, retirando PAUSAR cuando se autorice continuar. No repetir las 41 filas completas ni el barrido histórico. La recomendación y actualización del PDF quedan pendientes.
 
 ## Corte del 16 de noviembre de 2026 · 19:07, America/Santiago
 
@@ -198,3 +198,16 @@ Estado: pasos 1–9 siguen verificados; paso 10 sigue con el PDF verificado y el
 - El push de `c60659d` fue rechazado porque Mauricio publicó `e2e8a1c` durante esta sesión. Solo cambió este registro. Se conservaron ambas entradas completas, sin force push ni cambio del solver o los resultados.
 - La entrada de Mauricio describe el paquete congelado `ec94f89`. La investigación nueva permanece pausada y la malla fina pendiente, según el encabezado y el corte de las 00:10.
 - La integración solo modifica documentación; siguen vigentes las suites del cierre aprobadas antes de integrar: proyecto 265/265 y raíz 5/5. El correo indicará el SHA final y el estado real del push.
+
+## 17 de noviembre de 2026 · 00:45, America/Santiago · Relevo de Mauricio (Claude) · paso 8 bloqueado por ejecución
+
+Estado: paso 8 sigue **en pausa / bloqueado**; la siguiente fila no se pudo ejecutar en esta sesión. Evidencia existente verificada de forma independiente.
+
+- Punto de partida: `origin/codex/defensa-final` en `9da4f22` (cierre de Magdalena a las 00:10, integración a las 00:28). El repositorio local de Mauricio se adelantó a ese commit sin cambios propios.
+- Bloqueo: el solver necesita IfcOpenShell y el Python del proyecto en Windows. Este agente trabaja en Linux sin IfcOpenShell ni acceso a PyPI, y no puede ejecutar programas en el Windows de Mauricio. No se lanzó ninguna corrida ni se tocó `PAUSAR`.
+- Trabajo en paralelo, verificación independiente (sin el empaquetador): ZIP de `evidencia_extension_defensa` (27) y `evidencia_extension_pilotos` (14) íntegros; en las 41 filas I_T, I_delta e I_F coinciden con 70 °C / 20 °C; P_F recalculado con pesos 0,75/0,25 y 0,50/0,50 × 1/3 coincide con `comparacion.csv` en todos los planes y niveles (diferencia < 1e-9).
+- Análisis de sensibilidad a la malla (solo con filas existentes, **no es verificación**): en EPS 100 / 12 °C, SS, el diferencial subió +0,18 a +0,21 °C de barrido a cribado y +0,43 a +0,65 °C de cribado a fino, sin disminuir el incremento. En EPS 200 / 12 °C, SS/ERA5 2025, barrido → cribado subió +0,234 °C (18,400 → 18,634 °C). Si el paso a fino se comporta igual, el fino quedaría en ≈ 19,1–19,3 °C, bajo 20 °C con margen < 1 °C y sin convergencia demostrada. Esto respalda correr primero esa única fila, como indica la entrada de las 00:10.
+- Preparado: `Confirmar EPS200 fino.cmd` en la carpeta `Cloude` de Mauricio (fuera del repositorio). Ejecuta exactamente `explorar_defensa.py --estudio proyecto/configs/defensa_extension_clima.yaml --salida proyecto/results/defensa_extension_larga --plan eps200_T12 --nivel fino --curva M1_SS --clima era5_2025 --horizonte-extendido 672 --procesos 1` y guarda la salida en `confirmacion_eps200_fino.txt`. No ejecuta `resumir_extension_defensa.py`: en esa máquina la carpeta de resultados tendría solo esta fila y podría reempaquetar la evidencia incompleta.
+- Pruebas en esta sesión: no se modificó código. Las suites completas vigentes son las del cierre de las 00:10 (proyecto 265/265, raíz 5/5).
+- Uso de la ventana de 5 horas: no consultable por este agente.
+- Siguiente acción exacta: doble clic en `Confirmar EPS200 fino.cmd` (≈ 30–60 min estimados, sin medir). Si EXIT=0, copiar el JSON nuevo de `proyecto/results/defensa_extension_larga` junto a las 27 corridas del ZIP antes de reempaquetar. Si Δ > 20 °C, el candidato queda descartado y hay que replantear el control antes de correr las otras cinco filas finas.
