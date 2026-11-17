@@ -181,3 +181,20 @@ Estado: búsqueda completada para la familia nueva; verificación final **pendie
 - Cierre autorizado: guardar avances en commits locales, publicar `codex/defensa-final`, comprobar remoto y enviar correo con estado **pendiente**, sin afirmar que el candidato está validado. Los resultados de las comprobaciones de cierre se registran abajo.
 - Comprobaciones de cierre tras detener la campaña: raíz **5/5** y proyecto **265/265**, ambas suites código 0. El fallo previo por timeout no se reprodujo. Empaquetado final: 27 + 14 corridas verificadas, sin filas finas incompletas aceptadas. `git diff --check` no detectó errores de formato.
 - Rama: `codex/defensa-final`. El SHA de este reporte será el commit que añade esta sección y los paquetes; se comprobará contra GitHub antes de enviar el correo final. El correo y el chat informarán el SHA publicado y el resultado real del push.
+## 16 de noviembre de 2026 · 23:50, America/Santiago · Relevo de Mauricio (Claude) · verificación independiente
+
+Estado: pasos 1–9 siguen verificados; paso 10 sigue con el PDF verificado y el ensayo grupal pendiente. No hubo trabajo autónomo nuevo que hacer: los pendientes son humanos.
+
+- Punto de partida: `origin/codex/defensa-final` en `ec94f89`, árbol limpio. Se leyó este archivo completo. No se repitió el barrido: las 60 filas y las 79 corridas siguen vigentes, porque no cambió código, insumos ni criterio.
+- Verificación independiente (sin usar el empaquetador): desde `proyecto/docs/evidencia_defensa/escenarios.csv` se recalcularon P_T, P_delta y P_F de los 10 planes con pesos 0,75/0,25 y 0,50/0,50 por curva y 1/3 por clima. Coinciden con `comparacion.csv` (diferencia < 1e-9). En las 60 filas, I_T = [T_max > 70 °C], I_delta = [Δ > 20 °C] e I_F = máx(I_T, I_delta). Resultado: T_max ≤ 56,6 °C en todos los planes; el menor diferencial observado es 15,19 °C (`unica_poliestireno`), pero cada plan tiene al menos una fila sobre 20 °C, así que ninguno queda en P_F ≤ 5 %.
+- Integridad: SHA-256 del PDF `59d5115e…2e30` igual al de `revision_pdf.json`; `corridas.zip` íntegro (`testzip` sin errores, 79 archivos).
+- Pruebas: `test_defensa.py`, `test_fuente_calor.py`, `test_mapa_codigo.py`, `test_voxel.py` y `test_solver1d.py`: **42/42 aprobadas**, en Linux sin IfcOpenShell. **No se corrió la suite completa (264)**: este entorno no tiene IfcOpenShell ni acceso a PyPI. La última suite completa aprobada es la del corte de las 20:43.
+- Uso de la ventana de 5 horas: **no consultable desde esta sesión** (no hay indicador de uso disponible para este agente). El cierre no se debe al límite: el trabajo autónomo ya estaba terminado.
+- Correo: **no enviado**. La cuenta no tiene un conector de correo (Gmail) activo en Claude; el reporte se entregó en el chat.
+- Punto exacto para retomar (sin cambios): abrir `Defensa final/Defensa final - Grupo 1.pdf` y `Archivos Extra/Defensa final/guion.md`, ensayar 7 minutos con los tres integrantes y registrar tiempos y respuestas aquí. Confirmar con el profesor los supuestos de obra, el significado de SS/22A y Arrhenius, y el plazo del artículo en Canvas.
+
+### 17 de noviembre · integración del cierre
+
+- El push de `c60659d` fue rechazado porque Mauricio publicó `e2e8a1c` durante esta sesión. Solo cambió este registro. Se conservaron ambas entradas completas, sin force push ni cambio del solver o los resultados.
+- La entrada de Mauricio describe el paquete congelado `ec94f89`. La investigación nueva permanece pausada y la malla fina pendiente, según el encabezado y el corte de las 00:10.
+- La integración solo modifica documentación; siguen vigentes las suites del cierre aprobadas antes de integrar: proyecto 265/265 y raíz 5/5. El correo indicará el SHA final y el estado real del push.
