@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Defensa térmica | Propuesta con vidrio celular</title>
+  <link rel="stylesheet" href="../visor/estilos.css">
+  <style>
+    .hero-layout { grid-template-columns: 1.35fr 1fr; }
+    .section-stack { display: flex; flex-direction: column; gap: 12px; }
+    .section-stack div { padding: 12px 15px; text-align: center; border-radius: 6px; }
+    .concrete { background: #e0e8e9; border: 4px solid #73b6a2; border-bottom: 0; }
+    .glass { background: #c9e9f3; color: #174c61; }
+    .soil { background: #f0e5da; color: #604735; }
+    .tabular { font-variant-numeric: tabular-nums; }
+    .matrix tbody tr[data-active] { background: #edf9f5; }
+    .section-heading { align-items: start; }
+    @media (max-width: 650px) { .hero-layout { grid-template-columns: 1fr; } }
+  </style>
+  <script defer src="datos.js"></script>
+  <script defer src="visor.js"></script>
+</head>
+<body>
+  <header>
+    <div class="wrap nav">
+      <a class="brand" href="#">P02 MCOC <span>·</span> Grupo 1</a>
+      <nav aria-label="Secciones">
+        <a href="#comparacion">Comparación</a><a href="#escenarios">Escenarios</a><a href="#curvas">Curvas</a><a href="#obra">Obra</a>
+      </nav>
+      <a class="pdf" href="../visor/index.html">Visor original</a>
+    </div>
+  </header>
+  <main>
+    <section class="hero" aria-labelledby="titulo">
+      <div class="wrap hero-layout">
+        <div>
+          <h1 id="titulo">Aislación basal con vidrio celular</h1>
+          <p class="decision"><strong>70 mm de vidrio celular, 200 mm de EPS exterior y hormigón a 12 °C</strong></p>
+          <p class="lede">Colocación progresiva en cargas de 8 m³ cada 12 min. Los seis escenarios de malla fina cumplieron los dos límites térmicos. El diseño del apoyo aún requiere verificación estructural y geotécnica.</p>
+          <a class="button primary" href="#curvas">Explorar la corrida crítica</a>
+        </div>
+        <figure class="hero-figure">
+          <div class="section-stack" aria-label="Capas del sistema desde arriba hacia abajo">
+            <div class="concrete"><strong>Hormigón de fundación</strong><br>EPS en caras superiores y laterales expuestas</div>
+            <div class="glass"><strong>Vidrio celular basal</strong><br>70 mm · R = 1,40 m²·K/W</div>
+            <div class="soil"><strong>Suelo de apoyo</strong></div>
+          </div>
+          <figcaption>Corte esquemático, sin escala. La corrida representa el vidrio como una resistencia térmica continua.</figcaption>
+        </figure>
+        <div class="metrics tabular">
+          <div><strong>15,92 h</strong><span>Tiempo físico de colocación</span></div>
+          <div><strong>49,96 °C</strong><span>Mayor temperatura observada</span></div>
+          <div><strong>13,08 °C</strong><span>Mayor diferencial observado</span></div>
+          <div><strong>0 %</strong><span>Excedencia conjunta en la matriz fina</span></div>
+        </div>
+      </div>
+    </section>
+    <div class="wrap sections">
+      <section id="comparacion">
+        <div class="section-heading">
+          <h2>Qué cambió al aislar la base</h2>
+          <p>M1 SS / ERA5 2025. Colocación progresiva a 12 °C, EPS exterior de 200 mm y malla de 20 × 20 × 5 cm en ambos casos.</p>
+        </div>
+        <div class="panel">
+          <div class="scroll">
+            <table class="tabular">
+              <caption>Máximos en las mismas primeras 672 h</caption>
+              <thead><tr><th scope="col">Apoyo</th><th scope="col">Temperatura máxima</th><th scope="col">Diferencial máximo</th></tr></thead>
+              <tbody>
+                <tr><th scope="row">Contacto directo con el suelo</th><td>49,841 °C</td><td><strong>20,025 °C</strong></td></tr>
+                <tr><th scope="row">70 mm de vidrio celular</th><td>49,954 °C</td><td><strong>12,547 °C</strong></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="explainer">La resistencia basal redujo el intercambio con el suelo. El diferencial observado bajó 7,479 °C y la temperatura máxima subió 0,113 °C. Al extender la corrida con vidrio hasta 1.019 h, el diferencial llegó a 13,084 °C sin alerta de pico tardío.</p>
+          <p class="note">Los 19,822 °C de la defensa anterior corresponden a activación conjunta. Para medir el efecto del vidrio se usa aquí la referencia con la misma colocación progresiva.</p>
+        </div>
+      </section>
+      <section id="escenarios">
+        <div class="section-heading">
+          <h2>Los seis escenarios de la propuesta</h2>
+          <p>Malla fina de 25 × 25 × 5 cm. Selecciona un escenario para abrir sus curvas.</p>
+        </div>
+        <div class="panel">
+          <div class="controls"><label>Pesos de hidratación<select id="pesos"><option value="0.75">75 % SS / 25 % 22A</option><option value="0.50">50 % SS / 50 % 22A</option></select></label></div>
+          <div class="scroll">
+            <table class="matrix tabular">
+              <thead><tr><th scope="col">Escenario</th><th scope="col">Peso</th><th scope="col">T máxima</th><th scope="col">Δ máximo</th><th scope="col">Horizonte</th><th scope="col">Resultado</th></tr></thead>
+              <tbody id="matriz"></tbody>
+            </table>
+          </div>
+          <p class="explainer" id="riesgo" aria-live="polite"></p>
+          <p class="note">Cada año ERA5 pesa un tercio. La comprobación de 20 cm cubre una sola fila y se muestra aparte en las curvas.</p>
+        </div>
+      </section>
+      <section id="curvas">
+        <div class="section-heading">
+          <h2>Curvas térmicas</h2><p>La línea punteada marca el límite. El control de tiempo muestra la temperatura del punto caliente y del punto frío a la misma hora.</p>
+        </div>
+        <div class="panel">
+          <div class="controls">
+            <label>Corrida<select id="corrida"></select></label>
+            <label>Métrica<select id="metrica"><option value="delta">Diferencial</option><option value="temp">Temperaturas</option></select></label>
+            <label class="check"><input type="checkbox" id="referencia" checked> Superponer contacto directo</label>
+          </div>
+          <p id="resumen" class="run-summary"></p>
+          <div id="leyenda" class="legend"></div>
+          <div class="chart"><canvas id="grafico" role="img" aria-label="Curva térmica por hora de simulación"></canvas></div>
+          <label class="timeline" for="hora">Explorar tiempo <input id="hora" type="range" min="0" value="0" step="1"></label>
+          <output id="lectura" for="hora" class="tabular"></output>
+          <p id="nota" class="note"></p>
+        </div>
+      </section>
+      <section id="obra">
+        <div class="section-heading"><h2>Qué falta para llevarlo a obra</h2><p>El resultado térmico respalda la propuesta. La selección de la placa y del sistema de apoyo requiere estos datos.</p></div>
+        <div class="work">
+          <article class="panel"><h3>Cargas del aerogenerador</h3><p>Calcular las presiones máximas y la transferencia de corte con las reacciones de la torre. Los 55,86 kPa del IFC son la presión media del hormigón solo, con apoyo uniforme.</p></article>
+          <article class="panel"><h3>Suelo y placa instalada</h3><p>Verificar cargas repetidas, deformación a largo plazo, asentamiento diferencial e inclinación admisible. Confirmar humedad, drenaje y nivel freático a la profundidad de apoyo.</p></article>
+          <article class="panel"><h3>Ejecución y duración</h3><p>Confirmar el detalle de juntas, el apoyo continuo y el suministro a 12 °C a 40 m³/h. El plazo de 15,92 h supone que la capa y el suministro están listos al inicio.</p></article>
+        </div>
+      </section>
+    </div>
+  </main>
+  <footer><div class="wrap">
+    <a href="../../proyecto/docs/evidencia_vidrio_celular/propuesta_vidrio_celular.md">Propuesta técnica</a>
+    <a href="../../proyecto/docs/evidencia_vidrio_celular/resultados_vidrio_celular.csv" download>Descargar resultados CSV</a>
+    <a href="../visor/index.html">Visor original</a>
+  </div></footer>
+  <noscript><p class="wrap note">Activa JavaScript para explorar la matriz y las curvas.</p></noscript>
+</body>
+</html>
