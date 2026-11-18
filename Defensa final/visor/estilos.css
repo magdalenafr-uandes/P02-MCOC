@@ -10,3 +10,20 @@ header{background:#122930;color:#fff} .nav{min-height:67px;display:flex;align-it
 @media(max-width:850px){.hero-layout{gap:22px}.work{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:650px){.wrap{width:calc(100% - 28px)}.nav{flex-wrap:wrap;padding:12px 0;gap:8px}.nav nav{order:3;width:100%;gap:15px}.hero-layout,.section-heading,.gallery,.work{grid-template-columns:1fr}.hero-layout{padding:34px 0 22px}.hero-figure img{max-height:250px}.metrics{grid-template-columns:repeat(2,1fr)}.metrics div{padding:10px}.metrics div:nth-child(3){border-left:0}.metrics div:nth-child(n+3){border-top:1px solid #c2d6d2}.panel{padding:12px}.chart{height:265px}.sections{padding-top:35px}.controls{gap:9px}.sections>section+section{margin-top:42px}}
 .method{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;list-style:none;padding:0;margin:0 0 14px}.method li{background:#e6f1ee;border:1px solid #cbdeda;border-radius:8px;padding:12px 15px}.method strong,.method span{display:block}.method span{font-size:.86rem;color:var(--muted);margin-top:4px}@media(max-width:650px){.method{grid-template-columns:1fr;gap:7px}}
+
+.guide h2{font-size:1.55rem}
+.guide ol{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;padding-left:22px;margin:14px 0 16px}
+.guide li{padding-left:3px}
+.guide li a{font-weight:750}
+.guide li span,.guide p{display:block;color:var(--muted);font-size:.91rem}
+.controls small{display:block;max-width:32ch;margin-top:5px;color:var(--muted);font-size:.79rem;font-weight:400}
+.controls:has(small){align-items:start}
+.explainer{margin:10px 0;padding:11px 14px;background:#eaf4ef;border-left:3px solid var(--teal);border-radius:4px;color:#184a43;font-size:.9rem}
+details{border-bottom:1px solid var(--line);padding:8px 0;color:var(--muted);font-size:.89rem}
+summary{color:var(--teal);cursor:pointer;font-weight:750}
+summary:focus-visible{outline:3px solid #ba6b32;outline-offset:3px}
+details p{margin:8px 0 5px}
+.definitions{display:grid;grid-template-columns:minmax(150px,auto) 1fr;gap:7px 14px;margin:10px 0}
+.definitions dt{font-weight:700;color:var(--ink)}
+.definitions dd{margin:0}
+@media(max-width:650px){.guide ol{grid-template-columns:1fr;gap:8px}.definitions{grid-template-columns:1fr;gap:3px}.definitions dd+dt{margin-top:6px}}

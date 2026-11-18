@@ -23,6 +23,14 @@ const levels = {
   fino: "Malla fina",
   confirmacion: "Confirmación 0,20 m",
 };
+const levelHelp = {
+  barrido: "Barrido · Primera pasada con celdas de 50 × 50 × 10 cm para explorar alternativas.",
+  cribado: "Cribado · Celdas de 50 × 50 × 5 cm para revisar el efecto de una malla más detallada en vertical.",
+  temporal: "Paso temporal · El cálculo avanza en intervalos más cortos, con la misma malla del cribado.",
+  registro: "Frecuencia de registro · Se guardan temperaturas cada 7,5 minutos para captar mejor los picos. En esta prueba también cambió el paso de cálculo.",
+  fino: "Malla fina · Celdas de 25 × 25 × 5 cm para comprobar los resultados al aumentar el detalle horizontal.",
+  confirmacion: "Confirmación 0,20 m · Celdas de 20 × 20 × 5 cm. Se repitió solo M1 SS / ERA5 2025 y el diferencial llegó a 19,82 °C.",
+};
 const format = (value, digits = 2) => Number(value).toLocaleString("es-CL", {
   minimumFractionDigits: digits, maximumFractionDigits: digits,
 });
@@ -79,6 +87,7 @@ function setCaseLevels() {
 function showCases({restoreFocus = false} = {}) {
   const campaign = elements.campaign.value;
   const level = elements.level.value;
+  elements["level-help"].textContent = levelHelp[level];
   const rows = allRuns.filter(run => run.campaign === campaign && run.nivel === level);
   const groups = Map.groupBy(rows, run => run.plan);
   if (!groups.has(activePlan)) activePlan = groups.has("eps200_T12") ? "eps200_T12" : groups.keys().next().value;
@@ -226,6 +235,12 @@ function draw() {
   elements.reading.textContent = `${format(hour)} h · Máxima ${read("T_max_C")} · Mínima cercana a la superficie ${read("T_superficie_min_C")} · Δ ${read("delta_C")}`;
 }
 
+function explainMetric() {
+  elements["metric-help"].textContent = elements.metric.value === "temp"
+    ? "Temperaturas · Se muestran la zona más caliente y la más fría cerca de una cara exterior. La línea punteada marca el límite de 70 °C para la máxima."
+    : "Diferencial · Se resta la temperatura mínima cercana a la superficie de la máxima del hormigón en cada instante. La línea punteada marca el límite de 20 °C.";
+}
+
 const runGroups = Object.entries(campaigns).map(([campaign, label]) => {
   const group = document.createElement("optgroup");
   group.label = label;
@@ -255,7 +270,10 @@ elements.scenarios.addEventListener("click", event => {
 });
 elements["hero-run"].addEventListener("click", () => updateRun(critical.id));
 elements.run.addEventListener("change", () => updateRun(elements.run.value));
-elements.metric.addEventListener("change", () => updateRun(elements.run.value));
+elements.metric.addEventListener("change", () => {
+  explainMetric();
+  updateRun(elements.run.value);
+});
 elements.reference.addEventListener("change", draw);
 elements.time.addEventListener("input", draw);
 elements.chart.addEventListener("pointermove", event => {
@@ -267,5 +285,6 @@ elements.chart.addEventListener("pointermove", event => {
   draw();
 });
 setCaseLevels();
+explainMetric();
 updateRun(fineCritical.id);
 new ResizeObserver(draw).observe(elements.chart.parentElement);
