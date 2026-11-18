@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Colocación del hormigón · P02-MCOC</title>
+  <style>
+    :root {
+      --paper: #f6f6f0; --white: #fff; --ink: #1c2d27; --muted: #4e6058;
+      --green: #174b3b; --teal: #18745f; --mint: #dcece3; --line: #d3ddd4;
+      --gold: #f4e5c8; --brown: #714719; --red: #9a3b2f;
+      --body: 'Inter', 'Segoe UI', system-ui, sans-serif;
+      --display: 'Instrument Serif', Georgia, serif;
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    body { margin: 0; color: var(--ink); background: var(--paper); font: 16px/1.55 var(--body); }
+    button, input, select { font: inherit; }
+    button, select { min-height: 42px; }
+    button, select, input[type=range] { accent-color: var(--teal); }
+    button { cursor: pointer; }
+    a { color: var(--green); text-underline-offset: .22em; }
+    button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible { outline: 3px solid #ba7528; outline-offset: 3px; }
+    canvas { width: 100%; display: block; }
+    p, h1, h2, h3 { margin: 0; }
+    h1, h2 { font-family: var(--display); font-weight: normal; line-height: 1.06; }
+    h1 { font-size: clamp(3.2rem, 7vw, 6.35rem); letter-spacing: -.05em; }
+    h2 { font-size: clamp(2.05rem, 4.2vw, 3.5rem); letter-spacing: -.035em; }
+    h3 { font-size: 1.1rem; line-height: 1.3; }
+    .wrap { width: min(1168px, 100% - 48px); margin-inline: auto; }
+    .hero { background: #15382f; color: #fbf8ed; }
+    .hero .wrap { padding: 27px 0 56px; }
+    .masthead { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; border-bottom: 1px solid #6d8a7c; padding-bottom: 16px; }
+    .masthead strong, .eyebrow { letter-spacing: .09em; text-transform: uppercase; font-weight: 700; font-size: .76rem; }
+    .masthead nav { display: flex; flex-wrap: wrap; gap: 16px; }
+    .masthead a { color: #e5f0e7; font-size: .84rem; }
+    .hero h1 { max-width: 10.7em; margin-top: 43px; }
+    .hero p { max-width: 650px; margin-top: 18px; color: #dbeadf; font-size: clamp(1rem, 2vw, 1.18rem); }
+    .facts { display: flex; flex-wrap: wrap; gap: 9px 30px; margin-top: 25px; color: #e7f2ea; font-size: .88rem; }
+    .facts strong { color: #fff5d5; }
+    main { padding-bottom: 40px; }
+    section { margin-top: 48px; }
+    .section-title { display: flex; align-items: end; justify-content: space-between; flex-wrap: wrap; gap: 10px 24px; margin-bottom: 18px; }
+    .section-title p { max-width: 500px; color: var(--muted); font-size: .93rem; }
+    .clock-panel, .result-panel { background: var(--white); border: 1px solid var(--line); border-radius: 15px; padding: clamp(14px, 2.7vw, 26px); }
+    .clock-main { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 14px; }
+    .clock-output { display: flex; align-items: baseline; flex-wrap: wrap; gap: 7px 18px; font-variant-numeric: tabular-nums; }
+    .clock-output output { font-size: clamp(2rem, 4.5vw, 3.5rem); font-family: var(--display); line-height: 1; }
+    .clock-output span { color: var(--muted); }
+    .buttons { display: flex; flex-wrap: wrap; gap: 7px; }
+    button { border: 1px solid var(--line); border-radius: 8px; background: #fff; padding: 7px 12px; color: var(--ink); font-weight: 600; font-size: .84rem; }
+    button:hover { border-color: var(--teal); background: var(--mint); }
+    button.primary { background: var(--green); border-color: var(--green); color: white; min-width: 110px; }
+    button.primary:hover { background: #20644e; }
+    .slider { width: 100%; margin: 20px 0 4px; cursor: pointer; }
+    .timeline { position: relative; height: 19px; display: flex; gap: 2px; margin: 6px 0; border-radius: 5px; overflow: hidden; }
+    .timeline span { color: #fff; font-weight: 650; font-size: .7rem; text-align: center; white-space: nowrap; overflow: hidden; }
+    .timeline-marker { position: absolute; left: 0; top: 0; bottom: 0; width: 3px; border: 1px solid #1c2d27; background: #fdf3d0; }
+    .clock-endpoints { display: flex; justify-content: space-between; gap: 6px; color: var(--muted); font-size: .77rem; }
+    details { margin-top: 11px; }
+    summary { cursor: pointer; color: var(--green); font-weight: 650; font-size: .85rem; }
+    details table { margin-top: 8px; }
+    .diagrams { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 15px; }
+    .model { background: #fff; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+    .model header { padding: 15px 17px 0; min-height: 82px; }
+    .model header p { color: var(--muted); font-size: .82rem; margin-top: 4px; }
+    .diagram { height: 162px; }
+    .model .caption { border-top: 1px solid #e7eee8; padding: 10px 16px; color: var(--muted); font-size: .84rem; }
+    .model .caption strong { color: var(--ink); }
+    .key { margin-top: 9px; color: var(--muted); font-size: .8rem; }
+    .key-mark { display: inline-block; width: .8em; height: .8em; border: 1px solid #aab8af; border-radius: 2px; margin-inline: 0 .3em; vertical-align: -.03em; background: #e6ece6; }
+    .result-bar { display: flex; flex-wrap: wrap; gap: 15px 25px; align-items: end; margin-bottom: 16px; }
+    .field { display: grid; gap: 4px; flex: 1 1 180px; max-width: 260px; }
+    .field label { font-weight: 650; font-size: .83rem; }
+    select { border: 1px solid var(--line); border-radius: 8px; background: #f7f9f6; color: var(--ink); padding: 6px 8px; width: 100%; }
+    .scroll-table { overflow-x: auto; }
+    .mobile-note { display: none; color: var(--muted); font-size: .78rem; margin-bottom: 6px; }
+    table { width: 100%; border-collapse: collapse; text-align: left; font-size: .91rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    th, td { padding: 9px 12px; border-bottom: 1px solid #dfe8e0; }
+    thead { background: #eaf0eb; color: #2e4b3e; font-size: .77rem; }
+    tbody th { font-weight: 650; }
+    tbody tr:nth-child(2n) { background: #f8faf7; }
+    .ok { color: var(--green); }
+    .fail { color: var(--red); }
+    .legend-dot { display: inline-block; border-radius: 50%; width: 10px; height: 10px; margin-right: 7px; }
+    .chart-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin: 20px 0 6px; }
+    .chart-switch { display: flex; gap: 6px; flex-wrap: wrap; }
+    button[aria-pressed=true] { background: var(--mint); border-color: #86ad98; color: var(--green); }
+    .chart { height: clamp(230px, 36vw, 345px); }
+    .status { font-size: .88rem; color: var(--muted); min-height: 2em; margin-top: 8px; }
+    .insights { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 13px; }
+    .insight { padding: 15px 17px; border-radius: 10px; background: var(--mint); }
+    .insight.caution { background: var(--gold); color: #582f0c; }
+    .insight p { margin-top: 5px; font-size: .92rem; }
+    .notes { display: grid; gap: 12px; padding: 0 0 0 1.2em; margin: 12px 0; }
+    .notes li::marker { color: var(--teal); }
+    .meta { margin-top: 16px; font-size: .82rem; color: var(--muted); }
+    footer { border-top: 1px solid var(--line); padding-block: 18px 27px; font-size: .82rem; color: var(--muted); }
+    @media (max-width: 720px) {
+      .wrap { width: calc(100% - 30px); }
+      .hero .wrap { padding-bottom: 32px; }
+      .hero h1 { margin-top: 28px; }
+      .diagrams { grid-template-columns: 1fr; }
+      .model { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); align-items: center; }
+      .model header { min-height: 0; padding: 12px; }
+      .model .caption { grid-column: 1 / -1; }
+      .diagram { height: 112px; }
+      section { margin-top: 34px; }
+      .insights { grid-template-columns: 1fr; }
+      .mobile-note { display: block; }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; } }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <div class="wrap">
+      <div class="masthead">
+        <strong>P02-MCOC · Grupo 1</strong>
+        <nav aria-label="Secciones"><a href="#reloj">Simulación visual</a><a href="#resultados">Resultados</a><a href="#supuestos">Supuestos</a></nav>
+      </div>
+      <h1>Cómo se coloca el hormigón</h1>
+      <p>Un mismo cronograma de obra, tres formas de activar el hormigón en el modelo térmico. Mueve el reloj para ver dónde empieza a hidratarse.</p>
+      <div class="facts"><span><strong>636,775 m³</strong> de hormigón</span><span><strong>40 m³/h</strong> de caudal supuesto</span><span><strong>12 °C</strong> al colocar</span><span><strong>20 cm</strong> de EPS</span></div>
+    </div>
+  </header>
+  <main class="wrap">
+    <section id="reloj" aria-labelledby="titulo-reloj">
+      <div class="section-title"><h2 id="titulo-reloj">El mismo reloj, tres modelos</h2><p>Usa las flechas del deslizador o avanza de 12 en 12 minutos. Las tres vistas muestran el mismo corte de la malla.</p></div>
+      <div class="clock-panel">
+        <div class="clock-main">
+          <div class="clock-output"><output id="hora" for="minuto">04:00</output><span id="volumen"></span></div>
+          <div class="buttons"><button id="atras" type="button">−12 min</button><button id="animar" type="button" class="primary">Reproducir</button><button id="adelante" type="button">+12 min</button><button id="inicio" type="button">Volver a 04:00</button></div>
+        </div>
+        <input type="range" class="slider" id="minuto" min="0" max="955" step="1" value="0" aria-label="Minutos desde las 04:00">
+        <div class="timeline" id="tramos" aria-label="Cronograma físico de los sólidos"><i class="timeline-marker" id="marca" aria-hidden="true"></i></div>
+        <div class="clock-endpoints"><span>04:00 · inicio</span><span>19:55 · fin estimado</span></div>
+        <details><summary>Horarios y volúmenes por sólido</summary><div class="scroll-table"><table>
+          <thead><tr><th>Sólido</th><th>Volumen</th><th>Inicio</th><th>Fin</th></tr></thead><tbody id="horarios"></tbody>
+        </table></div></details>
+      </div>
+      <div class="diagrams">
+        <article class="model"><header><h3>Conjunta</h3><p>Los cinco sólidos se activan juntos a las 04:00.</p></header><canvas class="diagram" id="vista-conjunta" role="img" aria-label="Corte para activación conjunta"></canvas><p class="caption" id="estado-conjunta"></p></article>
+        <article class="model"><header><h3>Sucesiva</h3><p>Cada sólido se activa completo cuando empieza su llenado.</p></header><canvas class="diagram" id="vista-sucesiva" role="img" aria-label="Corte para activación sucesiva"></canvas><p class="caption" id="estado-sucesiva"></p></article>
+        <article class="model"><header><h3>Progresiva</h3><p>Se activa de a una carga de 8 m³ cada 12 min.</p></header><canvas class="diagram" id="vista-progresiva" role="img" aria-label="Corte para activación progresiva"></canvas><p class="caption" id="estado-progresiva"></p></article>
+      </div>
+      <p class="key"><span class="key-mark"></span> Hormigón aún inactivo. Los colores identifican los cinco sólidos originales. Los volúmenes activos representan el modelo térmico.</p>
+    </section>
+    <section id="resultados" aria-labelledby="titulo-resultados">
+      <div class="section-title"><h2 id="titulo-resultados">Qué cambia en temperatura</h2><p>Compara cada modelo con el mismo escenario y la misma malla. El límite de temperatura es 70 °C y el de diferencial es 20 °C.</p></div>
+      <div class="result-panel">
+        <div class="result-bar">
+          <div class="field"><label for="malla">Malla horizontal × vertical</label><select id="malla"></select></div>
+          <div class="field"><label for="escenario">Curva de hidratación y clima</label><select id="escenario"></select></div>
+        </div>
+        <p class="mobile-note">Desliza la tabla para ver los horarios y el resultado de cada corrida.</p>
+        <div class="scroll-table" role="region" aria-label="Comparación de resultados térmicos" tabindex="0"><table>
+          <thead><tr><th>Activación</th><th>Máxima</th><th>Diferencial</th><th>Hora del diferencial</th><th>Horizonte</th><th>Resultado observado</th></tr></thead>
+          <tbody id="comparacion"></tbody>
+        </table></div>
+        <div class="chart-top"><h3 id="nombre-grafico">Diferencial global</h3><div class="chart-switch"><button type="button" id="filtro-delta" aria-pressed="true">Diferencial</button><button type="button" id="filtro-temperatura" aria-pressed="false">Temperatura máxima</button><button type="button" id="filtro-24h" aria-pressed="false">Primeras 24 h</button></div></div>
+        <canvas class="chart" id="grafico" role="img" aria-labelledby="nombre-grafico" aria-describedby="lectura-grafico"></canvas>
+        <p class="status" id="lectura-grafico"></p>
+      </div>
+      <div class="insights">
+        <article class="insight"><h3>¿Cuánto cambia al fraccionar?</h3><p id="cambio"></p></article>
+        <article class="insight caution"><h3>Qué representa el resultado</h3><p id="alcance"></p></article>
+      </div>
+    </section>
+    <section id="supuestos" aria-labelledby="titulo-supuestos">
+      <div class="section-title"><h2 id="titulo-supuestos">Cómo se hizo la prueba</h2></div>
+      <ol class="notes">
+        <li>El reloj avanza a 40 m³/h desde las 04:00, con 79 cargas completas de 8 m³ y una final de aproximadamente 4,775 m³. Si una carga cruza al siguiente sólido, su segunda porción empieza en el instante en que termina el sólido anterior.</li>
+        <li>Como hipótesis de llenado, las celdas de cada sólido se ordenaron de abajo hacia arriba y después por sus coordenadas horizontales. Cada porción se activa al comienzo de su descarga, a 12 °C y con edad de hidratación cero. El volumen de cada porción se aproxima a celdas completas.</li>
+        <li>El solver calcula la conducción, el intercambio con suelo y aire y la generación de calor. Sigue la protección original de cada sólido, con EPS en caras superiores y laterales que el modelo identifique como expuestas. La geometría de llenado y la aplicación de EPS en frentes temporales siguen siendo supuestos.</li>
+        <li>El diferencial se obtiene restando la mínima a unos 25 mm de la superficie de la máxima del hormigón en el mismo instante. Se busca el máximo de esa diferencia durante cada corrida. El margen numérico y la logística real de camiones y bombeo requieren verificación aparte.</li>
+      </ol>
+      <p class="meta" id="trazabilidad"></p>
+      <p class="meta"><a href="../../proyecto/docs/evidencia_colocacion_progresiva/comparacion.csv">Tabla de corridas</a> · <a href="../../proyecto/docs/evidencia_colocacion_progresiva/corridas.zip">Resultados completos y balances</a></p>
+    </section>
+  </main>
+  <footer class="wrap">Parque Eólico Wayra, Taltal · Inicio de referencia 19 de noviembre de 2026, 04:00, America/Santiago</footer>
+  <script type="application/json" id="datos">__DATOS_COLOCACION__</script>
+  <script>
+    "use strict";
+    const data = JSON.parse(document.querySelector('#datos').textContent);
+    const dom = id => document.getElementById(id);
+    const format = (value, digits = 2) => value.toLocaleString('es-CL', {minimumFractionDigits: digits, maximumFractionDigits: digits});
+    const modes = ['conjunta', 'sucesiva', 'progresiva'];
+    const labels = {conjunta: 'Conjunta', sucesiva: 'Sucesiva', progresiva: 'Progresiva'};
+    const modeColors = {conjunta: '#8b5d2e', sucesiva: '#466580', progresiva: '#136a53'};
+    const solidColors = ['#27654f', '#29766e', '#527981', '#7a6961', '#8e653e'];
+    const stages = data.cronograma;
+    const pieces = new Map(data.porciones.map(piece => [piece.id, piece]));
+    const totalTime = data.D_h * 3600;
+    const levelOptions = {barrido: 'Barrido · 0,50 × 0,10 m', fino: 'Fina · 0,25 × 0,05 m', confirmacion: 'Confirmación · 0,20 × 0,05 m'};
+    const slider = dom('minuto');
+    const displayMinutes = Math.ceil(totalTime / 60);
+    slider.max = displayMinutes;
+    const formatTime = seconds => {
+      const total = 240 + Math.floor(seconds / 60 + 0.00001);
+      return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+    };
+    for (const stage of stages) {
+      const item = document.createElement('span');
+      item.style.flexGrow = stage.volumen_m3;
+      item.style.flexBasis = '0';
+      item.style.background = solidColors[stage.vertida - 1];
+      item.textContent = `V${stage.vertida}`;
+      item.title = `Sólido ${stage.vertida} · ${format(stage.volumen_m3, 3)} m³ · ${formatTime(stage.inicio_h * 3600)}`;
+      dom('tramos').append(item);
+      const tr = dom('horarios').insertRow();
+      for (const value of [`V${stage.vertida}`, `${format(stage.volumen_m3, 3)} m³`, formatTime(stage.inicio_h * 3600), formatTime(stage.fin_h * 3600)]) {
+        tr.insertCell().textContent = value;
+      }
+    }
+
+    function sizedCanvas(canvas) {
+      const w = canvas.clientWidth;
+      const h = canvas.clientHeight;
+      const scale = Math.min(2, window.devicePixelRatio || 1);
+      const pw = Math.round(w * scale);
+      const ph = Math.round(h * scale);
+      if (canvas.width !== pw || canvas.height !== ph) {
+        canvas.width = pw;
+        canvas.height = ph;
+      }
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(scale, 0, 0, scale, 0, 0);
+      ctx.clearRect(0, 0, w, h);
+      return {ctx, w, h};
+    }
+
+    function active(mode, part, second) {
+      if (mode === 'conjunta') return true;
+      if (mode === 'sucesiva') return stages[part.vertida - 1].inicio_h * 3600 <= second + .001;
+      return part.inicio_s <= second + .001;
+    }
+
+    function drawSection(mode, second) {
+      const {ctx, w, h} = sizedCanvas(dom(`vista-${mode}`));
+      const grid = data.seccion.celdas;
+      const dx = data.seccion.dx_m;
+      const dz = data.seccion.dz_m;
+      const ratio = Math.min((w - 28) / (grid[0].length * dx), (h - 34) / (grid.length * dz));
+      const cellW = dx * ratio;
+      const cellH = dz * ratio;
+      const left = (w - grid[0].length * cellW) / 2;
+      const bottom = h - 23;
+      ctx.fillStyle = '#d6c6a6';
+      ctx.fillRect(left - 4, bottom, grid[0].length * cellW + 8, 7);
+      for (let z = 0; z < grid.length; z += 1) {
+        for (let x = 0; x < grid[z].length; x += 1) {
+          const part = pieces.get(grid[z][x]);
+          if (part) {
+            ctx.fillStyle = active(mode, part, second) ? solidColors[part.vertida - 1] : '#e6ece6';
+            ctx.fillRect(left + x * cellW, bottom - (z + 1) * cellH, cellW + .15, cellH + .15);
+          }
+        }
+      }
+      const sum = data.porciones.filter(part => active(mode, part, second)).reduce((volume, part) => volume + part.volumen_m3, 0);
+      const caption = dom(`estado-${mode}`);
+      const emphasis = document.createElement('strong');
+      emphasis.textContent = `${format(sum, 1)} m³`;
+      caption.replaceChildren(emphasis, ' activos en la simulación');
+    }
+
+    function drawClock() {
+      const second = Math.min(Number(slider.value) * 60, totalTime);
+      const clock = formatTime(second);
+      dom('hora').value = clock;
+      const placed = Math.min(totalTime, second) * 40 / 3600;
+      dom('volumen').textContent = `${format(placed, 1)} m³ colocados según el cronograma`;
+      dom('marca').style.left = `clamp(0px, ${100 * second / totalTime}%, calc(100% - 3px))`;
+      slider.setAttribute('aria-valuetext', `${clock}, ${format(placed, 1)} metros cúbicos colocados`);
+      for (const mode of modes) drawSection(mode, second);
+    }
+
+    function goTo(minute) {
+      slider.value = Math.max(0, Math.min(displayMinutes, Math.round(minute)));
+      drawClock();
+    }
+
+    let animation = null;
+    function pause() {
+      if (animation !== null) cancelAnimationFrame(animation);
+      animation = null;
+      dom('animar').textContent = 'Reproducir';
+    }
+    dom('animar').addEventListener('click', () => {
+      if (animation !== null) { pause(); return; }
+      if (Number(slider.value) >= displayMinutes) goTo(0);
+      dom('animar').textContent = 'Pausar';
+      const start = performance.now();
+      const from = Number(slider.value);
+      function frame(now) {
+        const minute = Math.min(displayMinutes, from + (now - start) * displayMinutes / 17000);
+        goTo(minute);
+        if (minute < displayMinutes) animation = requestAnimationFrame(frame);
+        else pause();
+      }
+      animation = requestAnimationFrame(frame);
+    });
+    slider.addEventListener('input', () => { pause(); drawClock(); });
+    dom('inicio').addEventListener('click', () => { pause(); goTo(0); });
+    dom('atras').addEventListener('click', () => { pause(); goTo(Number(slider.value) - 12); });
+    dom('adelante').addEventListener('click', () => { pause(); goTo(Number(slider.value) + 12); });
+
+    const results = data.resultados;
+    const resolutions = [...new Set(results.map(row => row.nivel))];
+    for (const level of resolutions) dom('malla').add(new Option(levelOptions[level], level));
+    const preferred = [...resolutions].reverse().find(level => results.some(r => r.nivel === level && r.modo === 'progresiva'));
+    dom('malla').value = preferred;
+    let indicator = 'delta_C';
+    let early = false;
+    let selected = [];
+    const scenarioKey = row => `${row.curva}|${row.clima}`;
+    function selectScenarios() {
+      const current = dom('escenario').value || 'M1_SS|era5_2025';
+      const options = [...new Set(results.filter(row => row.nivel === dom('malla').value).map(scenarioKey))];
+      dom('escenario').replaceChildren();
+      for (const item of options) {
+        const [curve, weather] = item.split('|');
+        dom('escenario').add(new Option(`${curve} · ERA5 ${weather.slice(-4)}`, item));
+      }
+      if (options.includes(current)) dom('escenario').value = current;
+      showResults();
+    }
+
+    function showResults() {
+      const level = dom('malla').value;
+      selected = results.filter(row => row.nivel === level && scenarioKey(row) === dom('escenario').value);
+      const body = dom('comparacion');
+      body.replaceChildren();
+      for (const mode of modes) {
+        const row = selected.find(item => item.modo === mode);
+        const tr = document.createElement('tr');
+        const th = document.createElement('th');
+        th.scope = 'row';
+        const dot = document.createElement('span'); dot.className = 'legend-dot'; dot.style.background = modeColors[mode];
+        th.append(dot, labels[mode]);
+        tr.append(th);
+        if (!row) {
+          const missing = document.createElement('td'); missing.colSpan = 5; missing.textContent = 'Sin corrida para esta combinación'; tr.append(missing);
+        } else {
+          const status = row.I_F ? 'Excede el límite' : row.pico_tardio ? 'Horizonte abierto' : 'Bajo ambos límites en la corrida';
+          const values = [`${format(row.T_max_C)} °C`, `${format(row.delta_C, 4)} °C`, `${format(row.t_delta_h)} h desde el inicio`, `${row.horizonte_h} h`, status];
+          for (const [i, value] of values.entries()) {
+            const td = document.createElement('td'); td.textContent = value;
+            if (i === 4) td.className = row.I_F ? 'fail' : 'ok';
+            tr.append(td);
+          }
+        }
+        body.append(tr);
+      }
+      const joint = selected.find(row => row.modo === 'conjunta');
+      const progressive = selected.find(row => row.modo === 'progresiva');
+      if (joint && progressive) {
+        const change = progressive.delta_C - joint.delta_C;
+        const relation = Math.abs(change) < .0005 ? 'queda a menos de 0,001 °C del valor conjunto'
+          : `${change > 0 ? 'sube' : 'baja'} ${format(Math.abs(change), 3)} °C respecto de la activación conjunta`;
+        const margin = 20 - progressive.delta_C;
+        const gap = margin >= 0 ? `quedan ${format(margin, 3)} °C hasta el límite de 20 °C` : `se supera el límite por ${format(-margin, 3)} °C`;
+        dom('cambio').textContent = `En este escenario, el diferencial ${relation}. Con colocación progresiva ${gap}.`;
+      } else {
+        dom('cambio').textContent = 'La comparación directa requiere corridas de ambos modelos en el mismo escenario y la misma malla.';
+      }
+      const aggregate = data.matriz[level];
+      dom('alcance').textContent = aggregate
+        ? `Colocación progresiva en esta malla: ${aggregate.n} de 6 escenarios calculados; ${aggregate.fallas} excedencias y ${aggregate.abiertos} horizontes abiertos. ${aggregate.n === 6 ? `Excedencia ponderada observada: ${format(100 * aggregate.P_F, 1)} % con los pesos del estudio.` : 'La matriz parcial se lee como comprobación individual.'}`
+        : 'La matriz de colocación progresiva queda pendiente para esta malla.';
+      drawChart();
+    }
+
+    dom('malla').addEventListener('change', selectScenarios);
+    dom('escenario').addEventListener('change', showResults);
+    for (const [id, metric] of [['filtro-delta', 'delta_C'], ['filtro-temperatura', 'T_max_C']]) {
+      dom(id).addEventListener('click', () => {
+        indicator = metric;
+        dom('filtro-delta').setAttribute('aria-pressed', indicator === 'delta_C');
+        dom('filtro-temperatura').setAttribute('aria-pressed', indicator === 'T_max_C');
+        drawChart();
+      });
+    }
+    dom('filtro-24h').addEventListener('click', () => {
+      early = !early;
+      dom('filtro-24h').setAttribute('aria-pressed', early);
+      drawChart();
+    });
+
+    let chartRange;
+    function drawChart() {
+      const {ctx, w, h} = sizedCanvas(dom('grafico'));
+      const isDelta = indicator === 'delta_C';
+      dom('nombre-grafico').textContent = isDelta ? 'Diferencial global' : 'Temperatura máxima';
+      const limit = isDelta ? 20 : 70;
+      const maxHour = early ? 24 : Math.max(336, ...selected.map(row => row.horizonte_h));
+      const peak = Math.max(limit, ...selected.map(row => row[indicator]));
+      const yMax = (Math.ceil(peak / 5) * 5) + (isDelta ? 2 : 4);
+      const column = isDelta ? 2 : 1;
+      const points = selected.flatMap(row => row.perfil.map(point => point[column]));
+      const yMin = 5 * Math.floor(Math.min(0, ...points) / 5);
+      const left = 43, right = w - 13, top = 16, bottom = h - 40;
+      const x = hour => left + hour * (right - left) / maxHour;
+      const y = value => bottom - (value - yMin) * (bottom - top) / (yMax - yMin);
+      chartRange = {left, right, maxHour};
+      ctx.font = '11px Segoe UI, sans-serif'; ctx.fillStyle = '#4e6058'; ctx.strokeStyle = '#dfe7df'; ctx.lineWidth = 1;
+      const line = (x0, y0, x1, y1) => { ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke(); };
+      for (let tick = yMin; tick <= yMax; tick += isDelta ? 5 : 10) {
+        line(left, y(tick), right, y(tick)); ctx.textAlign = 'right'; ctx.fillText(tick, left - 6, y(tick) + 3);
+      }
+      ctx.textAlign = 'center';
+      const step = early ? 4 : (w < 550 ? 168 : 96);
+      for (let tick = 0; tick <= maxHour; tick += step) {
+        line(x(tick), top, x(tick), bottom); ctx.fillText(early ? tick : tick / 24, x(tick), bottom + 17);
+      }
+      ctx.fillText(early ? 'Horas desde las 04:00' : 'Días desde el inicio', (left + right) / 2, h - 3);
+      ctx.textAlign = 'left'; ctx.fillText('°C', 13, 13);
+      ctx.strokeStyle = '#9a3b2f'; ctx.setLineDash([6, 5]); line(left, y(limit), right, y(limit));
+      ctx.setLineDash([]); ctx.textAlign = 'right'; ctx.fillStyle = '#9a3b2f'; ctx.fillText(`Límite ${limit} °C`, right - 2, y(limit) - 6);
+
+      for (const row of selected) {
+        ctx.strokeStyle = modeColors[row.modo]; ctx.fillStyle = modeColors[row.modo]; ctx.lineWidth = row.modo === 'progresiva' ? 2.35 : 1.45;
+        ctx.beginPath();
+        row.perfil.filter(point => point[0] <= maxHour).forEach(([hour, temperature, diff], index) => {
+          const value = isDelta ? diff : temperature;
+          if (index === 0) ctx.moveTo(x(hour), y(value)); else ctx.lineTo(x(hour), y(value));
+        });
+        ctx.stroke();
+        const atPeak = isDelta ? row.t_delta_h : row.t_T_h;
+        if (atPeak <= maxHour) { ctx.beginPath(); ctx.arc(x(atPeak), y(row[indicator]), 3.3, 0, Math.PI * 2); ctx.fill(); }
+      }
+      dom('lectura-grafico').textContent = 'Pasa el cursor sobre el gráfico para leer valores de las series.';
+    }
+
+    dom('grafico').addEventListener('pointermove', event => {
+      const area = event.currentTarget.getBoundingClientRect();
+      const {left, right, maxHour} = chartRange;
+      const hour = Math.max(0, Math.min(maxHour, (event.clientX - area.left - left) / (right - left) * maxHour));
+      const details = selected.filter(row => hour <= row.horizonte_h).map(row => {
+        const point = row.perfil.reduce((best, value) => Math.abs(value[0] - hour) < Math.abs(best[0] - hour) ? value : best);
+        return `${labels[row.modo]} ${format(point[indicator === 'delta_C' ? 2 : 1])} °C`;
+      });
+      dom('lectura-grafico').textContent = `${format(hour, 1)} h desde el inicio · ${details.join(' · ')}`;
+    });
+
+    dom('trazabilidad').textContent = `Corte central x-z de la malla ${levelOptions[data.nivel_seccion]}. El gráfico muestra todos los registros de las primeras 24 h y después una muestra por hora más los picos. Los valores de la tabla salen de las series completas.`;
+    window.addEventListener('resize', () => { drawClock(); drawChart(); });
+    drawClock();
+    selectScenarios();
+  </script>
+</body>
+</html>

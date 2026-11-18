@@ -1,0 +1,30 @@
+{
+  "progresivas": 8,
+  "nuevas": 8,
+  "matrices": {
+    "barrido": {
+      "n": 6,
+      "fallas": 0,
+      "abiertos": 0,
+      "P_T": 0.0,
+      "P_delta": 0.0,
+      "P_F": 0.0,
+      "cumple": "si",
+      "escenarios_horizonte_abierto": 0,
+      "P_F_50_50": 0.0
+    },
+    "fino": {
+      "n": 1,
+      "fallas": 0,
+      "abiertos": 0
+    },
+    "confirmacion": {
+      "n": 1,
+      "fallas": 1,
+      "abiertos": 0
+    }
+  },
+  "nivel_seccion": "confirmacion",
+  "residuos_max": 2.2957042651762567e-16,
+  "fuente_historica": "aede6bfb38b4e69c92511c598fa62fecdfd6e427"
+}

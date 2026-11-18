@@ -2,6 +2,8 @@
 
 **Estado al 17 de noviembre de 2026.** El estudio extendido tiene 35 corridas verificadas y cero filas pendientes. El grupo presentará **EPS 200 mm con colocación a 12 °C** como candidato condicionado. La matriz fina de activación conjunta dio 0% de excedencia en los seis escenarios ponderados. La comprobación adicional de una fila a 0,20 m dejó un margen de **0,178 °C**, con convergencia espacial todavía sin demostrar. El barrido inicial de diez planes conserva su conclusión y se documenta aparte. [Comparación base](defensa.md) · [Confirmación fina](#confirmación-fina)
 
+**Sensibilidad adicional al modo de colocación.** Con 8 m³ cada 12 minutos, el mismo escenario M1_SS/ERA5 2025 en malla horizontal de 0,20 m sube a **20,0255 °C** de diferencial y supera el límite. Esta prueba aporta una condición adicional para defender el alcance de la recomendación. [Método y comparación](colocacion_progresiva.md#resultado)
+
 ## Qué se cambió
 
 Se mantuvieron IFC, volumen de 636,775 m³, una línea de 40 m³/h, inicio común 19-nov-2026 04:00 America/Santiago, propiedades y curvas M1, pesos 75/25 (sensibilidad 50/50) e historias ERA5. No se agregaron tuberías ni se cambió mezcla, capacidad o umbrales.
