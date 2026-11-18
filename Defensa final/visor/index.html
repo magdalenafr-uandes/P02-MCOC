@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Defensa final · Fundación Wayra</title>
+<link rel="stylesheet" href="estilos.css">
+<script defer src="datos.js"></script>
+<script defer src="visor.js"></script>
+</head>
+<body>
+<header>
+  <div class="nav wrap"><a class="brand" href="#inicio">WAYRA <span>/</span> GRUPO 1</a><nav aria-label="Secciones"><a href="#casos">Casos</a><a href="#curvas">Curvas</a><a href="#figuras">Diagramas</a><a href="#obra">Obra</a></nav><a class="pdf" href="../Defensa%20final%20-%20Grupo%201.pdf" target="_blank" rel="noopener">PDF de defensa ↗</a></div>
+</header>
+<main id="inicio">
+<section class="hero">
+  <div class="wrap hero-layout">
+    <div class="intro"><p class="eyebrow">DEFENSA FINAL · P02 MCOC</p><h1>Control térmico de la fundación en Taltal</h1><p class="decision"><strong>EPS de 200 mm + hormigón fresco a 12 °C</strong></p><p class="lede">Candidato elegido para la defensa. Cumplió los límites térmicos en los seis escenarios de malla fina con activación conjunta. El margen sigue siendo sensible a la malla.</p><a class="button primary" href="#curvas" id="hero-run">Ver la corrida crítica</a></div>
+    <figure class="hero-figure"><img src="../../proyecto/results/figures/foundation_e04.png" alt="Geometría tridimensional de la fundación"><figcaption>El IFC es el archivo 3D del que salen los volúmenes de las cinco vertidas. En total suman 636,775 m³.</figcaption></figure>
+    <div class="metrics">
+      <div><strong>15,92 h</strong><span>Colocación continua a 40 m³/h</span></div>
+      <div><strong>0 de 6</strong><span>Excedencias en la matriz fina</span></div>
+      <div><strong>19,82 °C</strong><span>Diferencial de la fila a 0,20 m</span></div>
+      <div><strong>0,18 °C</strong><span>Margen de esa fila frente a 20 °C</span></div>
+    </div>
+  </div>
+</section>
+
+<div class="wrap sections">
+<section class="panel guide" aria-labelledby="guide-title">
+  <h2 id="guide-title">Por dónde empezar</h2>
+  <ol>
+    <li><a href="#casos">Compara los casos</a><span>El visor parte en los seis escenarios de malla fina del candidato.</span></li>
+    <li><a href="#curvas">Explora una corrida</a><span>Usa «Ver curvas» en cualquier fila y mueve el control de tiempo.</span></li>
+    <li><a href="#figuras">Revisa los diagramas</a><span>Ubica el punto caliente y sigue el efecto del refinamiento.</span></li>
+  </ol>
+  <p>El <strong>preenfriamiento</strong> baja la temperatura de partida del hormigón fresco. El <strong>EPS</strong> (poliestireno expandido) hace que la superficie se enfríe más despacio. Juntos buscan mantener la temperatura máxima bajo control y reducir la diferencia entre el interior y la superficie.</p>
+</section>
+<section id="casos">
+  <div class="section-heading"><div><p class="eyebrow">ALTERNATIVAS</p><h2>Casos y escenarios</h2></div><p>Dos curvas de hidratación M1 × tres historias climáticas ERA5. Una corrida excede si su temperatura máxima supera 70 °C o su diferencial supera 20 °C.</p></div>
+  <div class="panel">
+    <div class="controls">
+      <label>Grupo de pruebas<select id="campaign" aria-describedby="campaign-help"><option value="original">Diez planes originales</option><option value="extension" selected>Extensión final</option><option value="pilotos">Pilotos de EPS</option></select><small id="campaign-help">Cambia la familia de casos mostrada.</small></label>
+      <label>Nivel de simulación<select id="level" aria-describedby="level-help"></select><small>Cambia la resolución o el tratamiento del tiempo.</small></label>
+      <label>Pesos de las curvas<select id="weights" aria-describedby="weight-help"><option value="curvas">75 % SS / 25 % 22A</option><option value="pesos_alternativos_curvas">50 % SS / 50 % 22A</option></select><small id="weight-help">Recalcula el riesgo mostrado con los pesos guardados. Las temperaturas son las mismas.</small></label>
+    </div>
+    <p id="level-help" class="explainer" aria-live="polite"></p>
+    <details>
+      <summary>Qué significa cada nivel de simulación</summary>
+      <dl class="definitions">
+        <dt>Barrido</dt><dd>Primera pasada con celdas de 50 × 50 × 10 cm, útil para probar muchas alternativas.</dd>
+        <dt>Cribado</dt><dd>Celdas de 50 × 50 × 5 cm. Se duplica el detalle vertical para revisar si cambia el resultado.</dd>
+        <dt>Paso temporal</dt><dd>Celdas de 50 × 50 × 5 cm y pasos de cálculo más cortos. Se comprueba si avanzar en intervalos más pequeños cambia el resultado.</dd>
+        <dt>Frecuencia de registro</dt><dd>Misma malla del cribado. Se guardan temperaturas cada 7,5 minutos en vez de cada 15. En esas corridas también cambió el paso de cálculo.</dd>
+        <dt>Malla fina</dt><dd>Celdas de 25 × 25 × 5 cm. Aquí se probaron los seis escenarios del candidato con activación conjunta.</dd>
+        <dt>Confirmación 0,20 m</dt><dd>Celdas de 20 × 20 × 5 cm. Se repitió solo el escenario más desfavorable de la matriz fina. Pasó de 19,44 °C a 19,82 °C de diferencial.</dd>
+      </dl>
+    </details>
+    <details>
+      <summary>Qué son M1, SS, 22A y ERA5</summary>
+      <p><strong>M1</strong> es el nombre de la mezcla de hormigón. <strong>SS</strong> es la etiqueta del ensayo del 13 al 20 de abril de 2025. <strong>22A</strong> identifica el ensayo del 22 de abril. De cada ensayo salió una estimación de cuánto calor genera M1 al endurecerse. La curva SS estimó más calor acumulado.</p>
+      <p><strong>ERA5</strong> aporta tres historias de tiempo meteorológico, de 2023, 2024 y 2025. Al combinar ambas curvas de calor con los tres años de clima salen seis escenarios por plan.</p>
+    </details>
+    <details>
+      <summary>Cómo leer las tablas y el riesgo</summary>
+      <p>Un <strong>caso</strong> define cómo se coloca y protege el hormigón. Un <strong>escenario</strong> combina una curva de calor con un clima. Una <strong>corrida</strong> calcula ese caso y escenario con un nivel de simulación específico.</p>
+      <p><strong>Duración</strong> es el tiempo de colocación. <strong>Horizonte</strong> es el tiempo total simulado para observar cómo evoluciona la temperatura. Un <strong>horizonte abierto</strong> indica que todavía podría aparecer un pico posterior.</p>
+      <p>El <strong>riesgo conjunto</strong> suma los pesos de las corridas que exceden 70 °C de temperatura máxima o 20 °C de diferencial, contando cada corrida una sola vez. El objetivo del estudio fue un riesgo de hasta 5 %. Un guion indica que falta una matriz completa para calcular ese porcentaje.</p>
+      <p>En <strong>activación conjunta</strong> el modelo inicia térmicamente los cinco tramos al mismo tiempo. En <strong>activación sucesiva</strong> cada tramo empieza cuando se coloca según el cronograma.</p>
+    </details>
+    <p id="case-note" class="note"></p>
+    <p class="note">Pulsa el nombre de un caso para ver sus escenarios en la tabla inferior.</p>
+    <div class="scroll"><table><caption>Comparación de planes</caption><thead><tr><th scope="col">Caso</th><th scope="col">Duración</th><th scope="col">T máx.</th><th scope="col">Peor Δ</th><th scope="col">Riesgo conjunto</th><th scope="col">Resultado</th></tr></thead><tbody id="cases"></tbody></table></div>
+    <div class="scroll"><table><caption id="scenario-caption">Escenarios del caso</caption><thead><tr><th scope="col">Curva</th><th scope="col">Clima</th><th scope="col">T máx.</th><th scope="col">Δ máx.</th><th scope="col">Horizonte</th><th scope="col">Resultado</th><th scope="col">Curvas</th></tr></thead><tbody id="scenarios"></tbody></table></div>
+  </div>
+</section>
+
+<section id="curvas">
+  <div class="section-heading"><div><p class="eyebrow">RESULTADOS TÉRMICOS</p><h2>Curvas de cada corrida</h2></div><p>El diferencial resta la mínima cercana a la superficie de la máxima del hormigón activo al mismo instante.</p></div>
+  <div class="panel">
+    <div class="controls">
+      <label>Corrida guardada<select id="run" aria-describedby="run-help"></select><small id="run-help">Cada opción indica plan, nivel, curva de hidratación y clima.</small></label>
+      <label>Qué graficar<select id="metric" aria-describedby="metric-help"><option value="delta">Diferencial</option><option value="temp">Temperaturas</option></select></label>
+      <label class="check"><input type="checkbox" id="reference" checked> Superponer caso base</label>
+    </div>
+    <p id="metric-help" class="explainer"></p>
+    <div id="run-summary" class="run-summary"></div>
+    <div id="legend" class="legend"></div>
+    <div class="chart"><canvas id="chart" role="img" aria-label="Curvas térmicas de la corrida seleccionada"></canvas></div>
+    <label class="timeline">Explorar tiempo <input id="time" type="range" min="0" value="0" step="1"></label>
+    <output id="reading" for="time"></output>
+    <p class="note">Mueve el deslizador o el puntero sobre el gráfico para leer los tres valores a la misma hora. Por ejemplo, 50 °C en la zona más caliente y 31 °C cerca de la superficie dan un diferencial de 19 °C.</p>
+    <p id="reference-note" class="note"></p>
+  </div>
+</section>
+
+<section id="figuras">
+  <div class="section-heading"><div><p class="eyebrow">EVIDENCIA VISUAL</p><h2>Diagramas de la defensa</h2></div><p>Abre las figuras para verlas a tamaño completo.</p></div>
+  <ol class="method" aria-label="Cómo se simula la fundación">
+    <li><strong>Geometría IFC</strong><span>Se divide la fundación en celdas y se activa cada tramo según el plan de colocación.</span></li>
+    <li><strong>Balance térmico</strong><span>El cemento aporta calor. Las celdas intercambian calor entre sí, con el suelo y con el aire.</span></li>
+    <li><strong>Verificación</strong><span>Se busca el pico de temperatura y la mayor diferencia simultánea entre el interior y la zona cercana a la superficie.</span></li>
+  </ol>
+  <div class="gallery">
+    <figure id="aislacion">
+      <a href="corte-aislacion-eps.png"><img loading="lazy" src="corte-aislacion-eps.png" width="1536" height="1024" alt="Corte isométrico 3D con EPS verde en las caras superiores y laterales expuestas. El hormigón gris apoya directamente sobre el suelo."></a>
+      <figcaption><strong>¿Dónde van los 20 cm de EPS?</strong><span>El verde muestra la aislación en las caras superiores y los costados expuestos. Entre vertidas hay contacto directo hormigón con hormigón. La base apoya directamente sobre el suelo. Vista 3D esquemática, sin escala.</span></figcaption>
+    </figure>
+    <figure><a href="../../proyecto/docs/evidencia_extension_defensa/figuras/comparacion_control.png"><img loading="lazy" src="../../proyecto/docs/evidencia_extension_defensa/figuras/comparacion_control.png" alt="Comparación del diferencial con distintos controles térmicos"></a><figcaption><strong>Efecto del control térmico</strong><span>Comparación de la aislación y el preenfriamiento.</span></figcaption></figure>
+    <figure id="curvas-comparadas">
+      <a href="curvas-comparadas-caso-elegido.png"><img loading="lazy" src="curvas-comparadas-caso-elegido.png" width="1530" height="927" alt="Diferencial de cuatro casos. Los tres planes a 18 °C superan 20 °C. El caso elegido con EPS de 200 mm y colocación a 12 °C alcanza 19,82 °C."></a>
+      <figcaption><strong>Diferencial térmico con y sin aislación</strong><span>Las cuatro corridas usan activación conjunta, M1 SS y ERA5 2025. Los tres casos a 18 °C se calcularon en barrido. La curva morada muestra la confirmación a 0,20 m del caso elegido. Cada línea termina en su propio horizonte de simulación.</span></figcaption>
+    </figure>
+    <figure><a href="../../Archivos%20Extra/Defensa%20final/figuras/corte_critico.png"><img loading="lazy" src="../../Archivos%20Extra/Defensa%20final/figuras/corte_critico.png" alt="Corte térmico del caso base en el instante crítico"></a><figcaption><strong>Corte térmico crítico</strong><span>Caso original de vertida única sin manta, M1 SS y ERA5 2025.</span></figcaption></figure>
+    <figure><a href="../../proyecto/docs/evidencia_extension_defensa/figuras/sensibilidad_numerica.png"><img loading="lazy" src="../../proyecto/docs/evidencia_extension_defensa/figuras/sensibilidad_numerica.png" alt="Diferencial máximo según resolución de malla"></a><figcaption><strong>Sensibilidad de malla</strong><span>El diferencial crece al refinar la malla del candidato.</span></figcaption></figure>
+    <figure><a href="../../Archivos%20Extra/Defensa%20final/figuras/cronogramas.png"><img loading="lazy" src="../../Archivos%20Extra/Defensa%20final/figuras/cronogramas.png" alt="Cronogramas según tiempos de espera entre vertidas"></a><figcaption><strong>Cronogramas de colocación</strong><span>Alternativas con 0, 3 y 6 horas de espera entre tramos.</span></figcaption></figure>
+  </div>
+</section>
+
+<section id="obra">
+  <div class="section-heading"><div><p class="eyebrow">SUPUESTOS Y VERIFICACIÓN</p><h2>Del modelo a la obra</h2></div><p>La activación sucesiva del candidato se comprobó en barrido. La verificación a 0,20 m cubre solo la fila M1 SS / ERA5 2025.</p></div>
+  <div class="work">
+    <article class="panel"><h3>Volumen y duración</h3><div id="schedule" class="volume"></div><p>La suma sin redondear es <strong>636,775 m³</strong>. A 40 m³/h, la colocación continua toma <strong>15,92 h</strong>.</p></article>
+    <article class="panel"><h3>Preenfriar de 18 a 12 °C</h3><div class="formula">40 × 2.400 ÷ 3.600 × 970 × 6<br><strong>= 155.200 W térmicos</strong></div><p>El cálculo usa el caudal, la densidad, el calor específico y la reducción de temperatura. La potencia eléctrica dependerá del equipo y las pérdidas.</p></article>
+    <article class="panel"><h3>Medir en obra</h3><div class="sensor-diagram" aria-label="Esquema de hormigón con sensor cerca de la superficie y sensor en el núcleo"><span>● Cerca de la superficie</span><span>● Núcleo</span></div><p>El sensor del núcleo sigue el calentamiento interno y el de la superficie sigue el enfriamiento exterior. Al restar lecturas tomadas a la misma hora se obtiene el diferencial medido en esa sección. Es una propuesta de monitoreo para contrastar la evolución prevista por el modelo.</p></article>
+  </div>
+</section>
+</div>
+</main>
+<footer><div class="wrap"><strong>Fuentes del visor</strong><a href="../../proyecto/docs/defensa.md">Informe base</a><a href="../../proyecto/docs/extension_defensa.md">Informe de extensión</a><a href="../../proyecto/docs/evidencia_defensa/escenarios.csv" download>CSV original</a><a href="../../proyecto/docs/evidencia_extension_defensa/escenarios.csv" download>CSV extensión</a><a href="../../proyecto/docs/evidencia_extension_pilotos/escenarios.csv" download>CSV pilotos</a></div></footer>
+</body>
+</html>
