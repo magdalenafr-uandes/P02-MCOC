@@ -243,6 +243,7 @@ class SolverVoxel:
         malla: MallaVoxel,
         bordes: dict[str, BordeCara],
         fuente: Fuente = 0.0,
+        *, contacto: tuple[int, np.ndarray, float] | None = None,
     ) -> None:
         faltan = set(malla.caras) - set(bordes)
         sobran = set(bordes) - set(malla.caras)
@@ -256,6 +257,14 @@ class SolverVoxel:
         if not all(isinstance(b, BordeCara) for b in self.bordes.values()):
             raise ValueError("Cada borde debe ser BordeCara.")
         self.fuente = fuente
+        if contacto is not None:
+            eje, mascara, resistencia = contacto
+            if not 0 <= eje < malla.dim or not np.isfinite(resistencia) or resistencia < 0:
+                raise ValueError("Contacto: eje válido y resistencia finita no negativa.")
+            forma = tuple(n - (i == eje) for i, n in enumerate(malla.forma))
+            if mascara.dtype != np.bool_ or mascara.shape != forma:
+                raise ValueError("Contacto: la máscara debe identificar caras internas del eje.")
+        self.contacto = contacto
         self._preparar_conductancias()
 
     # --- conductancias -------------------------------------------------
@@ -271,6 +280,10 @@ class SolverVoxel:
             # [MAPA:media-armonica] interfaz entre dos materiales: resistencias en serie
             k_cara = 2.0 * k_a * k_b / (k_a + k_b)  # media armónica
             G = k_cara * A / d
+            if self.contacto is not None and self.contacto[0] == eje:
+                _, mascara, resistencia = self.contacto
+                # [MAPA:contacto-suelo-aislado] R por área en serie con ambas medias celdas
+                G[mascara] /= 1.0 + resistencia * G[mascara] / A
             self.G_int.append(G)
             suma_G[_rebanada(m.dim, eje, slice(None, -1))] += G
             suma_G[_rebanada(m.dim, eje, slice(1, None))] += G

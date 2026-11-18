@@ -68,7 +68,8 @@ def main():
     parser.add_argument("--evidencia", type=Path, default=EVIDENCIA)
     parser.add_argument("--html", type=Path, default=EXTRA / "Colocación del hormigón.html")
     args = parser.parse_args()
-    nuevas = sorted(args.entrada.rglob("*__eps200_T12_*__*.json"))
+    nuevas = sorted(ruta for plan, modo in MODOS.items() if modo != "conjunta"
+                    for ruta in args.entrada.rglob(f"*__{plan}__*.json"))
     resultados_nuevos = [json.loads(r.read_text(encoding="utf-8")) for r in nuevas]
     progresivas = [r for r in resultados_nuevos if r["plan"] == "eps200_T12_progresiva"]
     if not progresivas:

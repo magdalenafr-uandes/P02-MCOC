@@ -13,7 +13,7 @@ sys.path.insert(0, str(SCRIPTS))
 from colocacion_progresiva import SimuladorPorTandas, dividir_grilla
 from mcplan.bim.voxelizador import DefinicionGrilla, GrillaBIM
 from mcplan.thermal.bordes import Ambiente, CondicionBase
-from mcplan.thermal.etapas import Hormigon, Material, ParametrosTiempo, PlanVertida
+from mcplan.thermal.etapas import DominioVoxel, Hormigon, Material, ParametrosTiempo, PlanVertida, SimuladorEtapas
 
 
 def test_carga_pasa_al_siguiente_solido_sin_reiniciar_cadencia():
@@ -47,3 +47,24 @@ def test_carga_pasa_al_siguiente_solido_sin_reiniciar_cadencia():
     assert np.isfinite(resultado.T_max_vertida_C[2][resultado.tiempos_s.index(1080)])
     assert resultado.balance["colocacion_J"] == pytest.approx(24*material.rho*material.cp*12)
     assert resultado.balance["residuo_J"] == pytest.approx(0, abs=1e-5)
+
+
+@pytest.mark.parametrize("resistencia", (0.0, 0.05 / 0.035))
+def test_aislacion_basal_agrega_resistencia_y_conserva_energia(resistencia):
+    ids = np.array([[[0, 1]]], dtype=np.int16)
+    paso = 0.1
+    dominio = DominioVoxel(ids, ids == 0, paso)
+    suelo = Material(1.0, 1800, 1200)
+    hormigon = Material(2.0, 2400, 1000)
+    duracion = 60.0
+    resultado = SimuladorEtapas(
+        dominio, [PlanVertida(1, 0, 45, "M1")], {"M1": Hormigon(hormigon)},
+        Ambiente(20, 0), CondicionBase("adiabatico"), ParametrosTiempo(duracion),
+        suelo, 20.0, R_contacto_suelo=resistencia,
+    ).ejecutar()
+
+    conductancia = paso**2 / (paso / (2 * suelo.k) + resistencia + paso / (2 * hormigon.k))
+    energia = conductancia * (45.0 - 20.0) * duracion
+    assert resultado.T_final[0, 0, 0] == pytest.approx(20.0 + energia / (suelo.rho * suelo.cp * paso**3))
+    assert resultado.T_final[0, 0, 1] == pytest.approx(45.0 - energia / (hormigon.rho * hormigon.cp * paso**3))
+    assert resultado.balance["residuo_J"] == pytest.approx(0, abs=1e-8)

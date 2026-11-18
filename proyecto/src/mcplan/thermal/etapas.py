@@ -253,7 +253,13 @@ class SimuladorEtapas:
         progreso=None,
         tuberias: Sequence[Tuberia] = (),
         enfriamiento: Enfriamiento | None = None,
+        R_contacto_suelo: float = 0.0,
     ) -> None:
+        if not math.isfinite(R_contacto_suelo) or R_contacto_suelo < 0.0:
+            raise ValueError("Resistencia de contacto con el suelo finita y no negativa.")
+        if R_contacto_suelo and not np.any(dominio.es_suelo):
+            raise ValueError("La aislación basal requiere suelo explícito.")
+        self.R_contacto_suelo = R_contacto_suelo
         if campos_cada_s is not None and not campos_cada_s > 0.0:
             raise ValueError("campos_cada_s debe ser positivo.")
         self.tuberias = tuple(tuberias)
@@ -492,7 +498,12 @@ class SimuladorEtapas:
                 E["colocacion"] += float(np.sum(C[m] * T[m]))
 
             malla = MallaVoxel(forma, d, k, rho, cp)
-            solver = SolverVoxel(malla, {c: adiabatico() for c in malla.caras}, lambda _t: self._q)
+            contacto = None
+            if self.R_contacto_suelo:
+                bajo_hormigon = dom.es_suelo[:, :, :-1] & activo[:, :, 1:]
+                contacto = (2, bajo_hormigon, self.R_contacto_suelo)
+            solver = SolverVoxel(malla, {c: adiabatico() for c in malla.caras}, lambda _t: self._q,
+                                 contacto=contacto)
             caras = self._caras_etapa(t0, activo, solido, k)
             self._registrar(res, t0, T, activo, caras, ids, forzar_campo=True)
             h_max = self.ambiente.h_max(t0, t1) if caras else 0.0

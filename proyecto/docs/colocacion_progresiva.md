@@ -36,6 +36,26 @@ En M1_SS/ERA5 2025, las 80 cargas, la malla de 0,20 × 0,20 × 0,05 m, las condi
 
 El máximo de toda la corrida baja **0,023244 °C** al pasar de 20 a 30 cm. Con 40 cm el pico se mantiene a las 581,75 h y sube a **20,039239 °C**. Entre 30 y 40 cm, a esa hora el núcleo se mantiene 0,2957 °C más caliente y la zona cercana a la cara, 0,2587 °C más caliente. El aumento del núcleo es mayor y eleva el diferencial en 0,0370 °C. Los tres espesores superaron 20 °C en esta corrida. El excedente de 0,0022 °C con 30 cm es el valor que entrega esta discretización. La incertidumbre de malla y el muestreo cada 15 minutos importan debido a la cercanía al umbral. [Comparación de espesores](evidencia_colocacion_progresiva/comparacion_eps.csv) · [Corridas adicionales](evidencia_colocacion_progresiva/sensibilidad_eps.zip).
 
+## Prueba de aislación entre el hormigón y el suelo
+
+Se comparó el escenario M1_SS/ERA5 2025 con 80 cargas, 12 °C de colocación y **200 mm de EPS en las caras exteriores**. La variante agrega una capa basal de EPS idealizada como resistencia de contacto `e/0,035` en m²·K/W. La resistencia se suma en serie con las medias celdas de hormigón y suelo únicamente en las caras horizontales bajo hormigón activo. El mismo flujo sale de una celda y entra en la otra. Se verifica la conservación de energía y la resistencia con un caso de dos celdas. El modelo térmico de la capa basal supone cobertura continua y omite su capacidad térmica.
+
+| Malla horizontal × vertical [m] | EPS basal | Horizonte | T máxima | Diferencial máximo | Estado del horizonte |
+| --- | ---: | ---: | ---: | ---: | --- |
+| 0,50 × 0,10 | Contacto directo | 672 h | 49,8380 °C | 18,6054 °C | Sin alerta final |
+| 0,50 × 0,10 | 50 mm | 672 h | 49,9538 °C | 12,6046 °C | Pico tardío a 651 h |
+| 0,50 × 0,10 | 100 mm | 672 h | 49,9785 °C | 10,4056 °C | Pico al final |
+| 0,20 × 0,05 | Contacto directo | 672 h | 49,8410 °C | 20,0255 °C | Referencia archivada sin alerta final |
+| 0,20 × 0,05 | 50 mm | Primeras 672 h | 49,9548 °C | 12,4780 °C | Pico tardío a 652,25 h |
+| 0,20 × 0,05 | 50 mm | 760 h | 49,9548 °C | 12,6554 °C | Pico tardío a 750 h |
+
+La corrida de contacto directo en malla gruesa reprodujo exactamente la serie, el balance y los puntos extremos de su referencia. A igual malla de 0,20 m y 672 h, los **50 mm basales redujeron el diferencial observado en 7,5474 °C** y elevaron la temperatura máxima en 0,1138 °C. En las 760 h que cubrió la prueba, el máximo observado subió a 12,6554 °C y quedó a 10 h del fin. El punto frío sigue en el borde de la primera vertida, junto al suelo. El horizonte queda abierto y el cálculo conserva la aproximación en la cara escalonada identificada en la auditoría. Esta evidencia corresponde a un escenario y una capa basal continua idealizada. [Resultados por espesor y horizonte](evidencia_colocacion_progresiva/comparacion_aislacion_suelo.csv) · [Corridas basales](evidencia_colocacion_progresiva/aislacion_suelo.zip).
+
+```powershell
+$py = 'proyecto/.venv/Scripts/python.exe'
+& $py proyecto/scripts/colocacion_progresiva.py --eps-mm 200 --eps-suelo-mm 50 --nivel confirmacion --horizonte-h 760 --curva M1_SS --clima era5_2025
+```
+
 ## Reproducción y evidencia
 
 Desde la raíz del repositorio con el entorno del proyecto instalado:

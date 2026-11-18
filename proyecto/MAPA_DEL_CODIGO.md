@@ -61,6 +61,7 @@ mismo motor (`SimuladorEtapas`).
 | Criterio de estabilidad Δt ≤ C/ΣG | `thermal/voxel.py` | `MAPA:estabilidad` |
 | Cómo se elige Δt en el caso real | `thermal/etapas.py` | `MAPA:estabilidad-caso` |
 | Dos materiales (media armónica) | `thermal/voxel.py` | `MAPA:media-armonica` |
+| Resistencia de la aislación entre hormigón y suelo | `thermal/voxel.py` | `MAPA:contacto-suelo-aislado` |
 | k, ρ, cp de cada voxel (hormigón/suelo/vacío) | `thermal/etapas.py` | `MAPA:propiedades-por-voxel` |
 | Voxel aún no vertido (vacío) | `thermal/etapas.py` | `MAPA:vacio` |
 | Balance global de energía | `thermal/etapas.py` | `MAPA:balance-energia` |

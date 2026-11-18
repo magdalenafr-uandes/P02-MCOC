@@ -25,6 +25,7 @@ from mcplan.thermal.etapas import DominioVoxel, SimuladorEtapas
 
 INTERVALO_S = 12 * 60
 VOLUMEN_CARGA_M3 = 8.0
+K_EPS_W_MK = 0.035
 
 
 # [MAPA:colocacion-progresiva] proyección de la cadencia de suministro a voxeles y reloj IFC
@@ -76,7 +77,7 @@ def dividir_grilla(grilla, plan, filas, capacidad):
 class SimuladorPorTandas(SimuladorEtapas):
     """Activa por porción y comunica los máximos de los cinco sólidos originales."""
 
-    def __init__(self, resultado, lotes, plan, progreso):
+    def __init__(self, resultado, lotes, plan, progreso, R_contacto_suelo=0.0):
         config, grilla = resultado.config, resultado.grilla
         self.ids_ifc = grilla.vertida_id
         self.vertidas_ifc = tuple(p.vertida_id for p in resultado.plan)
@@ -87,6 +88,7 @@ class SimuladorPorTandas(SimuladorEtapas):
             config.suelo, config.T_suelo_inicial_C,
             profundidad_superficie_m=config.criterios.profundidad_superficie_m,
             progreso=progreso,
+            R_contacto_suelo=R_contacto_suelo,
         )
 
     def _registrar(self, res, t, T, activo, caras, ids, forzar_campo=False):
@@ -107,6 +109,8 @@ def seccion(grilla, lotes):
 def simular(tarea):
     inicio = perf_counter()
     datos = tarea["datos"]
+    eps_suelo_mm = tarea.get("eps_suelo_mm", 0)
+    resistencia_suelo = eps_suelo_mm / 1000 / K_EPS_W_MK
     periodo_base = None
     for horizonte in (datos["simulacion"]["duracion_h"], tarea["horizonte_extendido_h"]):
         caso = {**datos, "simulacion": {**datos["simulacion"], "duracion_h": horizonte}}
@@ -122,7 +126,7 @@ def simular(tarea):
                 print(f"  {tarea['curva']} / {tarea['clima']}: {t/HORA:.0f}/{total/HORA:.0f} h simuladas", flush=True)
                 pendiente += 168 * HORA
 
-        corrida = SimuladorPorTandas(resultado, lotes, plan, avance)
+        corrida = SimuladorPorTandas(resultado, lotes, plan, avance, R_contacto_suelo=resistencia_suelo)
         if avisos := corrida.advertencias_apoyo():
             raise ValueError(f"Orden sin soporte: {avisos}")
         resultado.simulacion = corrida.ejecutar()
@@ -147,6 +151,8 @@ def simular(tarea):
                    volumen_grilla_m3=esperado, residuo_relativo=residual, segundos=perf_counter()-inicio,
                    I_T=int(resumen["T_max_C"] > config.criterios.T_max_C),
                    I_delta=int(resumen["delta_C"] > config.criterios.delta_T_C))
+    resumen["aislacion_suelo"] = dict(espesor_mm=eps_suelo_mm, k_W_mK=K_EPS_W_MK,
+                                     R_m2K_W=resistencia_suelo)
     resumen["I_F"] = max(resumen["I_T"], resumen["I_delta"])
     guardar_json(Path(tarea["ruta"]), resumen)
     return resumen
@@ -159,15 +165,30 @@ def main():
     parser.add_argument("--clima", action="append", choices=("era5_2023", "era5_2024", "era5_2025"))
     parser.add_argument("--modo", choices=("progresiva", "sucesiva"), default="progresiva")
     parser.add_argument("--eps-mm", type=int, default=200, help="Espesor de EPS sobre las caras expuestas, en mm.")
-    parser.add_argument("--horizonte-completo", action="store_true",
-                        help="Integra directamente hasta el horizonte extendido para comparar escenarios.")
-    parser.add_argument("--salida", type=Path, default=RAIZ / "results/colocacion_progresiva")
+    parser.add_argument("--eps-suelo-mm", type=int, default=0,
+                        help="Espesor de EPS entre la base de hormigón y el suelo, en mm.")
+    horizonte = parser.add_mutually_exclusive_group()
+    horizonte.add_argument("--horizonte-completo", action="store_true",
+                            help="Integra directamente hasta el horizonte extendido para comparar escenarios.")
+    horizonte.add_argument("--horizonte-h", type=int,
+                            help="Integra directamente hasta ese horizonte, dentro de la cobertura climática.")
+    parser.add_argument("--salida", type=Path, help="Directorio para los resultados de la corrida.")
     args = parser.parse_args()
     if args.eps_mm <= 0:
         parser.error("--eps-mm debe ser positivo.")
+    if args.eps_suelo_mm < 0 or (args.eps_suelo_mm and args.modo != "progresiva"):
+        parser.error("El espesor basal debe ser no negativo y se aplica a la colocación progresiva.")
+    if args.horizonte_h is not None and args.horizonte_h < 336:
+        parser.error("El horizonte debe cubrir al menos las primeras 336 horas.")
+    if args.salida is None:
+        args.salida = RAIZ / "results/colocacion_progresiva"
+        if args.eps_suelo_mm:
+            args.salida = RAIZ / "results/aislacion_suelo" / f"{args.nivel}_{args.eps_suelo_mm}"
     carpeta = RAIZ / "configs"
     estudio = cargar_yaml(carpeta / "defensa_extension_clima.yaml")
-    if args.horizonte_completo:
+    if args.horizonte_h is not None:
+        estudio["horizonte_h"] = estudio["horizonte_extendido_h"] = args.horizonte_h
+    elif args.horizonte_completo:
         estudio["horizonte_h"] = estudio["horizonte_extendido_h"]
     base = cargar_yaml(carpeta / estudio["caso_base"])
     controles = cargar_yaml(carpeta / "defensa_extension.yaml")["planes"]
@@ -179,8 +200,12 @@ def main():
                     hidratacion=sha256_archivo(carpeta / base["hormigones"]["M1"]["hidratacion"]["archivo"]))
     if args.modo == "progresiva":
         entradas["colocacion_progresiva"] = sha256_archivo(Path(__file__), texto=True)
+    if args.eps_suelo_mm:
+        entradas["eps_suelo_mm"] = args.eps_suelo_mm
     commit = subprocess.check_output(["git", "-C", str(RAIZ), "rev-parse", "HEAD"], text=True).strip()
     nombre = f"eps{args.eps_mm}_T12_{args.modo}"
+    if args.eps_suelo_mm:
+        nombre += f"_suelo{args.eps_suelo_mm}"
     args.salida.mkdir(parents=True, exist_ok=True)
     resultados = []
     climas = args.clima or [k for k, v in estudio["climas"].items() if v["peso"] > 0]
@@ -197,7 +222,8 @@ def main():
         tarea = dict(ruta=str(ruta_corrida(args.salida, args.nivel, nombre, curva, clima, clave)),
                      datos=datos, carpeta=str(carpeta), entradas=firma, clave=clave, commit=commit,
                      horizonte_extendido_h=horizonte, plan=nombre, curva=curva, clima=clima,
-                     nivel=args.nivel, D_h=duracion, filas=filas, capacidad_m3_h=estudio["capacidad_m3_h"])
+                     nivel=args.nivel, D_h=duracion, filas=filas, capacidad_m3_h=estudio["capacidad_m3_h"],
+                     eps_suelo_mm=args.eps_suelo_mm)
         previo = leer_previo(tarea)
         print(f"{args.nivel} / {args.modo} / {curva} / {clima} ({'guardada' if previo else 'inicio'})", flush=True)
         r = previo if previo else (simular(tarea) if args.modo == "progresiva" else calcular(tarea))
