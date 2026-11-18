@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Defensa final · Fundación Wayra</title>
+<link rel="stylesheet" href="estilos.css">
+<script defer src="datos.js"></script>
+<script defer src="visor.js"></script>
+</head>
+<body>
+<header>
+  <div class="nav wrap"><a class="brand" href="#inicio">WAYRA <span>/</span> GRUPO 1</a><nav aria-label="Secciones"><a href="#casos">Casos</a><a href="#curvas">Curvas</a><a href="#figuras">Diagramas</a><a href="#obra">Obra</a></nav><a class="pdf" href="../Defensa%20final%20-%20Grupo%201.pdf" target="_blank" rel="noopener">PDF de defensa ↗</a></div>
+</header>
+<main id="inicio">
+<section class="hero">
+  <div class="wrap hero-layout">
+    <div class="intro"><p class="eyebrow">DEFENSA FINAL · P02 MCOC</p><h1>Control térmico de la fundación en Taltal</h1><p class="decision"><strong>EPS de 200 mm + hormigón fresco a 12 °C</strong></p><p class="lede">Candidato elegido para la defensa. Cumplió los límites térmicos en los seis escenarios de malla fina con activación conjunta. El margen sigue siendo sensible a la malla.</p><a class="button primary" href="#curvas" id="hero-run">Ver la corrida crítica</a></div>
+    <figure class="hero-figure"><img src="../../proyecto/results/figures/foundation_e04.png" alt="Geometría tridimensional de la fundación"><figcaption>Modelo IFC · Cinco vertidas · 636,775 m³</figcaption></figure>
+    <div class="metrics">
+      <div><strong>15,92 h</strong><span>Colocación continua a 40 m³/h</span></div>
+      <div><strong>0 de 6</strong><span>Excedencias en la matriz fina</span></div>
+      <div><strong>19,82 °C</strong><span>Diferencial de la fila a 0,20 m</span></div>
+      <div><strong>0,18 °C</strong><span>Margen de esa fila frente a 20 °C</span></div>
+    </div>
+  </div>
+</section>
+
+<div class="wrap sections">
+<section id="casos">
+  <div class="section-heading"><div><p class="eyebrow">ALTERNATIVAS</p><h2>Casos y escenarios</h2></div><p>Dos curvas de hidratación M1 × tres historias climáticas ERA5. Una corrida excede si su temperatura máxima supera 70 °C o su diferencial supera 20 °C.</p></div>
+  <div class="panel">
+    <div class="controls">
+      <label>Campaña<select id="campaign"><option value="original">Diez planes originales</option><option value="extension" selected>Extensión final</option><option value="pilotos">Pilotos de EPS</option></select></label>
+      <label>Nivel de malla<select id="level"></select></label>
+      <label>Pesos de las curvas<select id="weights"><option value="curvas">75 % SS / 25 % 22A</option><option value="pesos_alternativos_curvas">50 % SS / 50 % 22A</option></select></label>
+    </div>
+    <p id="case-note" class="note"></p>
+    <div class="scroll"><table><caption>Comparación de planes</caption><thead><tr><th scope="col">Caso</th><th scope="col">Duración</th><th scope="col">T máx.</th><th scope="col">Peor Δ</th><th scope="col">Riesgo conjunto</th><th scope="col">Resultado</th></tr></thead><tbody id="cases"></tbody></table></div>
+    <div class="scroll"><table><caption id="scenario-caption">Escenarios del caso</caption><thead><tr><th scope="col">Curva</th><th scope="col">Clima</th><th scope="col">T máx.</th><th scope="col">Δ máx.</th><th scope="col">Horizonte</th><th scope="col">Resultado</th><th scope="col">Curvas</th></tr></thead><tbody id="scenarios"></tbody></table></div>
+  </div>
+</section>
+
+<section id="curvas">
+  <div class="section-heading"><div><p class="eyebrow">RESULTADOS TÉRMICOS</p><h2>Curvas de cada corrida</h2></div><p>El diferencial resta la mínima cercana a la superficie de la máxima del hormigón activo al mismo instante.</p></div>
+  <div class="panel">
+    <div class="controls">
+      <label>Corrida guardada<select id="run"></select></label>
+      <label>Métrica<select id="metric"><option value="delta">Diferencial</option><option value="temp">Temperaturas</option></select></label>
+      <label class="check"><input type="checkbox" id="reference" checked> Superponer caso base</label>
+    </div>
+    <div id="run-summary" class="run-summary"></div>
+    <div id="legend" class="legend"></div>
+    <div class="chart"><canvas id="chart" role="img" aria-label="Curvas térmicas de la corrida seleccionada"></canvas></div>
+    <label class="timeline">Explorar tiempo <input id="time" type="range" min="0" value="0" step="1"></label>
+    <output id="reading" for="time"></output>
+    <p id="reference-note" class="note"></p>
+  </div>
+</section>
+
+<section id="figuras">
+  <div class="section-heading"><div><p class="eyebrow">EVIDENCIA VISUAL</p><h2>Diagramas de la defensa</h2></div><p>Abre las figuras para verlas a tamaño completo.</p></div>
+  <ol class="method" aria-label="Cómo se simula la fundación">
+    <li><strong>Geometría IFC</strong><span>Se divide la fundación en celdas y se activa cada tramo según el plan de colocación.</span></li>
+    <li><strong>Balance térmico</strong><span>El cemento aporta calor. Las celdas intercambian calor entre sí, con el suelo y con el aire.</span></li>
+    <li><strong>Verificación</strong><span>Se busca el pico de temperatura y la mayor diferencia simultánea entre el interior y la zona cercana a la superficie.</span></li>
+  </ol>
+  <div class="gallery">
+    <figure><a href="../../Archivos%20Extra/Defensa%20final/figuras/duracion_riesgo.png"><img loading="lazy" src="../../Archivos%20Extra/Defensa%20final/figuras/duracion_riesgo.png" alt="Gráfico de duración y riesgo de los planes originales"></a><figcaption><strong>Duración y riesgo</strong><span>Resultado de los diez planes originales.</span></figcaption></figure>
+    <figure><a href="../../proyecto/docs/evidencia_extension_defensa/figuras/comparacion_control.png"><img loading="lazy" src="../../proyecto/docs/evidencia_extension_defensa/figuras/comparacion_control.png" alt="Comparación del diferencial con distintos controles térmicos"></a><figcaption><strong>Efecto del control térmico</strong><span>Comparación de la aislación y el preenfriamiento.</span></figcaption></figure>
+    <figure><a href="../../Archivos%20Extra/Defensa%20final/figuras/curvas_comparadas.png"><img loading="lazy" src="../../Archivos%20Extra/Defensa%20final/figuras/curvas_comparadas.png" alt="Curvas térmicas comparadas de la presentación"></a><figcaption><strong>Curvas comparadas de la defensa</strong><span>Activación conjunta, M1 SS y ERA5 2025.</span></figcaption></figure>
+    <figure><a href="../../Archivos%20Extra/Defensa%20final/figuras/corte_critico.png"><img loading="lazy" src="../../Archivos%20Extra/Defensa%20final/figuras/corte_critico.png" alt="Corte térmico del caso base en el instante crítico"></a><figcaption><strong>Corte térmico crítico</strong><span>Caso original de vertida única sin manta, M1 SS y ERA5 2025.</span></figcaption></figure>
+    <figure><a href="../../proyecto/docs/evidencia_extension_defensa/figuras/sensibilidad_numerica.png"><img loading="lazy" src="../../proyecto/docs/evidencia_extension_defensa/figuras/sensibilidad_numerica.png" alt="Diferencial máximo según resolución de malla"></a><figcaption><strong>Sensibilidad de malla</strong><span>El diferencial crece al refinar la malla del candidato.</span></figcaption></figure>
+    <figure><a href="../../Archivos%20Extra/Defensa%20final/figuras/cronogramas.png"><img loading="lazy" src="../../Archivos%20Extra/Defensa%20final/figuras/cronogramas.png" alt="Cronogramas según tiempos de espera entre vertidas"></a><figcaption><strong>Cronogramas de colocación</strong><span>Alternativas con 0, 3 y 6 horas de espera entre tramos.</span></figcaption></figure>
+  </div>
+</section>
+
+<section id="obra">
+  <div class="section-heading"><div><p class="eyebrow">SUPUESTOS Y VERIFICACIÓN</p><h2>Del modelo a la obra</h2></div><p>La activación sucesiva del candidato se comprobó en barrido. La verificación a 0,20 m cubre solo la fila M1 SS / ERA5 2025.</p></div>
+  <div class="work">
+    <article class="panel"><h3>Volumen y duración</h3><div id="schedule" class="volume"></div><p>La suma sin redondear es <strong>636,775 m³</strong>. A 40 m³/h, la colocación continua toma <strong>15,92 h</strong>.</p></article>
+    <article class="panel"><h3>Preenfriar de 18 a 12 °C</h3><div class="formula">40 × 2.400 ÷ 3.600 × 970 × 6<br><strong>= 155.200 W térmicos</strong></div><p>El cálculo usa el caudal, la densidad, el calor específico y la reducción de temperatura. La potencia eléctrica dependerá del equipo y las pérdidas.</p></article>
+    <article class="panel"><h3>Medir en obra</h3><div class="sensor-diagram" aria-label="Esquema de hormigón con sensor cerca de la superficie y sensor en el núcleo"><span>● Cerca de la superficie</span><span>● Núcleo</span></div><p>Emparejar sensores en secciones comparables. Medir simultáneamente y registrar ambiente, colocación y cambios de protección. El esquema muestra la propuesta de monitoreo.</p></article>
+  </div>
+</section>
+</div>
+</main>
+<footer><div class="wrap"><strong>Fuentes del visor</strong><a href="../../proyecto/docs/defensa.md">Informe base</a><a href="../../proyecto/docs/extension_defensa.md">Informe de extensión</a><a href="../../proyecto/docs/evidencia_defensa/escenarios.csv" download>CSV original</a><a href="../../proyecto/docs/evidencia_extension_defensa/escenarios.csv" download>CSV extensión</a><a href="../../proyecto/docs/evidencia_extension_pilotos/escenarios.csv" download>CSV pilotos</a></div></footer>
+</body>
+</html>
