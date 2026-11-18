@@ -256,3 +256,5 @@ clima, preguntas E07), `docs/e08.md` (comandos de la demo).
 ## Extensión local de controles de defensa
 
 `proyecto/scripts/explorar_defensa.py`, función `preparar_extension`: controles adicionales de espesor de aislación y temperatura de colocación. El marcador `defensa-controles` identifica la preparación; se reutiliza el solver sin cambios y cada corrida conserva su configuración completa. Familia fijada en `configs/defensa_extension.yaml`. No cambia mezcla, geometría, caudal ni pesos.
+
+En `scripts/colocacion_progresiva.py`, `dividir_grilla` cruza la cadencia de 8 m³ cada 12 min con los cinco sólidos IFC. Una carga puede terminar en el siguiente sólido sin reiniciar su reloj. Los voxeles se ordenan de abajo hacia arriba y se asignan por volumen acumulado. `SimuladorPorTandas` reutiliza la activación por etapas y registra las métricas térmicas sobre los identificadores IFC originales.

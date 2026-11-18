@@ -1,6 +1,6 @@
 # Progreso de la defensa final · P02-MCOC, Grupo 1
 
-Actualizado el 17 de noviembre de 2026 · 19:13 · America/Santiago.
+Actualizado el 17 de noviembre de 2026 · 22:11 · America/Santiago.
 
 **Paso actual:** 10 de 10. Material y reproducción sin conexión verificados. Falta el ensayo cronometrado del grupo y siguen abiertas las confirmaciones de obra y el plazo de F01.
 
@@ -262,3 +262,9 @@ Estado: **repaso concluido**. El ensayo grupal sigue pendiente. Se mantiene la d
 - **Verificación.** Se renderizaron e inspeccionaron las 12 páginas. La revisión inicial detectó dos símbolos de la fórmula que la fuente tipográfica no representaba y una etiqueta que cruzaba una curva. Se corrigieron y se revisó la nueva renderización. La extracción de texto verificó las cifras principales y el PDF tiene 12 marcadores y 20 enlaces. Pasaron 265 pruebas del proyecto y 5 de raíz.
 - **Evidencia.** [PDF de consulta](Gu%C3%ADa%20de%20la%20entrega%20final/P02-MCOC%20-%20Gu%C3%ADa%20visual%20de%20la%20entrega%20final.pdf), SHA-256 `81d15518e1be161193c5beecc7afee717ab0117c99e7a7549a837e9e52e47e34`. Ventana de 5 h: 98% al empezar, 94% en la revisión intermedia y 91% en el cierre de las pruebas.
 - **Siguiente acción.** Usar las páginas 8 a 11 para ensayar preguntas, comprobar el respaldo sin conexión en el equipo que se llevará y verificar los pendientes de obra y F01. El ensayo grupal sigue pendiente.
+
+## 17 de noviembre de 2026 · 22:11, America/Santiago · Sensibilidad a la secuencia de colocación
+
+- **Cambio.** Se preparó una campaña separada de 8 m³ cada 12 min a 40 m³/h, sobre el mismo IFC, con EPS 200 mm y hormigón a 12 °C. Se fracciona la malla desde abajo y se conservan los tiempos de desmolde por sólido, la identificación original del IFC y el motor térmico. La duración física sigue siendo 15,919 h. La hipótesis cubre con EPS las caras expuestas que identifica el modelo, incluidos frentes temporales.
+- **Verificación.** La prueba dirigida comprobó una carga que cruza dos sólidos, orden de activación, volumen y balance. La suite del proyecto aprobó 266 pruebas y la de raíz 5. El primer escenario crítico M1_SS/ERA5 2025 completó 672 h en barrido con T máxima 49,8380 °C y diferencial 18,6054 °C. Las dos representaciones archivadas dieron 18,4003 °C (conjunta) y 18,6347 °C (sucesiva) en esa misma malla. El saldo fue 88% al inicio, 85% antes de las corridas y 75% tras verificar las pruebas de código.
+- **Evidencia y siguiente acción.** `proyecto/scripts/colocacion_progresiva.py` y `proyecto/tests/test_colocacion_progresiva.py`. Todas las corridas se guardan en `proyecto/results/colocacion_progresiva`. Esperar el cierre del barrido y las dos comprobaciones de M1_SS/ERA5 2025 a 0,25 m y 0,20 m. Se dejó `PAUSAR` en la subcarpeta `fino` para terminar la fila iniciada y reservar las otras cinco finas para una ampliación. Publicar el HTML con las corridas completas y distinguir la matriz de barrido de las verificaciones individuales finas.
