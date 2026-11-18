@@ -14,10 +14,11 @@ spec.loader.exec_module(extension)
 from mcplan.caso.config import leer_config, resolver_plan
 
 
-def test_prefrio_y_aislacion_se_aplican_sin_modificar_el_material_ni_el_ifc():
+@pytest.mark.parametrize("espesor_m", (0.20, 0.30, 0.40))
+def test_prefrio_y_aislacion_se_aplican_sin_modificar_el_material_ni_el_ifc(espesor_m):
     base = extension.cargar_yaml(RAIZ / "configs/e07_caso_base.yaml")
     estudio = extension.cargar_yaml(RAIZ / "configs/defensa.yaml")
-    control = dict(espesor_m=.2, T_colocacion_C=12, activacion="conjunta")
+    control = dict(espesor_m=espesor_m, T_colocacion_C=12, activacion="conjunta")
     caso = extension.preparar_extension(base, estudio, control, estudio["climas"]["era5_2024"],
                                         "M1_SS", estudio["niveles"]["barrido"],
                                         [dict(vertida=1, activacion_h=0)])
@@ -25,9 +26,9 @@ def test_prefrio_y_aislacion_se_aplican_sin_modificar_el_material_ni_el_ifc():
     plan, = resolver_plan(config, [(1, "piloto", {"Inicio_h": 24, "TemperaturaColocacion_C": 18,
                                                   "TipoHormigon": "M1"})])
     assert plan.T_colocacion_C == 12 and plan.inicio_s == 0
-    assert plan.resistencia(0, "lateral") == pytest.approx(.2 / .035 + .018 / .15)
-    assert plan.resistencia(100 * 3600, "lateral") == pytest.approx(.2 / .035)
-    assert plan.resistencia(100 * 3600, "superior") == pytest.approx(.2 / .035)
+    assert plan.resistencia(0, "lateral") == pytest.approx(espesor_m / .035 + .018 / .15)
+    assert plan.resistencia(100 * 3600, "lateral") == pytest.approx(espesor_m / .035)
+    assert plan.resistencia(100 * 3600, "superior") == pytest.approx(espesor_m / .035)
     assert plan.resistencia(100 * 3600, "inferior") == 0  # no se aísla artificialmente el suelo
     assert caso["hormigones"]["M1"]["hidratacion"]["curva"] == "M1_SS"
     assert caso["hormigones"]["M1"]["k_W_mK"] == base["hormigones"]["M1"]["k_W_mK"]

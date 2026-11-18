@@ -576,19 +576,21 @@ def test_clima_analogo_de_otro_anio(tmp_path):
     assert np.interp(0.0, s.t_s, s.T_C) == pytest.approx(snap.T_C[4])
 
 
-def test_superficie_a_la_profundidad_del_criterio():
+@pytest.mark.parametrize("resistencia", (0.0, 0.20 / 0.035, 0.30 / 0.035, 0.40 / 0.035))
+def test_superficie_a_la_profundidad_del_criterio(resistencia):
     k, h, paso = HORMIGON.k, 10.0, (0.1, 0.1, 0.1)
 
     def T_sup(profundidad):
         sim = SimuladorEtapas(
             DominioVoxel(dominio_caja().vertida_id, dominio_caja().es_suelo, paso),
-            [PlanVertida(1, 0.0, 20.0, "M1")], {"M1": Hormigon(HORMIGON)},
+            [PlanVertida(1, 0.0, 20.0, "M1", R_lateral=resistencia, R_superior=resistencia)],
+            {"M1": Hormigon(HORMIGON)},
             Ambiente(15.0, h), CondicionBase("adiabatico"), ParametrosTiempo(HORA, guardar_cada_s=HORA),
             profundidad_superficie_m=profundidad,
         )
         return sim.ejecutar().T_sup_min_C[0]
 
-    phi = (0.05 / k) / (0.05 / k + 1 / h)
+    phi = (0.05 / k) / (0.05 / k + resistencia + 1 / h)
     Ts = 20.0 + phi * (15.0 - 20.0)
     assert T_sup(0.0) == pytest.approx(Ts)  # la cara
     assert T_sup(0.025) == pytest.approx(0.5 * (Ts + 20.0))  # mitad entre cara y centro

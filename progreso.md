@@ -1,6 +1,6 @@
 # Progreso de la defensa final · P02-MCOC, Grupo 1
 
-Actualizado el 17 de noviembre de 2026 · 22:37 · America/Santiago.
+Actualizado el 18 de noviembre de 2026 · 12:13 · America/Santiago.
 
 **Paso actual:** 10 de 10. Material y reproducción sin conexión verificados. Falta el ensayo cronometrado del grupo y siguen abiertas las confirmaciones de obra y el plazo de F01.
 
@@ -277,3 +277,9 @@ Estado: **repaso concluido**. El ensayo grupal sigue pendiente. Se mantiene la d
 - **Verificación.** Las 8 corridas nuevas y las 20 de referencia tienen las huellas de insumos concordantes para la comparación. Se verificaron los picos, los indicadores de excedencia, el volumen y reloj de las 80 cargas, la integridad ZIP y el balance. El residuo relativo máximo nuevo fue 2,30×10⁻¹⁶. La reejecución fina recuperó la corrida por clave sin repetirla. Se regeneró el HTML a partir del ZIP con la misma huella y se comprobó sin conexión la animación, los filtros y la marca de excedencia en pantalla. 266 pruebas del proyecto y 5 de la raíz aprobadas. La ventana de 5 h tenía 64% restante al cerrar la corrida de 0,20 m.
 - **Evidencia.** [Nota técnica](proyecto/docs/colocacion_progresiva.md), [CSV comparativo](proyecto/docs/evidencia_colocacion_progresiva/comparacion.csv) y [ZIP](proyecto/docs/evidencia_colocacion_progresiva/corridas.zip) SHA-256 `851b040087df4d8d2c5178a10afc6c5647d0a7c225e5e2882a0f85c677196310`. El HTML incorpora reloj, cortes de las tres activaciones y curvas con selección de malla y escenario.
 - **Siguiente acción.** Explicar el cruce de 20 °C al discutir el alcance de la recomendación. La malla de 0,20 m cubre solo el escenario crítico, con el avance del llenado y las protecciones temporales asumidos. Para ampliar la verificación progresiva, quedan cinco escenarios de la matriz fina. El ensayo grupal y las confirmaciones de obra y F01 siguen pendientes.
+
+## 18 de noviembre de 2026 · America/Santiago · Revisión del diferencial y del espesor de EPS
+
+- **Resultado de la revisión.** En el escenario M1_SS/ERA5 2025 a 0,20 m, pasar de 20 a 30 cm reduce el diferencial de 20,025470 a 19,867814 °C a las 437,75 h. El máximo con 30 cm ocurre a las 581,75 h y alcanza 20,002226 °C. Ambos máximos tienen su punto frío en el mismo costado de la primera vertida, junto al suelo. Se volvieron a calcular los picos a partir de las temperaturas simultáneas y se verificaron posición, huellas de insumos, cronograma, balance y comparación entre casos. [Análisis](proyecto/docs/colocacion_progresiva.md#sensibilidad-al-espesor-de-eps) · [Datos](proyecto/docs/evidencia_colocacion_progresiva/comparacion_eps.csv).
+- **Optimización.** `--horizonte-completo` integra directamente hasta 672 h. En el barrido M1_SS/ERA5 2025 con 20 cm, reprodujo exactamente los 2.761 registros, los puntos extremos y el balance archivados. La ejecución directa tomó 149 s y la corrida archivada con evaluación inicial, 222 s. Se verificaron por prueba analítica las resistencias para 20, 30 y 40 cm y la temperatura a 25 mm. Pasaron 271 pruebas del proyecto y 5 de la raíz.
+- **Cierre de la comparación.** La corrida de 40 cm completó 672 h. Dio 49,8953 °C de máxima y 20,0392 °C de diferencial a las 581,75 h. Se reprocesaron las series y se comprobó el balance de los tres casos. 30 cm dio el menor máximo de los tres espesores, con 20,0022 °C en este escenario. El margen queda sujeto a refinamiento de malla. [Corridas adicionales](proyecto/docs/evidencia_colocacion_progresiva/sensibilidad_eps.zip), SHA-256 `6e0ff609ad53ebae563972aac67cd20b56869944e2f56beb261a2229227b4b7d`.

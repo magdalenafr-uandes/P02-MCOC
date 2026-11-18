@@ -158,13 +158,20 @@ def main():
     parser.add_argument("--curva", action="append", choices=("M1_SS", "M1_22A"))
     parser.add_argument("--clima", action="append", choices=("era5_2023", "era5_2024", "era5_2025"))
     parser.add_argument("--modo", choices=("progresiva", "sucesiva"), default="progresiva")
+    parser.add_argument("--eps-mm", type=int, default=200, help="Espesor de EPS sobre las caras expuestas, en mm.")
+    parser.add_argument("--horizonte-completo", action="store_true",
+                        help="Integra directamente hasta el horizonte extendido para comparar escenarios.")
     parser.add_argument("--salida", type=Path, default=RAIZ / "results/colocacion_progresiva")
     args = parser.parse_args()
+    if args.eps_mm <= 0:
+        parser.error("--eps-mm debe ser positivo.")
     carpeta = RAIZ / "configs"
     estudio = cargar_yaml(carpeta / "defensa_extension_clima.yaml")
+    if args.horizonte_completo:
+        estudio["horizonte_h"] = estudio["horizonte_extendido_h"]
     base = cargar_yaml(carpeta / estudio["caso_base"])
     controles = cargar_yaml(carpeta / "defensa_extension.yaml")["planes"]
-    control = controles["eps200_T12_sucesiva"]
+    control = {**controles["eps200_T12_sucesiva"], "espesor_m": args.eps_mm / 1000}
     solidos = extraer_vertidas(carpeta / base["ifc"])
     filas = cronograma(solidos, estudio["capacidad_m3_h"], dict(activacion="sucesiva", espera_h=0),
                       estudio["retiro_moldaje_h"])
@@ -173,7 +180,7 @@ def main():
     if args.modo == "progresiva":
         entradas["colocacion_progresiva"] = sha256_archivo(Path(__file__), texto=True)
     commit = subprocess.check_output(["git", "-C", str(RAIZ), "rev-parse", "HEAD"], text=True).strip()
-    nombre = f"eps200_T12_{args.modo}"
+    nombre = f"eps{args.eps_mm}_T12_{args.modo}"
     args.salida.mkdir(parents=True, exist_ok=True)
     resultados = []
     climas = args.clima or [k for k, v in estudio["climas"].items() if v["peso"] > 0]
